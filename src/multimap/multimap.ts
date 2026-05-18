@@ -4,8 +4,6 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-// Hand-written stream/multimap API.
-
 /**
  * Multimap: a one-to-many map where each key maps to an array of values.
  * This is the TypeScript equivalent of Eclipse Collections' ArrayListMultimap.

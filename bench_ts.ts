@@ -1,6 +1,5 @@
 // Benchmark and stress test for TypeScript collections.
-// Run: cd mapdb-typescript && npx ts-node ../benchmarks/bench_ts.ts
-// Or:  cd mapdb-typescript && npx tsx ../benchmarks/bench_ts.ts
+// Run: npx tsx bench_ts.ts
 
 import { NumberNumberHashMap } from "./src/hashmap/number-number-hash-map";
 import { NumberHashSet } from "./src/hashset/number-hash-set";

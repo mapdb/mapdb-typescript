@@ -16,7 +16,7 @@ import { HashBag } from "./hashbag";
 // write code using the object collection API. The assertions are already
 // written — your job is to make them pass.
 //
-// Run:  cd generated/mapdb-typescript && npx vitest run src/object/pet-kata.test.ts
+// Run:  npx vitest run src/object/pet-kata.test.ts
 // ═══════════════════════════════════════════════════════════════════════
 
 // ── Domain types ──────────────────────────────────────────────────────
