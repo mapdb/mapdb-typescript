@@ -28,9 +28,72 @@ import { NumberArrayStack } from "./stack/number-array-stack.js";
 
 interface Operation {
   op: string;
-  key?: number;
-  value?: number;
+  // For f32 scenarios `key` and `value` may arrive as labels like "NaN",
+  // "Infinity", "pos_zero". For i32 scenarios they are plain numbers. We
+  // parse via parseF32Value at the use site rather than narrowing here.
+  key?: number | string;
+  value?: number | string;
   index?: number;
+  delta?: number;
+}
+
+// f32 label parser. Accepts the same five sentinels every port supports:
+// "NaN", "Infinity"/"+Infinity", "-Infinity", "pos_zero", "neg_zero". Any
+// other string falls through to parseFloat. A plain number is returned
+// untouched.
+function parseF32Value(v: number | string | undefined): number {
+  if (typeof v === "number") return v;
+  if (v === undefined) throw new Error("missing f32 value");
+  switch (v) {
+    case "NaN":
+      return NaN;
+    case "Infinity":
+    case "+Infinity":
+      return Number.POSITIVE_INFINITY;
+    case "-Infinity":
+      return Number.NEGATIVE_INFINITY;
+    case "pos_zero":
+      return 0;
+    case "neg_zero":
+      return -0;
+  }
+  const n = Number(v);
+  if (Number.isNaN(n)) throw new Error(`invalid f32 literal: ${v}`);
+  return n;
+}
+
+// Inverse: format an f32 the way Rust/Go/Zig do. NaN/Infinity/-Infinity
+// stay symbolic; -0 keeps its sign; integer-valued floats get a ".0"
+// suffix; everything else uses the JS default.
+function formatF32(v: number): string {
+  if (Number.isNaN(v)) return "NaN";
+  if (v === Number.POSITIVE_INFINITY) return "Infinity";
+  if (v === Number.NEGATIVE_INFINITY) return "-Infinity";
+  if (v === 0 && Object.is(v, -0)) return "-0.0";
+  if (v === Math.trunc(v) && Math.abs(v) < 1e16) return `${v}.0`;
+  return String(v);
+}
+
+// IEEE total order on numbers — matches Rust's `f32::total_cmp` and the
+// bit-pattern ordering in algorithms.md §"Float ordering for tree
+// collections". Required so NaN and +0/-0 sort deterministically vs.
+// the other three ports.
+function totalCmpFloat(a: number, b: number): number {
+  // Reinterpret as f64 bit pattern, flip sign bit so a lexicographic
+  // unsigned compare matches IEEE total order.
+  const buf = new ArrayBuffer(8);
+  const f = new Float64Array(buf);
+  const u = new BigUint64Array(buf);
+  f[0] = a;
+  let ai = u[0];
+  f[0] = b;
+  let bi = u[0];
+  const signMask = 0x8000_0000_0000_0000n;
+  ai = ai & signMask ? ~ai & 0xffff_ffff_ffff_ffffn : ai ^ signMask;
+  bi = bi & signMask ? ~bi & 0xffff_ffff_ffff_ffffn : bi ^ signMask;
+  if (ai < bi) return -1;
+  if (ai > bi) return 1;
+  return 0;
 }
 
 interface Scenario {
@@ -73,33 +136,46 @@ function createCollection(type: string): Collection {
       return new NumberNumberTreeMap();
     case "ArrayStack<i32>":
       return new NumberArrayStack();
+    // f32 collections re-use the Number* implementations: JS `number` is
+    // f64 so f32 is a subset, and NumberNumberHashMap / NumberHashSet
+    // already key by Object.is (bit-pattern eq -- NaN distinct, +0/-0
+    // distinct), which matches the spec's float semantics in
+    // algorithms.md §"Float ordering for tree collections".
+    case "HashMap<f32, i32>":
+      return new NumberNumberHashMap();
+    case "HashSet<f32>":
+      return new NumberHashSet();
+    case "ArrayList<f32>":
+      return new NumberArrayList();
     default:
       throw new Error(`Unknown collection type: ${type}`);
   }
 }
 
-function applyOperation(coll: Collection, op: Operation): void {
+function applyOperation(coll: Collection, op: Operation, f32Mode: boolean): void {
+  const k = (): number => (f32Mode ? parseF32Value(op.key) : (op.key as number));
+  const v = (): number => (f32Mode ? parseF32Value(op.value) : (op.value as number));
   switch (op.op) {
     case "put":
       if (
         coll instanceof NumberNumberHashMap ||
         coll instanceof NumberNumberTreeMap
       ) {
-        coll.put(op.key!, op.value!);
+        coll.put(k(), v());
       }
       break;
     case "add":
       if (coll instanceof NumberArrayList) {
-        coll.add(op.value!);
+        coll.add(v());
       } else if (
         coll instanceof NumberHashSet ||
         coll instanceof NumberTreeSet
       ) {
-        coll.add(op.value!);
+        coll.add(v());
       } else if (coll instanceof NumberHashBag) {
-        coll.add(op.value!);
+        coll.add(v());
       } else if (coll instanceof NumberArrayStack) {
-        coll.push(op.value!);
+        coll.push(v());
       }
       break;
     case "add_at":
@@ -108,7 +184,7 @@ function applyOperation(coll: Collection, op: Operation): void {
         // shift elements right, then set.
         // First, add a dummy at the end to grow the list, then shift.
         const idx = op.index!;
-        const val = op.value!;
+        const val = v();
         const currentSize = coll.size();
         // add a placeholder at the end
         coll.add(0);
@@ -124,14 +200,23 @@ function applyOperation(coll: Collection, op: Operation): void {
         coll instanceof NumberNumberHashMap ||
         coll instanceof NumberNumberTreeMap
       ) {
-        coll.remove(op.key!);
+        coll.remove(k());
       } else if (
         coll instanceof NumberHashSet ||
         coll instanceof NumberTreeSet
       ) {
-        coll.remove(op.value!);
+        coll.remove(v());
       } else if (coll instanceof NumberHashBag) {
-        coll.remove(op.value!);
+        coll.remove(v());
+      }
+      break;
+    case "addToValue":
+      // Cross-language scenarios in 06-overflow/* require wrapping i32
+      // semantics. JS number is f64; emulate i32 wrapping with bit ops.
+      if (coll instanceof NumberNumberHashMap) {
+        const cur = coll.get(k()) ?? 0;
+        const wrapped = (cur + (op.delta as number)) | 0;
+        coll.put(k(), wrapped);
       }
       break;
     case "clear":
@@ -160,17 +245,110 @@ function formatValue(v: unknown): string {
   if (v === null || v === undefined) return "null";
   if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "number") return String(v);
+  if (v instanceof F32Value) return formatF32(v.v);
   if (Array.isArray(v)) {
-    return `[${v.map((x) => formatValue(x)).join(", ")}]`;
+    // Canonical no-space-after-comma format -- matches validate.rs,
+    // cmd/validate/main.go, and validate.zig so harness diffs line up.
+    return `[${v.map((x) => formatValue(x)).join(",")}]`;
   }
   return String(v);
+}
+
+// Try to satisfy an assertion using the f32 view of a collection. Returns
+// undefined if the key isn't an f32-specific one — the caller falls back
+// to the generic i32 evaluator. Output values are either primitives (size,
+// booleans) or `F32Value` instances that formatValue knows how to print
+// using the labelled form (NaN, Infinity, -0.0, 3.0, ...).
+function evaluateF32Assertion(key: string, coll: Collection): unknown {
+  if (key === "size" || key === "is_empty") return undefined; // i32 path
+  const labelProbe = (rest: string): number => parseF32Value(rest);
+
+  if (key.startsWith("get_")) {
+    const probe = labelProbe(key.slice(4));
+    if (
+      coll instanceof NumberNumberHashMap ||
+      coll instanceof NumberNumberTreeMap
+    ) {
+      const v = coll.get(probe);
+      return v !== undefined ? v : null;
+    }
+  }
+  if (key.startsWith("contains_")) {
+    const probe = labelProbe(key.slice(9));
+    if (
+      coll instanceof NumberNumberHashMap ||
+      coll instanceof NumberNumberTreeMap
+    ) {
+      return coll.containsKey(probe);
+    }
+    if (
+      coll instanceof NumberHashSet ||
+      coll instanceof NumberTreeSet ||
+      coll instanceof NumberArrayList
+    ) {
+      return coll.contains(probe);
+    }
+  }
+  // Output convention for f32 arrays mirrors validate.rs exactly: keys
+  // and set members render as quoted labels ("NaN", "-0.0", ...); the
+  // ArrayList `sorted` form renders unquoted.
+  const renderSorted = (vals: number[], quoted: boolean): string => {
+    vals.sort(totalCmpFloat);
+    const parts = vals.map((v) => (quoted ? `"${formatF32(v)}"` : formatF32(v)));
+    return "[" + parts.join(",") + "]";
+  };
+  if (key === "sorted_keys" && coll instanceof NumberNumberHashMap) {
+    return renderSorted(coll.keysToArray(), true);
+  }
+  if ((key === "sorted_values" || key === "to_sorted_array") && coll instanceof NumberHashSet) {
+    return renderSorted(coll.toArray(), true);
+  }
+  if (key === "sorted" && coll instanceof NumberArrayList) {
+    return renderSorted(coll.toArray(), false);
+  }
+  if (key === "sum") {
+    if (coll instanceof NumberArrayList) {
+      let acc = 0;
+      for (const v of coll.toArray()) acc += v;
+      return new F32Value(Math.fround(acc));
+    }
+  }
+  if (key === "min" || key === "max") {
+    if (coll instanceof NumberArrayList) {
+      const vals = coll.toArray();
+      if (vals.length === 0) return null;
+      let best = vals[0];
+      const cmp = key === "min" ? -1 : 1;
+      for (let i = 1; i < vals.length; i++) {
+        if (totalCmpFloat(vals[i], best) === cmp) best = vals[i];
+      }
+      return new F32Value(best);
+    }
+  }
+  return undefined;
+}
+
+// Sentinel used by formatValue to emit `formatF32`-style labels for f32
+// scenarios without paying per-call format cost on the i32 hot path.
+class F32Value {
+  constructor(public readonly v: number) {}
 }
 
 function evaluateAssertion(
   key: string,
   coll: Collection,
   other: Collection | null,
+  f32Mode: boolean,
 ): unknown {
+  // f32 dispatch: scenarios in 05-float-edge-cases/* use string-labelled
+  // probes (get_NaN, contains_pos_zero, ...) and quoted-string outputs
+  // (sorted -> ["NaN", "Infinity"]). Handle that here before falling
+  // through to the i32 logic.
+  if (f32Mode) {
+    const r = evaluateF32Assertion(key, coll);
+    if (r !== undefined) return r;
+  }
+
   // --- simple properties ---
   if (key === "size") return coll.size();
   if (key === "is_empty") return coll.isEmpty();
@@ -185,9 +363,26 @@ function evaluateAssertion(
   }
 
   // --- sum / min / max (list, treeset, treemap) ---
+  // `sum` is wrapping i32 per the cross-language contract (validate.rs
+  // uses wrapping_add); the bitwise `| 0` coerces each step. `coll.sum()`
+  // would return the un-wrapped JS-number sum and break scenarios in
+  // 06-overflow/.
   if (key === "sum") {
-    if (coll instanceof NumberArrayList) return coll.sum();
+    if (coll instanceof NumberArrayList) {
+      let acc = 0;
+      for (const v of coll.toArray()) acc = (acc + v) | 0;
+      return acc;
+    }
     throw new Error(`sum not supported for ${coll.constructor.name}`);
+  }
+  // Wrapping i32 product (06-overflow/i32_multiply_overflow.json).
+  if (key === "product" || key === "inject_into_wrapping_product") {
+    if (coll instanceof NumberArrayList) {
+      let acc = 1;
+      for (const v of coll.toArray()) acc = Math.imul(acc, v);
+      return acc;
+    }
+    throw new Error(`product not supported for ${coll.constructor.name}`);
   }
   if (key === "min") {
     if (coll instanceof NumberArrayList) return coll.min() ?? null;
@@ -210,7 +405,7 @@ function evaluateAssertion(
 
   // --- get_N (maps) ---
   {
-    const m = key.match(/^get_(\d+)$/);
+    const m = key.match(/^get_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (
@@ -238,7 +433,7 @@ function evaluateAssertion(
 
   // --- contains_N ---
   {
-    const m = key.match(/^contains_(\d+)$/);
+    const m = key.match(/^contains_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (
@@ -605,10 +800,16 @@ function main(): void {
   const raw = fs.readFileSync(filePath, "utf-8");
   const scenario: Scenario = JSON.parse(raw);
 
+  // f32 mode is purely about how labels and outputs are formatted; the
+  // backing collection is identical (JS `number` is f64 and the
+  // Number*HashMap/Set use Object.is for key equality, which already
+  // matches algorithms.md §"Float ordering for tree collections").
+  const f32Mode = scenario.collection.includes("<f32");
+
   // Create and populate main collection
   const coll = createCollection(scenario.collection);
   for (const op of scenario.operations) {
-    applyOperation(coll, op);
+    applyOperation(coll, op, f32Mode);
   }
 
   // Create and populate "other" collection if present
@@ -616,16 +817,19 @@ function main(): void {
   if (scenario.other) {
     other = createCollection(scenario.other.collection);
     for (const op of scenario.other.operations) {
-      applyOperation(other, op);
+      applyOperation(other, op, f32Mode);
     }
   }
 
   // Output header
   console.log(`=== scenario: ${scenario.name} ===`);
 
-  // Evaluate and print each assertion in order
+  // Evaluate and print each assertion in order. The "comment" key is a
+  // scenario-author doc string; Rust/Go/Zig all skip it, so do the same
+  // here for harness-diff parity.
   for (const key of Object.keys(scenario.assertions)) {
-    const actual = evaluateAssertion(key, coll, other);
+    if (key === "comment") continue;
+    const actual = evaluateAssertion(key, coll, other, f32Mode);
     console.log(`${key}: ${formatValue(actual)}`);
   }
 }
