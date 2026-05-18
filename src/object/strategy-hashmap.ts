@@ -4,7 +4,7 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-import type { HashingStrategy } from "./strategy";
+import type { HashingStrategy } from "./strategy.js";
 
 const DEFAULT_CAPACITY = 16;
 

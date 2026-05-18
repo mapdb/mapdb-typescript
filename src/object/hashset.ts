@@ -4,7 +4,7 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-import type { MapDbMutableSet } from "../api/index";
+import type { MapDbMutableSet } from "../api/index.js";
 
 /**
  * Generic hash set backed by JavaScript's native `Set<T>`.

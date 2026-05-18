@@ -5,8 +5,101 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./object": {
+      "types": "./dist/object/index.d.ts",
+      "import": "./dist/object/index.js"
+    },
+    "./stream": {
+      "types": "./dist/stream/stream.d.ts",
+      "import": "./dist/stream/stream.js"
+    },
+    "./arraylist/*": {
+      "types": "./dist/arraylist/*.d.ts",
+      "import": "./dist/arraylist/*.js"
+    },
+    "./bag/*": {
+      "types": "./dist/bag/*.d.ts",
+      "import": "./dist/bag/*.js"
+    },
+    "./bitset/*": {
+      "types": "./dist/bitset/*.d.ts",
+      "import": "./dist/bitset/*.js"
+    },
+    "./deque/*": {
+      "types": "./dist/deque/*.d.ts",
+      "import": "./dist/deque/*.js"
+    },
+    "./hashmap/*": {
+      "types": "./dist/hashmap/*.d.ts",
+      "import": "./dist/hashmap/*.js"
+    },
+    "./hashset/*": {
+      "types": "./dist/hashset/*.d.ts",
+      "import": "./dist/hashset/*.js"
+    },
+    "./interval/*": {
+      "types": "./dist/interval/*.d.ts",
+      "import": "./dist/interval/*.js"
+    },
+    "./priority_queue/*": {
+      "types": "./dist/priority_queue/*.d.ts",
+      "import": "./dist/priority_queue/*.js"
+    },
+    "./stack/*": {
+      "types": "./dist/stack/*.d.ts",
+      "import": "./dist/stack/*.js"
+    },
+    "./treemap/*": {
+      "types": "./dist/treemap/*.d.ts",
+      "import": "./dist/treemap/*.js"
+    },
+    "./treeset/*": {
+      "types": "./dist/treeset/*.d.ts",
+      "import": "./dist/treeset/*.js"
+    },
+    "./tuple/*": {
+      "types": "./dist/tuple/*.d.ts",
+      "import": "./dist/tuple/*.js"
+    },
+    "./typed/*": {
+      "types": "./dist/typed/*.d.ts",
+      "import": "./dist/typed/*.js"
+    },
+    "./typed/arraylist/*": {
+      "types": "./dist/typed/arraylist/*.d.ts",
+      "import": "./dist/typed/arraylist/*.js"
+    },
+    "./typed/bag/*": {
+      "types": "./dist/typed/bag/*.d.ts",
+      "import": "./dist/typed/bag/*.js"
+    },
+    "./typed/hashmap/*": {
+      "types": "./dist/typed/hashmap/*.d.ts",
+      "import": "./dist/typed/hashmap/*.js"
+    },
+    "./typed/hashset/*": {
+      "types": "./dist/typed/hashset/*.d.ts",
+      "import": "./dist/typed/hashset/*.js"
+    },
+    "./typed/stack/*": {
+      "types": "./dist/typed/stack/*.d.ts",
+      "import": "./dist/typed/stack/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE-EPL-1.0.txt",
+    "LICENSE-EDL-1.0.txt"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepack": "npm run build",
     "test": "npx vitest run",
     "typecheck": "tsc --noEmit",
     "format": "npx prettier --write src/"

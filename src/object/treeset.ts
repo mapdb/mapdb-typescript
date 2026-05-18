@@ -4,8 +4,8 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-import type { Comparator } from "./strategy";
-import { TreeMap } from "./treemap";
+import type { Comparator } from "./strategy.js";
+import { TreeMap } from "./treemap.js";
 
 /**
  * Sorted set backed by a red-black tree with a pluggable {@link Comparator}.

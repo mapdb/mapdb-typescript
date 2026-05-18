@@ -4,7 +4,7 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-import type { Comparator } from "./strategy";
+import type { Comparator } from "./strategy.js";
 
 interface Node<K, V> {
   key: K;

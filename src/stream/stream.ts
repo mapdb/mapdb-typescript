@@ -402,3 +402,31 @@ export class Stream<T> {
     return max;
   }
 }
+
+export function of<T>(...values: T[]): Stream<T> {
+  return Stream.of(...values);
+}
+
+export function empty<T>(): Stream<T> {
+  return Stream.empty<T>();
+}
+
+export function range(start: number, end: number): Stream<number> {
+  return Stream.range(start, end);
+}
+
+export function rangeClosed(start: number, end: number): Stream<number> {
+  return Stream.rangeClosed(start, end);
+}
+
+export function generate<T>(supplier: () => T): Stream<T> {
+  return Stream.generate(supplier);
+}
+
+export function iterate<T>(seed: T, f: (value: T) => T): Stream<T> {
+  return Stream.iterate(seed, f);
+}
+
+export function repeat<T>(value: T, n: number): Stream<T> {
+  return Stream.repeat(value, n);
+}

@@ -15,7 +15,7 @@ import {
   reverseComparator,
   thenComparing,
 } from "./strategy";
-import type { HashingStrategy, Comparator } from "./strategy";
+import type { HashingStrategy, Comparator } from "./strategy.js";
 import { HashMapWithStrategy } from "./strategy-hashmap";
 import { HashSetWithStrategy } from "./strategy-hashset";
 import { TreeMap } from "./treemap";

@@ -4,7 +4,7 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-import type { MapDbMutableSet } from "../api/index";
+import type { MapDbMutableSet } from "../api/index.js";
 
 /**
  * Insertion-ordered hash set backed by JavaScript's native `Set<T>`,
@@ -51,6 +51,55 @@ export class LinkedHashSet<T> implements MapDbMutableSet<T> {
     this.data.forEach(f);
   }
 
+  map<U>(f: (value: T) => U): U[] {
+    const result: U[] = [];
+    for (const v of this.data) {
+      result.push(f(v));
+    }
+    return result;
+  }
+
+  filter(predicate: (value: T) => boolean): T[] {
+    const result: T[] = [];
+    for (const v of this.data) {
+      if (predicate(v)) result.push(v);
+    }
+    return result;
+  }
+
+  find(predicate: (value: T) => boolean): T | undefined {
+    for (const v of this.data) {
+      if (predicate(v)) return v;
+    }
+    return undefined;
+  }
+
+  every(predicate: (value: T) => boolean): boolean {
+    for (const v of this.data) {
+      if (!predicate(v)) return false;
+    }
+    return true;
+  }
+
+  some(predicate: (value: T) => boolean): boolean {
+    for (const v of this.data) {
+      if (predicate(v)) return true;
+    }
+    return false;
+  }
+
+  reduce<U>(f: (acc: U, value: T) => U, initial: U): U {
+    let acc = initial;
+    for (const v of this.data) {
+      acc = f(acc, v);
+    }
+    return acc;
+  }
+
+  includes(value: T): boolean {
+    return this.contains(value);
+  }
+
   toArray(): T[] {
     return [...this.data];
   }
@@ -72,10 +121,7 @@ export class LinkedHashSet<T> implements MapDbMutableSet<T> {
   }
 
   detect(predicate: (value: T) => boolean): T | undefined {
-    for (const v of this.data) {
-      if (predicate(v)) return v;
-    }
-    return undefined;
+    return this.find(predicate);
   }
 
   count(predicate: (value: T) => boolean): number {

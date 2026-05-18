@@ -4,16 +4,16 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-export { ArrayList } from "./arraylist";
-export { HashSet } from "./hashset";
-export { HashMap } from "./hashmap";
-export { HashBag } from "./hashbag";
-export type { OccurrencePair } from "./hashbag";
-export { ArrayStack } from "./arraystack";
-export { HashBiMap } from "./hashbimap";
-export { LinkedHashMap } from "./linkedhashmap";
-export { LinkedHashSet } from "./linkedhashset";
-export type { HashingStrategy, Comparator } from "./strategy";
+export { ArrayList } from "./arraylist.js";
+export { HashSet } from "./hashset.js";
+export { HashMap } from "./hashmap.js";
+export { HashBag } from "./hashbag.js";
+export type { OccurrencePair } from "./hashbag.js";
+export { ArrayStack } from "./arraystack.js";
+export { HashBiMap } from "./hashbimap.js";
+export { LinkedHashMap } from "./linkedhashmap.js";
+export { LinkedHashSet } from "./linkedhashset.js";
+export type { HashingStrategy, Comparator } from "./strategy.js";
 export {
   stringHashingStrategy,
   caseInsensitiveHashingStrategy,
@@ -24,8 +24,8 @@ export {
   thenComparing,
   reversed,
   comparatorByFieldWith,
-} from "./strategy";
-export { HashSetWithStrategy } from "./strategy-hashset";
-export { HashMapWithStrategy } from "./strategy-hashmap";
-export { TreeMap } from "./treemap";
-export { TreeSet } from "./treeset";
+} from "./strategy.js";
+export { HashSetWithStrategy } from "./strategy-hashset.js";
+export { HashMapWithStrategy } from "./strategy-hashmap.js";
+export { TreeMap } from "./treemap.js";
+export { TreeSet } from "./treeset.js";

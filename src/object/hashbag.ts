@@ -4,7 +4,7 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-import type { MapDbMutableBag } from "../api/index";
+import type { MapDbMutableBag } from "../api/index.js";
 
 /** A `[value, count]` pair returned by occurrence-query methods. */
 export interface OccurrencePair<T> {

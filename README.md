@@ -6,7 +6,7 @@ High-performance primitive-specialized and generic collections for TypeScript, i
 
 JavaScript's `Map` and `Set` are general-purpose but lack the rich functional API that Eclipse Collections provides. This library gives you:
 
-- **Primitive-specialized types** (`I32ArrayList`, `I32HashSet`, `I32I64HashMap`, etc.) optimized for numeric workloads
+- **Primitive-specialized types** (`NumberArrayList`, `NumberHashSet`, `Int32ArrayList`, etc.) optimized for numeric workloads
 - **Generic object collections** (`ArrayList<T>`, `HashSet<T>`, `HashMap<K,V>`, etc.) with the full Eclipse Collections API
 - **Lazy stream pipelines** with generators and collectors
 - Full TypeScript type safety with strict interfaces
@@ -15,16 +15,15 @@ JavaScript's `Map` and `Set` are general-purpose but lack the rich functional AP
 
 | Type | Mutable | Immutable | Variants |
 |------|---------|-----------|----------|
-| **ArrayList** | `I32ArrayList` | `ImmutableI32ArrayList` | 8 types |
-| **HashSet** | `I32HashSet` | `ImmutableI32HashSet` | 8 types |
-| **HashBag** | `I32HashBag` | `ImmutableI32HashBag` | 8 types |
-| **ArrayStack** | `I32ArrayStack` | `ImmutableI32ArrayStack` | 8 types |
-| **HashMap** | `I32I64HashMap` | `ImmutableI32I64HashMap` | 64 pairs |
-| **TreeSet** | `I32TreeSet` | — | 8 types |
-| **TreeMap** | `I32I64TreeMap` | — | 64 pairs |
-| **TreeBag** | `I32TreeBag` | — | 8 types |
-| **Pair** | `I32I64Pair` | — | 64 pairs |
-| **Interval** | `I32Interval` | — | range type |
+| **ArrayList** | `NumberArrayList`, `Int32ArrayList` | `ImmutableNumberArrayList`, `ImmutableInt32ArrayList` | number/bigint + typed arrays |
+| **HashSet** | `NumberHashSet`, `Int32HashSet` | `ImmutableNumberHashSet`, `ImmutableInt32HashSet` | number/bigint + typed arrays |
+| **HashBag** | `NumberHashBag` | `ImmutableNumberHashBag` | number/bigint |
+| **ArrayStack** | `NumberArrayStack` | `ImmutableNumberArrayStack` | number/bigint + typed arrays |
+| **HashMap** | `NumberNumberHashMap`, `Int32BigInt64HashMap` | `ImmutableNumberNumberHashMap` | number/bigint + typed arrays |
+| **TreeSet** | `NumberTreeSet` | — | number/bigint |
+| **TreeMap** | `NumberNumberTreeMap` | — | number/bigint |
+| **Pair** | `NumberNumberPair` | — | number/bigint |
+| **Interval** | `NumberInterval` | — | range type |
 
 ## Object Collections
 
@@ -42,13 +41,16 @@ Generic collections backed by native JS `Map` and `Set`:
 ## Quick Start
 
 ```typescript
-import { I32ArrayList } from "@mapdb/typescript";
+import { NumberArrayList, object } from "@mapdb/typescript";
 import { ArrayList, HashBag } from "@mapdb/typescript/object";
 
 // Primitive ArrayList
-const list = I32ArrayList.of([3, 1, 4, 1, 5]);
+const list = NumberArrayList.of([3, 1, 4, 1, 5]);
 list.sort();
 const big = list.select(v => v > 2); // [3, 4, 5]
+
+// Root namespace export for object collections
+const ordered = object.LinkedHashSet.of("a", "b", "a");
 
 // Generic ArrayList
 const names = ArrayList.of(["Alice", "Bob", "Charlie"]);
