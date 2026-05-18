@@ -14,9 +14,25 @@
       "types": "./dist/object/index.d.ts",
       "import": "./dist/object/index.js"
     },
+    "./object/*": {
+      "types": "./dist/object/*.d.ts",
+      "import": "./dist/object/*.js"
+    },
     "./stream": {
       "types": "./dist/stream/stream.d.ts",
       "import": "./dist/stream/stream.js"
+    },
+    "./multimap/*": {
+      "types": "./dist/multimap/*.d.ts",
+      "import": "./dist/multimap/*.js"
+    },
+    "./treebag/*": {
+      "types": "./dist/treebag/*.d.ts",
+      "import": "./dist/treebag/*.js"
+    },
+    "./api/*": {
+      "types": "./dist/api/*.d.ts",
+      "import": "./dist/api/*.js"
     },
     "./arraylist/*": {
       "types": "./dist/arraylist/*.d.ts",
