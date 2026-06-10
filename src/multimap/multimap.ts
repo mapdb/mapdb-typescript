@@ -30,9 +30,9 @@ export class Multimap<K, V> {
     for (const v of values) this.put(key, v);
   }
 
-  /** Returns all values for the key, or empty array. */
+  /** Returns a copy of all values for the key, or empty array. */
   get(key: K): V[] {
-    return this.data.get(key) ?? [];
+    return this.data.get(key)?.slice() ?? [];
   }
 
   /** Returns true if the key has at least one value. */
@@ -85,10 +85,10 @@ export class Multimap<K, V> {
     }
   }
 
-  /** Calls f for each distinct key with its values. */
+  /** Calls f for each distinct key with a copy of its values. */
   forEachKey(f: (key: K, values: V[]) => void): void {
     for (const [k, vals] of this.data) {
-      f(k, vals);
+      f(k, vals.slice());
     }
   }
 

@@ -4,7 +4,6 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-
 /**
  * A multimap that maps bigint keys to lists of number values.
  * Backed by a JavaScript Map from key to array of values.
@@ -34,9 +33,10 @@ export class BigIntNumberListMultimap {
     this._totalSize++;
   }
 
-  /** Returns the values for the key as a readonly array. Returns an empty array if the key is absent. */
+  /** Returns a copy of the values for the key as a readonly array. Returns an empty array if the key is absent. */
   get(key: bigint): readonly number[] {
-    return this._map.get(key) ?? [];
+    const list = this._map.get(key);
+    return list !== undefined ? list.slice() : [];
   }
 
   /** Returns the number of values for the given key. */
@@ -101,10 +101,10 @@ export class BigIntNumberListMultimap {
     });
   }
 
-  /** Calls the function for each key and its associated list of values. */
+  /** Calls the function for each key with a copy of its associated list of values. */
   forEachKey(fn: (key: bigint, values: readonly number[]) => void): void {
     this._map.forEach((list, key) => {
-      fn(key, list);
+      fn(key, list.slice());
     });
   }
 
