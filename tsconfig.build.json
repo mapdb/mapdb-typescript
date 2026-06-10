@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "src/validate.ts",
+    "src/nanprobe.ts",
+    "src/api/verify.ts",
+    "src/object/pet-kata.kata.ts",
+    "bench_ts.ts"
+  ]
+}

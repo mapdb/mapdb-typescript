@@ -21,6 +21,7 @@ import { NumberHashBag } from "./bag/number-hash-bag.js";
 import { NumberTreeSet } from "./treeset/number-tree-set.js";
 import { NumberNumberTreeMap } from "./treemap/number-number-tree-map.js";
 import { NumberArrayStack } from "./stack/number-array-stack.js";
+import { totalCmpNumber } from "./internal/float-order.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,25 +77,13 @@ function formatF32(v: number): string {
 
 // IEEE total order on numbers — matches Rust's `f32::total_cmp` and the
 // bit-pattern ordering in algorithms.md §"Float ordering for tree
-// collections". Required so NaN and +0/-0 sort deterministically vs.
-// the other three ports.
-function totalCmpFloat(a: number, b: number): number {
-  // Reinterpret as f64 bit pattern, flip sign bit so a lexicographic
-  // unsigned compare matches IEEE total order.
-  const buf = new ArrayBuffer(8);
-  const f = new Float64Array(buf);
-  const u = new BigUint64Array(buf);
-  f[0] = a;
-  let ai = u[0];
-  f[0] = b;
-  let bi = u[0];
-  const signMask = 0x8000_0000_0000_0000n;
-  ai = ai & signMask ? ~ai & 0xffff_ffff_ffff_ffffn : ai ^ signMask;
-  bi = bi & signMask ? ~bi & 0xffff_ffff_ffff_ffffn : bi ^ signMask;
-  if (ai < bi) return -1;
-  if (ai > bi) return 1;
-  return 0;
-}
+// collections". This is now the SAME production comparator the tree
+// collections, NumberArrayList.sort() and NumberPriorityQueue use (it was
+// previously reimplemented locally to route around the production bug). It is
+// retained here ONLY to give a deterministic harness-side ordering of the
+// genuinely-unordered output of the open-addressing hash collections
+// (keysToArray / valuesToArray / HashSet.toArray) for assertion comparison.
+const totalCmpFloat = totalCmpNumber;
 
 interface Scenario {
   name: string;
@@ -304,7 +293,11 @@ function evaluateF32Assertion(key: string, coll: Collection): unknown {
     return renderSorted(coll.toArray(), true);
   }
   if (key === "sorted" && coll instanceof NumberArrayList) {
-    return renderSorted(coll.toArray(), false);
+    // Drive PRODUCTION NumberArrayList.sort() (fixed to use totalCmpNumber);
+    // the harness no longer re-sorts the array itself.
+    coll.sort();
+    const parts = coll.toArray().map((v) => formatF32(v));
+    return "[" + parts.join(",") + "]";
   }
   if (key === "sum") {
     if (coll instanceof NumberArrayList) {
@@ -494,16 +487,19 @@ function evaluateAssertion(
   // --- to_sorted_array ---
   if (key === "to_sorted_array") {
     if (coll instanceof NumberArrayList) {
-      return coll.toArray().sort((a, b) => a - b);
+      // Drive PRODUCTION sort (totalCmpNumber) rather than re-sorting here.
+      coll.sort();
+      return coll.toArray();
     }
     if (coll instanceof NumberHashSet) {
-      return coll.toArray().sort((a, b) => a - b);
+      // Hash output is genuinely unordered -> harness-side total-order sort.
+      return coll.toArray().sort(totalCmpFloat);
     }
     if (coll instanceof NumberTreeSet) {
-      return coll.toArray(); // already sorted
+      return coll.toArray(); // already in production tree order
     }
     if (coll instanceof NumberHashBag) {
-      return coll.toArray().sort((a, b) => a - b);
+      return coll.toArray().sort(totalCmpFloat);
     }
     throw new Error(
       `to_sorted_array not supported for ${coll.constructor.name}`,

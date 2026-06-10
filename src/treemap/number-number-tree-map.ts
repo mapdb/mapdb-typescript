@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import type { MapDbMutableMap } from "../api/index.js";
+import { totalCmpNumber } from "../internal/float-order.js";
 
 const RED = false;
 const BLACK = true;
@@ -42,7 +43,8 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
     }
     let node = this.root;
     while (true) {
-      if (key < node.key) {
+      const cmp = totalCmpNumber(key, node.key);
+      if (cmp < 0) {
         if (node.left === null) {
           node.left = {
             key,
@@ -57,7 +59,7 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
           return undefined;
         }
         node = node.left;
-      } else if (key > node.key) {
+      } else if (cmp > 0) {
         if (node.right === null) {
           node.right = {
             key,
@@ -130,8 +132,9 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
     let result: NumberNumberTreeMapNode | null = null;
     let node = this.root;
     while (node) {
-      if (key === node.key) return [node.key, node.value];
-      if (key > node.key) {
+      const cmp = totalCmpNumber(key, node.key);
+      if (cmp === 0) return [node.key, node.value];
+      if (cmp > 0) {
         result = node;
         node = node.right;
       } else node = node.left;
@@ -143,8 +146,9 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
     let result: NumberNumberTreeMapNode | null = null;
     let node = this.root;
     while (node) {
-      if (key === node.key) return [node.key, node.value];
-      if (key < node.key) {
+      const cmp = totalCmpNumber(key, node.key);
+      if (cmp === 0) return [node.key, node.value];
+      if (cmp < 0) {
         result = node;
         node = node.left;
       } else node = node.right;
@@ -176,8 +180,8 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
   /** Yields entries with keys in [fromKey, toKey). */
   *rangeKeys(fromKey: number, toKey: number): Generator<[number, number]> {
     for (const [k, v] of this.entries()) {
-      if (k < fromKey) continue;
-      if (k >= toKey) return;
+      if (totalCmpNumber(k, fromKey) < 0) continue;
+      if (totalCmpNumber(k, toKey) >= 0) return;
       yield [k, v];
     }
   }
@@ -207,8 +211,9 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
   private findNode(key: number): NumberNumberTreeMapNode | null {
     let node = this.root;
     while (node) {
-      if (key < node.key) node = node.left;
-      else if (key > node.key) node = node.right;
+      const cmp = totalCmpNumber(key, node.key);
+      if (cmp < 0) node = node.left;
+      else if (cmp > 0) node = node.right;
       else return node;
     }
     return null;

@@ -192,14 +192,14 @@ export class BigInt64BigInt64HashMap {
   }
 
   private hash(key: bigint): number {
-    let h = Number(key & 0xffffffffn) | 0;
+    let h = Number(((key ^ (key >> 32n)) & 0xffffffffn)) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     return ((h >> 16) ^ h) >>> 0;
   }
 
   private needsResize(): boolean {
-    return this._size + 1 > this.capacity * LOAD_FACTOR;
+    return this._size + 1 >= this.capacity * LOAD_FACTOR;
   }
 
   private resize(): void {

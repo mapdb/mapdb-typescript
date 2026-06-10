@@ -4,6 +4,7 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
+import { totalCmpNumber } from "../internal/float-order.js";
 
 /**
  * Min-heap priority queue for number values, backed by a binary heap over
@@ -64,7 +65,7 @@ export class NumberPriorityQueue {
   /** Returns true if the heap contains the given value. O(n). */
   contains(value: number): boolean {
     for (let i = 0; i < this.data.length; i++) {
-      if (this.data[i] === value) return true;
+      if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }
@@ -97,7 +98,7 @@ export class NumberPriorityQueue {
     let i = start;
     while (i > 0) {
       const parent = (i - 1) >> 1;
-      if (this.data[i] < this.data[parent]) {
+      if (totalCmpNumber(this.data[i], this.data[parent]) < 0) {
         const tmp = this.data[i];
         this.data[i] = this.data[parent];
         this.data[parent] = tmp;
@@ -116,8 +117,9 @@ export class NumberPriorityQueue {
       if (left >= n) break;
       const right = left + 1;
       let best = left;
-      if (right < n && this.data[right] < this.data[left]) best = right;
-      if (this.data[best] < this.data[i]) {
+      if (right < n && totalCmpNumber(this.data[right], this.data[left]) < 0)
+        best = right;
+      if (totalCmpNumber(this.data[best], this.data[i]) < 0) {
         const tmp = this.data[best];
         this.data[best] = this.data[i];
         this.data[i] = tmp;

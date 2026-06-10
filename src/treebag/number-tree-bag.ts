@@ -4,6 +4,8 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
+import { totalCmpNumber } from "../internal/float-order.js";
+
 const RED = false;
 const BLACK = true;
 
@@ -45,7 +47,8 @@ export class NumberTreeBag {
     }
     let node = this.root;
     while (true) {
-      if (value < node.key) {
+      const cmp = totalCmpNumber(value, node.key);
+      if (cmp < 0) {
         if (!node.left) {
           node.left = {
             key: value,
@@ -61,7 +64,7 @@ export class NumberTreeBag {
           return;
         }
         node = node.left;
-      } else if (value > node.key) {
+      } else if (cmp > 0) {
         if (!node.right) {
           node.right = {
             key: value,
@@ -267,8 +270,9 @@ export class NumberTreeBag {
   private findNode(key: number): TreeNode | null {
     let n = this.root;
     while (n) {
-      if (key < n.key) n = n.left;
-      else if (key > n.key) n = n.right;
+      const cmp = totalCmpNumber(key, n.key);
+      if (cmp < 0) n = n.left;
+      else if (cmp > 0) n = n.right;
       else return n;
     }
     return null;

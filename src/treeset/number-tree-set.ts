@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import type { MapDbMutableSet } from "../api/index.js";
+import { totalCmpNumber } from "../internal/float-order.js";
 
 const RED = false;
 const BLACK = true;
@@ -42,7 +43,8 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
     }
     let node = this.root;
     while (true) {
-      if (value < node.key) {
+      const cmp = totalCmpNumber(value, node.key);
+      if (cmp < 0) {
         if (!node.left) {
           node.left = {
             key: value,
@@ -56,7 +58,7 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
           return true;
         }
         node = node.left;
-      } else if (value > node.key) {
+      } else if (cmp > 0) {
         if (!node.right) {
           node.right = {
             key: value,
@@ -116,8 +118,9 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
     let result: TreeNode | null = null;
     let node = this.root;
     while (node) {
-      if (value === node.key) return node.key;
-      if (value > node.key) {
+      const cmp = totalCmpNumber(value, node.key);
+      if (cmp === 0) return node.key;
+      if (cmp > 0) {
         result = node;
         node = node.right;
       } else {
@@ -131,8 +134,9 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
     let result: TreeNode | null = null;
     let node = this.root;
     while (node) {
-      if (value === node.key) return node.key;
-      if (value < node.key) {
+      const cmp = totalCmpNumber(value, node.key);
+      if (cmp === 0) return node.key;
+      if (cmp < 0) {
         result = node;
         node = node.left;
       } else {
@@ -154,8 +158,8 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
 
   *rangeValues(from: number, to: number): Generator<number> {
     for (const v of this.values()) {
-      if (v < from) continue;
-      if (v >= to) return;
+      if (totalCmpNumber(v, from) < 0) continue;
+      if (totalCmpNumber(v, to) >= 0) return;
       yield v;
     }
   }
@@ -252,8 +256,9 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
   private findNode(key: number): TreeNode | null {
     let n = this.root;
     while (n) {
-      if (key < n.key) n = n.left;
-      else if (key > n.key) n = n.right;
+      const cmp = totalCmpNumber(key, n.key);
+      if (cmp < 0) n = n.left;
+      else if (cmp > 0) n = n.right;
       else return n;
     }
     return null;

@@ -5,16 +5,23 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import type { MapDbMutableMap } from "../api/index.js";
+import { mapKeyOf, NEG_ZERO_KEY } from "../internal/float-order.js";
+
+type MapKey = number | typeof NEG_ZERO_KEY;
 
 /**
  * Hash map with number keys and generic object values.
- * Uses the built-in Map<number, V> internally.
+ *
+ * Backed by a native Map, but keyed via {@link mapKeyOf} so that -0 and +0 are
+ * DISTINCT (matching the open-addressing collections in this package). NaN is
+ * findable. The original key (preserving -0) is stored alongside the value so
+ * iteration / entries reproduce it faithfully.
  */
 export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
-  private readonly map: Map<number, V>;
+  private readonly map: Map<MapKey, [number, V]>;
 
   constructor() {
-    this.map = new Map<number, V>();
+    this.map = new Map<MapKey, [number, V]>();
   }
 
   /** Creates a new map from key-value pairs: [[k1, v1], [k2, v2], ...] */
@@ -28,32 +35,35 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
 
   /** Inserts or updates a key-value pair. Returns the previous value or undefined. */
   put(key: number, value: V): V | undefined {
-    const old = this.map.get(key);
-    this.map.set(key, value);
-    return old;
+    const k = mapKeyOf(key);
+    const old = this.map.get(k);
+    this.map.set(k, [key, value]);
+    return old ? old[1] : undefined;
   }
 
   /** Returns the value for the key, or undefined if not found. */
   get(key: number): V | undefined {
-    return this.map.get(key);
+    const entry = this.map.get(mapKeyOf(key));
+    return entry ? entry[1] : undefined;
   }
 
   /** Returns the value for the key, or the default value if not found. */
   getOrDefault(key: number, defaultValue: V): V {
-    const v = this.map.get(key);
-    return v !== undefined ? v : defaultValue;
+    const entry = this.map.get(mapKeyOf(key));
+    return entry !== undefined ? entry[1] : defaultValue;
   }
 
   /** Removes the entry for the key. Returns the previous value or undefined. */
   remove(key: number): V | undefined {
-    const old = this.map.get(key);
-    this.map.delete(key);
-    return old;
+    const k = mapKeyOf(key);
+    const old = this.map.get(k);
+    this.map.delete(k);
+    return old ? old[1] : undefined;
   }
 
   /** Returns true if the map contains the key. */
   containsKey(key: number): boolean {
-    return this.map.has(key);
+    return this.map.has(mapKeyOf(key));
   }
 
   /** Returns the number of entries. */
@@ -73,14 +83,14 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
 
   /** Yields all key-value pairs as [key, value] tuples. */
   *entries(): Generator<[number, V]> {
-    for (const entry of this.map) {
-      yield entry;
+    for (const [key, value] of this.map.values()) {
+      yield [key, value];
     }
   }
 
   /** Calls the function for each key-value pair. */
   forEach(f: (key: number, value: V) => void): void {
-    for (const [k, v] of this.map) {
+    for (const [k, v] of this.map.values()) {
       f(k, v);
     }
   }
@@ -90,7 +100,7 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
     predicate: (key: number, value: V) => boolean,
   ): NumberObjectHashMap<V> {
     const result = new NumberObjectHashMap<V>();
-    for (const [k, v] of this.map) {
+    for (const [k, v] of this.map.values()) {
       if (predicate(k, v)) {
         result.put(k, v);
       }
@@ -103,7 +113,7 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
     predicate: (key: number, value: V) => boolean,
   ): NumberObjectHashMap<V> {
     const result = new NumberObjectHashMap<V>();
-    for (const [k, v] of this.map) {
+    for (const [k, v] of this.map.values()) {
       if (!predicate(k, v)) {
         result.put(k, v);
       }
@@ -113,18 +123,18 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
 
   /** Returns all keys as an array. */
   keysToArray(): number[] {
-    return Array.from(this.map.keys());
+    return Array.from(this.map.values(), ([k]) => k);
   }
 
   /** Returns all values as an array. */
   valuesToArray(): V[] {
-    return Array.from(this.map.values());
+    return Array.from(this.map.values(), ([, v]) => v);
   }
 
   /** Returns a string representation. */
   toString(): string {
     const parts: string[] = [];
-    for (const [k, v] of this.map) {
+    for (const [k, v] of this.map.values()) {
       parts.push(`${k}: ${v}`);
     }
     return `{${parts.join(", ")}}`;

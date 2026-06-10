@@ -222,7 +222,7 @@ export class ImmutableBigInt64HashSet {
 }
 
 function hash(key: bigint, cap: number): number {
-  let h = Number(key & 0xffffffffn) | 0;
+  let h = Number(((key ^ (key >> 32n)) & 0xffffffffn)) | 0;
   h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
   h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
   h = ((h >> 16) ^ h) >>> 0;

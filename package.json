@@ -114,7 +114,7 @@
     "LICENSE-EDL-1.0.txt"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build",
     "test": "npx vitest run",
     "typecheck": "tsc --noEmit",

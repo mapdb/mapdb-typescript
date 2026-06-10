@@ -283,7 +283,7 @@ export class BigIntNumberHashMap implements MapDbMutableMap<bigint, number> {
   }
 
   private hashKey(key: bigint): number {
-    let h = Number(key & 0xffffffffn);
+    let h = Number((key ^ (key >> 32n)) & 0xffffffffn);
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (h >> 16) ^ h;
@@ -291,7 +291,7 @@ export class BigIntNumberHashMap implements MapDbMutableMap<bigint, number> {
   }
 
   private needsResize(): boolean {
-    return this._size + 1 > this.keys.length * LOAD_FACTOR;
+    return this._size + 1 >= this.keys.length * LOAD_FACTOR;
   }
 
   private resize(): void {

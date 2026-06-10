@@ -4,6 +4,7 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
+import { f64HashSeed } from "../../internal/float-order.js";
 
 import { Float64HashSet } from "./float64-hash-set.js";
 
@@ -222,7 +223,7 @@ export class ImmutableFloat64HashSet {
 }
 
 function hash(key: number, cap: number): number {
-  let h = key | 0;
+  let h = f64HashSeed(key);
   h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
   h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
   h = ((h >> 16) ^ h) >>> 0;

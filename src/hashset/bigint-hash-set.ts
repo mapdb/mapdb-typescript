@@ -267,7 +267,7 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
   }
 
   private hash(value: bigint): number {
-    let h = Number(value & 0xffffffffn);
+    let h = Number((value ^ (value >> 32n)) & 0xffffffffn);
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (h >> 16) ^ h;
@@ -275,7 +275,7 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
   }
 
   private needsResize(): boolean {
-    return this._size + 1 > this.data.length * LOAD_FACTOR;
+    return this._size + 1 >= this.data.length * LOAD_FACTOR;
   }
 
   private resize(): void {

@@ -195,7 +195,7 @@ export class Int32Int8HashMap {
   }
 
   private needsResize(): boolean {
-    return this._size + 1 > this.capacity * LOAD_FACTOR;
+    return this._size + 1 >= this.capacity * LOAD_FACTOR;
   }
 
   private resize(): void {

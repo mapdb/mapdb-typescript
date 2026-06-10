@@ -187,7 +187,7 @@ export class Int8HashSet {
   }
 
   private needsResize(): boolean {
-    return this._size + 1 > this.capacity * LOAD_FACTOR;
+    return this._size + 1 >= this.capacity * LOAD_FACTOR;
   }
 
   private resize(): void {

@@ -4,6 +4,8 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
+import { f64HashSeed } from "../internal/float-order.js";
+
 import type { MapDbMutableSet } from "../api/index.js";
 
 const DEFAULT_CAPACITY = 16;
@@ -267,7 +269,7 @@ export class NumberHashSet implements MapDbMutableSet<number> {
   }
 
   private hash(value: number): number {
-    let h = value | 0;
+    let h = f64HashSeed(value);
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (h >> 16) ^ h;
@@ -275,7 +277,7 @@ export class NumberHashSet implements MapDbMutableSet<number> {
   }
 
   private needsResize(): boolean {
-    return this._size + 1 > this.data.length * LOAD_FACTOR;
+    return this._size + 1 >= this.data.length * LOAD_FACTOR;
   }
 
   private resize(): void {

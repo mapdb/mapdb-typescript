@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import type { MapDbMutableList } from "../api/index.js";
+import { totalCmpNumber } from "../internal/float-order.js";
 
 const DEFAULT_CAPACITY = 16;
 
@@ -97,7 +98,7 @@ export class NumberArrayList implements MapDbMutableList<number> {
   /** Sorts the list in ascending order in place. */
   sort(): void {
     const view = this.data.slice(0, this._size);
-    view.sort((a, b) => a - b);
+    view.sort(totalCmpNumber);
     for (let i = 0; i < this._size; i++) {
       this.data[i] = view[i];
     }

@@ -4,6 +4,7 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
+import { f64HashSeed } from "../../internal/float-order.js";
 
 const DEFAULT_CAPACITY = 16;
 const LOAD_FACTOR = 0.75;
@@ -180,14 +181,14 @@ export class Float32HashSet {
   }
 
   private hash(key: number): number {
-    let h = key | 0;
+    let h = f64HashSeed(key);
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     return ((h >> 16) ^ h) >>> 0;
   }
 
   private needsResize(): boolean {
-    return this._size + 1 > this.capacity * LOAD_FACTOR;
+    return this._size + 1 >= this.capacity * LOAD_FACTOR;
   }
 
   private resize(): void {
