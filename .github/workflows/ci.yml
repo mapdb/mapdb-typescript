@@ -1,0 +1,46 @@
+# CI: build, typecheck, test, and the codegen drift gate.
+#
+# The typed (src/typed/*) and non-typed number/bigint (src/hashmap, src/multimap)
+# collection families are CODE-GENERATED from src/codegen (spec + templates). The
+# committed files carry a "// CODE GENERATED — DO NOT EDIT" banner. `npm run
+# generate:check` regenerates them in-memory and fails if any committed file
+# drifts from the template OR if a banner-stamped file is no longer emitted
+# (stale). This keeps the generator the single source of truth: edit the template,
+# never the generated file.
+
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Codegen drift gate
+        run: npm run generate:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
