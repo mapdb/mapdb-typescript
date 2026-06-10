@@ -224,7 +224,7 @@ function applyOperation(coll: Collection, op: Operation, f32Mode: boolean): void
       break;
     case "push":
       if (coll instanceof NumberArrayStack) {
-        coll.push(op.value!);
+        coll.push(v());
       }
       break;
     case "pop":
@@ -786,6 +786,70 @@ function evaluateAssertion(
 }
 
 // ---------------------------------------------------------------------------
+// Assertion comparison
+// ---------------------------------------------------------------------------
+
+// Set whenever any assertion mismatches; the process exits non-zero at the
+// end so the harness treats assertion failures as the primary pass/fail.
+let anyFail = false;
+
+// Render an expected JSON assertion value into the same canonical string the
+// runner emits for its computed value. Float comparisons go through
+// formatF32, which encodes bit-pattern identity (NaN -> "NaN",
+// -0.0 -> "-0.0" distinct from "0.0").
+function renderExpected(expected: unknown, key: string, f32Mode: boolean): string {
+  if (expected === null || expected === undefined) return "null";
+  if (typeof expected === "boolean") return expected ? "true" : "false";
+
+  // f32 ArrayList scalars (sum/min/max) are floats; `size` stays an integer.
+  const f32ScalarKey =
+    f32Mode && (key === "sum" || key === "min" || key === "max");
+  // f32 arrays render quoted ("NaN") for map keys / set members, unquoted
+  // for the ArrayList `sorted` form — matching evaluateF32Assertion output.
+  const f32ArrayQuoted =
+    f32Mode &&
+    (key === "sorted_keys" ||
+      key === "sorted_values" ||
+      key === "to_sorted_array");
+  const f32ArrayUnquoted = f32Mode && key === "sorted";
+
+  if (typeof expected === "string") {
+    // A float label scalar (e.g. sum: "NaN", max: "NaN").
+    return formatF32(parseF32Value(expected));
+  }
+  if (typeof expected === "number") {
+    if (f32ScalarKey) return formatF32(Math.fround(expected));
+    return String(expected);
+  }
+  if (Array.isArray(expected)) {
+    if (f32ArrayQuoted) {
+      return `[${expected.map((e) => `"${formatF32(parseF32Value(e as number | string))}"`).join(",")}]`;
+    }
+    if (f32ArrayUnquoted) {
+      return `[${expected.map((e) => formatF32(parseF32Value(e as number | string))).join(",")}]`;
+    }
+    return `[${expected.map((e) => String(e)).join(",")}]`;
+  }
+  return String(expected);
+}
+
+// Print a computed assertion and compare against the expected JSON value.
+function emit(
+  name: string,
+  key: string,
+  computed: string,
+  expected: unknown,
+  f32Mode: boolean,
+): void {
+  console.log(`${key}: ${computed}`);
+  const want = renderExpected(expected, key, f32Mode);
+  if (computed !== want) {
+    console.log(`FAIL ${name} ${key}: expected=${want} got=${computed}`);
+    anyFail = true;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -829,9 +893,27 @@ function main(): void {
   // here for harness-diff parity.
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment") continue;
-    const actual = evaluateAssertion(key, coll, other, f32Mode);
-    console.log(`${key}: ${formatValue(actual)}`);
+    let actual: unknown;
+    try {
+      actual = evaluateAssertion(key, coll, other, f32Mode);
+    } catch (e) {
+      // Unrecognised assertion key for this collection -> skip silently,
+      // per the README unknown-assertion-skip rule. ONLY skip the specific
+      // unknown-key / unsupported-for-collection errors; rethrow any other
+      // error so genuine runtime bugs in assertion evaluation surface
+      // instead of being silently swallowed (which would falsely pass).
+      if (
+        e instanceof Error &&
+        /unknown assertion key|not supported for/i.test(e.message)
+      ) {
+        continue;
+      }
+      throw e;
+    }
+    emit(scenario.name, key, formatValue(actual), scenario.assertions[key], f32Mode);
   }
+
+  if (anyFail) process.exit(1);
 }
 
 main();
