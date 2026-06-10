@@ -196,6 +196,14 @@ function createCollection(type: string): Collection {
       return new NumberNumberHashMap();
     case "HashSet<f32>":
       return new NumberHashSet();
+    // TreeSet<f32> keys on JS `number` and orders via the production
+    // totalCmpNumber (IEEE total order). Unlike the Object.is-keyed hash
+    // collections, the tree CAN distinguish +0/-0 (they compare distinctly)
+    // and, where V8 preserves the f64 NaN sign bit through a `number`, signed
+    // NaN too. Representability of -NaN/payload ordering is verified
+    // empirically per scenario; see the README/algorithms.md carve-out.
+    case "TreeSet<f32>":
+      return new NumberTreeSet();
     case "ArrayList<f32>":
       return new NumberArrayList();
     default:
@@ -353,6 +361,23 @@ function evaluateF32Assertion(key: string, coll: Collection): unknown {
   }
   if ((key === "sorted_values" || key === "to_sorted_array") && coll instanceof NumberHashSet) {
     return renderSorted(coll.toArray(), true);
+  }
+  // TreeSet<f32>: the sorted output is the production tree's in-order
+  // traversal (toArray) — NEVER re-sorted in the runner — so it exercises the
+  // production totalCmpNumber comparator directly. Quoted-label form like the
+  // hash set / map keys.
+  if (
+    (key === "sorted" ||
+      key === "sorted_values" ||
+      key === "to_sorted_array") &&
+    coll instanceof NumberTreeSet
+  ) {
+    const parts = coll.toArray().map((v) => `"${formatF32(v)}"`);
+    return "[" + parts.join(",") + "]";
+  }
+  if ((key === "min" || key === "max") && coll instanceof NumberTreeSet) {
+    const v = key === "min" ? coll.min() : coll.max();
+    return v === undefined ? null : new F32Value(v);
   }
   if (key === "sorted" && coll instanceof NumberArrayList) {
     // Drive PRODUCTION NumberArrayList.sort() (fixed to use totalCmpNumber);
