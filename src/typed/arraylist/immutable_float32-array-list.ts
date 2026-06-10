@@ -140,9 +140,12 @@ export class ImmutableFloat32ArrayList {
 
   /** Returns the sum of all elements. */
   sum(): number {
-    let s: number = 0 as number;
+    // f32 per-add left-fold (Math.fround per addition) — matches the mutable
+    // Float32ArrayList.sum() and Go's float32-accumulating Sum(). See the
+    // mutable list for the rationale.
+    let s = Math.fround(0);
     for (let i = 0; i < this._size; i++) {
-      s = ((s as any) + this.data[i]) as any as number;
+      s = Math.fround(s + this.data[i]);
     }
     return s;
   }

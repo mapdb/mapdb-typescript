@@ -125,9 +125,13 @@ export class Float32ArrayList {
   }
 
   sum(): number {
-    let s: number = 0 as number;
+    // f32 per-add left-fold: round each running total back to f32 so the
+    // accumulation precision matches a real Float32 column (and Go's
+    // Float32ArrayList.Sum(), which accumulates in `float32`). A naive f64
+    // running total would over-retain precision and disagree cross-language.
+    let s = Math.fround(0);
     for (let i = 0; i < this._size; i++) {
-      s = ((s as any) + this.data[i]) as any as number;
+      s = Math.fround(s + this.data[i]);
     }
     return s;
   }
