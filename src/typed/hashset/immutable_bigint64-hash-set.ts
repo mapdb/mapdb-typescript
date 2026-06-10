@@ -6,6 +6,7 @@
 
 
 import { BigInt64HashSet } from "./bigint64-hash-set.js";
+import { bigintHashSeed } from "../../internal/hash.js";
 
 /**
  * Immutable hash set backed by BigInt64Array with Uint8Array occupied bitmap.
@@ -222,7 +223,7 @@ export class ImmutableBigInt64HashSet {
 }
 
 function hash(key: bigint, cap: number): number {
-  let h = Number(((key ^ (key >> 32n)) & 0xffffffffn)) | 0;
+  let h = bigintHashSeed(key) | 0;
   h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
   h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
   h = ((h >> 16) ^ h) >>> 0;

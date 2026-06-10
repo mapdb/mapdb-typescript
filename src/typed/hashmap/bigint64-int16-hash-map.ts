@@ -5,6 +5,8 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 
+import { bigintHashSeed } from "../../internal/hash.js";
+
 const DEFAULT_CAPACITY = 16;
 const LOAD_FACTOR = 0.75;
 
@@ -192,7 +194,7 @@ export class BigInt64Int16HashMap {
   }
 
   private hash(key: bigint): number {
-    let h = Number(((key ^ (key >> 32n)) & 0xffffffffn)) | 0;
+    let h = bigintHashSeed(key) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     return ((h >> 16) ^ h) >>> 0;

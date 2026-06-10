@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import type { MapDbMutableSet } from "../api/index.js";
+import { bigintHashSeed } from "../internal/hash.js";
 
 const DEFAULT_CAPACITY = 16;
 const LOAD_FACTOR = 0.75;
@@ -267,7 +268,7 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
   }
 
   private hash(value: bigint): number {
-    let h = Number((value ^ (value >> 32n)) & 0xffffffffn);
+    let h = bigintHashSeed(value);
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
     h = (h >> 16) ^ h;
