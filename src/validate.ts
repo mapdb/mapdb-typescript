@@ -30,47 +30,105 @@ import { totalCmpNumber } from "./internal/float-order.js";
 interface Operation {
   op: string;
   // For f32 scenarios `key` and `value` may arrive as labels like "NaN",
-  // "Infinity", "pos_zero". For i32 scenarios they are plain numbers. We
-  // parse via parseF32Value at the use site rather than narrowing here.
-  key?: number | string;
-  value?: number | string;
+  // "Infinity", "pos_zero", or a {"bits":"0x.."} object (Q4 encoding). For
+  // i32 scenarios they are plain numbers. We parse via parseF32Value at the
+  // use site rather than narrowing here.
+  key?: number | string | { bits?: string };
+  value?: number | string | { bits?: string };
   index?: number;
   delta?: number;
 }
 
-// f32 label parser. Accepts the same five sentinels every port supports:
-// "NaN", "Infinity"/"+Infinity", "-Infinity", "pos_zero", "neg_zero". Any
-// other string falls through to parseFloat. A plain number is returned
-// untouched.
-function parseF32Value(v: number | string | undefined): number {
-  if (typeof v === "number") return v;
+// Scratch views to reinterpret an f32 bit pattern <-> JS number. A JS
+// number is f64, but it round-trips the 32 bits of any f32 (including NaN
+// payloads and the sign bit) faithfully when narrowed through Float32Array.
+const _f32scratch = new Float32Array(1);
+const _u32scratch = new Uint32Array(_f32scratch.buffer);
+function f32FromBits(bits: number): number {
+  _u32scratch[0] = bits >>> 0;
+  return _f32scratch[0];
+}
+function f32ToBits(v: number): number {
+  _f32scratch[0] = v;
+  return _u32scratch[0] >>> 0;
+}
+
+// Parse a 0x-prefixed, 8-hex-digit (case-insensitive) string into a raw
+// 32-bit IEEE-754 pattern (NaN-payload / signed-bit escape).
+function parseF32Bits(hx: string): number {
+  // Case-insensitive `0x` prefix to match Rust/Go/Zig (which accept 0X too)
+  // per the README's case-insensitive bits contract.
+  if (!/^0x[0-9a-fA-F]{8}$/i.test(hx)) {
+    throw new Error(`f32 bits literal must be 0x + 8 hex digits: ${hx}`);
+  }
+  return parseInt(hx.slice(2), 16) >>> 0;
+}
+
+// Q4 float operand encoding (see cross-language-validation/README.md
+// §"Float operand encoding"): JSON number, human-label string
+// ("NaN"/"+NaN"/"-NaN", "Infinity"/"+Infinity"/"-Infinity",
+// "0.0"/"+0.0"/"-0.0", or a decimal), or a {"bits":"0x........"} object
+// reinterpreting 32 IEEE-754 bits. Canonical NaN bits: +NaN=0x7FC00000,
+// -NaN=0xFFC00000.
+//
+// NOTE on a TS-port limitation: the production hash collections key f32 by
+// `Object.is` and canonicalize all NaN to one seed, so distinct NaN
+// payloads / NaN sign are NOT distinguishable inside a HashSet/HashMap here
+// (a single value DOES round-trip its bits, so ArrayList sort/serialization
+// is faithful). Scenarios needing NaN-distinct hash *keys* are deferred —
+// see the Phase 5a handoff.
+function parseF32Value(
+  v: number | string | { bits?: string } | undefined,
+): number {
+  // Every f32 operand is narrowed to true f32 precision via Math.fround so a
+  // list/set/map of floats holds f32-rounded values matching Rust/Go/Zig
+  // (which narrow to f32). The bits/label paths below already produce exact
+  // f32 (round-tripped through Float32Array), so fround there is a no-op;
+  // fround matters for the JSON-number and decimal-string paths, which would
+  // otherwise leak f64 precision.
+  if (typeof v === "number") return Math.fround(v);
   if (v === undefined) throw new Error("missing f32 value");
+  if (typeof v === "object") {
+    if (typeof v.bits === "string") return f32FromBits(parseF32Bits(v.bits));
+    throw new Error(`expected {"bits":"0x.."} float object`);
+  }
   switch (v) {
     case "NaN":
-      return NaN;
+    case "+NaN":
+      return f32FromBits(0x7fc00000);
+    case "-NaN":
+      return f32FromBits(0xffc00000);
     case "Infinity":
     case "+Infinity":
       return Number.POSITIVE_INFINITY;
     case "-Infinity":
       return Number.NEGATIVE_INFINITY;
+    case "0.0":
+    case "+0.0":
+      return 0;
+    case "-0.0":
+      return -0;
     case "pos_zero":
       return 0;
     case "neg_zero":
       return -0;
   }
+  if (/^0x/i.test(v)) return f32FromBits(parseF32Bits(v));
   const n = Number(v);
   if (Number.isNaN(n)) throw new Error(`invalid f32 literal: ${v}`);
-  return n;
+  return Math.fround(n);
 }
 
-// Inverse: format an f32 the way Rust/Go/Zig do. NaN/Infinity/-Infinity
-// stay symbolic; -0 keeps its sign; integer-valued floats get a ".0"
-// suffix; everything else uses the JS default.
+// Canonical, bit-faithful serialization, matching Rust/Go/Zig. NaN (any
+// sign/payload) and ±0.0 render as their 0x-hex f32 bit pattern so distinct
+// payloads and signed zeros stay distinguishable and every port emits the
+// identical string; finite/inf values keep their human-readable label.
 function formatF32(v: number): string {
-  if (Number.isNaN(v)) return "NaN";
+  if (Number.isNaN(v) || v === 0) {
+    return "0x" + f32ToBits(v).toString(16).padStart(8, "0");
+  }
   if (v === Number.POSITIVE_INFINITY) return "Infinity";
   if (v === Number.NEGATIVE_INFINITY) return "-Infinity";
-  if (v === 0 && Object.is(v, -0)) return "-0.0";
   if (v === Math.trunc(v) && Math.abs(v) < 1e16) return `${v}.0`;
   return String(v);
 }
@@ -126,10 +184,14 @@ function createCollection(type: string): Collection {
     case "ArrayStack<i32>":
       return new NumberArrayStack();
     // f32 collections re-use the Number* implementations: JS `number` is
-    // f64 so f32 is a subset, and NumberNumberHashMap / NumberHashSet
-    // already key by Object.is (bit-pattern eq -- NaN distinct, +0/-0
-    // distinct), which matches the spec's float semantics in
-    // algorithms.md §"Float ordering for tree collections".
+    // f64 so f32 is a subset, and NumberNumberHashMap / NumberHashSet key by
+    // Object.is. That distinguishes +0/-0 (Object.is(+0,-0)===false) but
+    // CANONICALIZES NaN: Object.is(NaN,-NaN)===true and the production hash
+    // collections fold all NaN to one seed, so a TS f32 hash collection holds
+    // at most ONE NaN key (distinct payloads/signs collapse). See the TS
+    // carve-out in spec/algorithms.md §"NaN must hash and compare by bit
+    // pattern" and the README "Port limitation (TypeScript)". Ordering
+    // (tree/total-order) still distinguishes signed NaN where representable.
     case "HashMap<f32, i32>":
       return new NumberNumberHashMap();
     case "HashSet<f32>":
@@ -301,9 +363,12 @@ function evaluateF32Assertion(key: string, coll: Collection): unknown {
   }
   if (key === "sum") {
     if (coll instanceof NumberArrayList) {
-      let acc = 0;
-      for (const v of coll.toArray()) acc += v;
-      return new F32Value(Math.fround(acc));
+      // f32 left-fold: round per addition so each intermediate is an f32,
+      // matching Rust/Go/Zig (which accumulate in f32, not f64-once). This
+      // differs from the i32 list sum, which widens into a 64-bit accumulator.
+      let acc = Math.fround(0);
+      for (const v of coll.toArray()) acc = Math.fround(acc + v);
+      return new F32Value(acc);
     }
   }
   if (key === "min" || key === "max") {
@@ -356,15 +421,13 @@ function evaluateAssertion(
   }
 
   // --- sum / min / max (list, treeset, treemap) ---
-  // `sum` is wrapping i32 per the cross-language contract (validate.rs
-  // uses wrapping_add); the bitwise `| 0` coerces each step. `coll.sum()`
-  // would return the un-wrapped JS-number sum and break scenarios in
-  // 06-overflow/.
+  // List sum() widens into a 64-bit accumulator (IntList.sum(): long parity)
+  // and does NOT wrap at i32 — see algorithms.md "Integer overflow contract"
+  // and 06-overflow/i32_sum_overflow.json. JS doubles exactly represent the
+  // widened result, so route through the production NumberArrayList.sum().
   if (key === "sum") {
     if (coll instanceof NumberArrayList) {
-      let acc = 0;
-      for (const v of coll.toArray()) acc = (acc + v) | 0;
-      return acc;
+      return coll.sum();
     }
     throw new Error(`sum not supported for ${coll.constructor.name}`);
   }
@@ -668,11 +731,15 @@ function evaluateAssertion(
   // --- none_satisfy_gt_N (already handled above) ---
 
   // --- inject_into_sum ---
+  // injectInto with a + reduction accumulates in the i32 seed type and wraps
+  // two's-complement at i32 (algorithms.md "Integer overflow contract"). The
+  // TS production list has no injectInto, so the wrap is applied here (per the
+  // spec note that the TS runner applies wrapping in the runner): `| 0`
+  // coerces each step back to i32.
   if (key === "inject_into_sum") {
     if (coll instanceof NumberArrayList) {
       let acc = 0;
-      const arr = coll.toArray();
-      for (const v of arr) acc += v;
+      for (const v of coll.toArray()) acc = (acc + v) | 0;
       return acc;
     }
     throw new Error(
@@ -681,11 +748,11 @@ function evaluateAssertion(
   }
 
   // --- inject_into_product ---
+  // i32-seed-width wrapping fold (Math.imul coerces each step to i32).
   if (key === "inject_into_product") {
     if (coll instanceof NumberArrayList) {
       let acc = 1;
-      const arr = coll.toArray();
-      for (const v of arr) acc *= v;
+      for (const v of coll.toArray()) acc = Math.imul(acc, v);
       return acc;
     }
     throw new Error(
@@ -813,16 +880,26 @@ function renderExpected(expected: unknown, key: string, f32Mode: boolean): strin
     // A float label scalar (e.g. sum: "NaN", max: "NaN").
     return formatF32(parseF32Value(expected));
   }
+  if (
+    f32Mode &&
+    typeof expected === "object" &&
+    expected !== null &&
+    !Array.isArray(expected) &&
+    typeof (expected as { bits?: unknown }).bits === "string"
+  ) {
+    // Bits-escape float scalar (e.g. sum: {"bits":"0xffc00000"}).
+    return formatF32(parseF32Value(expected as { bits: string }));
+  }
   if (typeof expected === "number") {
     if (f32ScalarKey) return formatF32(Math.fround(expected));
     return String(expected);
   }
   if (Array.isArray(expected)) {
     if (f32ArrayQuoted) {
-      return `[${expected.map((e) => `"${formatF32(parseF32Value(e as number | string))}"`).join(",")}]`;
+      return `[${expected.map((e) => `"${formatF32(parseF32Value(e as number | string | { bits?: string }))}"`).join(",")}]`;
     }
     if (f32ArrayUnquoted) {
-      return `[${expected.map((e) => formatF32(parseF32Value(e as number | string))).join(",")}]`;
+      return `[${expected.map((e) => formatF32(parseF32Value(e as number | string | { bits?: string }))).join(",")}]`;
     }
     return `[${expected.map((e) => String(e)).join(",")}]`;
   }
@@ -839,10 +916,30 @@ function emit(
 ): void {
   console.log(`${key}: ${computed}`);
   const want = renderExpected(expected, key, f32Mode);
-  if (computed !== want) {
+  if (computed !== want && !looseNanMatch(expected, f32Mode, computed)) {
     console.log(`FAIL ${name} ${key}: expected=${want} got=${computed}`);
     anyFail = true;
   }
+}
+
+// Loose-NaN scalar match. When the EXPECTED operand is a bare NaN *label*
+// ("NaN"/"+NaN"/"-NaN") — NOT a {"bits":"0x.."} object and NOT an array
+// element — the assertion passes against ANY NaN the runner computed,
+// regardless of sign/payload. This covers impl/arch-defined arithmetic NaNs
+// such as (+Inf)+(-Inf), whose bits differ across x86 vs ARM. {"bits"}
+// operands stay bitwise-exact and array elements stay exact/positional
+// (renderExpected is unchanged for both). See cross-language-validation/README.md
+// §"Float operand encoding".
+function looseNanMatch(
+  expected: unknown,
+  f32Mode: boolean,
+  computed: string,
+): boolean {
+  if (!f32Mode || typeof expected !== "string") return false;
+  if (!Number.isNaN(parseF32Value(expected))) return false;
+  // Computed must itself be a NaN bit pattern (canonical "0x........").
+  if (!/^0x[0-9a-fA-F]{8}$/.test(computed)) return false;
+  return Number.isNaN(f32FromBits(parseInt(computed.slice(2), 16) >>> 0));
 }
 
 // ---------------------------------------------------------------------------
@@ -860,10 +957,14 @@ function main(): void {
   const raw = fs.readFileSync(filePath, "utf-8");
   const scenario: Scenario = JSON.parse(raw);
 
-  // f32 mode is purely about how labels and outputs are formatted; the
-  // backing collection is identical (JS `number` is f64 and the
-  // Number*HashMap/Set use Object.is for key equality, which already
-  // matches algorithms.md §"Float ordering for tree collections").
+  // f32 mode controls how labels and outputs are formatted. Operands are
+  // narrowed to true f32 via Math.fround (see parseF32Value) so the backing
+  // JS-number collection holds f32-rounded values matching Rust/Go/Zig.
+  // Caveat: Number*HashMap/Set key by Object.is, which canonicalizes NaN
+  // (Object.is(NaN,-NaN)===true) — so a TS f32 hash collection collapses all
+  // NaN to one key (the ArrayList sort/total-order path stays bit-faithful).
+  // See the TS carve-out in spec/algorithms.md §"NaN must hash and compare by
+  // bit pattern".
   const f32Mode = scenario.collection.includes("<f32");
 
   // Create and populate main collection
