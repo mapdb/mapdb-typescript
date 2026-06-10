@@ -119,8 +119,12 @@
     "test": "npx vitest run",
     "typecheck": "tsc --noEmit",
     "format": "npx prettier --write src/",
-    "generate": "npm run generate:typed-hashmap",
-    "generate:typed-hashmap": "node src/codegen/generate.mjs",
+    "generate": "node src/codegen/generate.mjs",
+    "generate:typed-hashmap": "node src/codegen/generate.mjs --family hashmap",
+    "generate:typed-arraylist": "node src/codegen/generate.mjs --family arraylist",
+    "generate:typed-hashset": "node src/codegen/generate.mjs --family hashset",
+    "generate:typed-stack": "node src/codegen/generate.mjs --family stack",
+    "generate:typed-bag": "node src/codegen/generate.mjs --family bag",
     "generate:check": "node src/codegen/generate.mjs --check"
   },
   "devDependencies": {

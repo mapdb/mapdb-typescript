@@ -5,89 +5,235 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 // ---------------------------------------------------------------------------
-// Typed hash-map code generator (phase 6b-1).
+// Typed-collection code generator (phases 6b-1 + 6b-2).
 //
-//   node src/codegen/generate.mjs            # write the 36 classes + 36 tests
-//   node src/codegen/generate.mjs --check    # drift gate: fail if regen differs
-//   node src/codegen/generate.mjs --out DIR  # write to DIR instead (reconcile)
+//   node src/codegen/generate.mjs                 # write ALL generated families
+//   node src/codegen/generate.mjs --check         # drift gate (ALL families)
+//   node src/codegen/generate.mjs --family hashmap        # one family only
+//   node src/codegen/generate.mjs --family stack --check  # drift gate, one family
+//   node src/codegen/generate.mjs --out DIR       # emit to DIR (reconciliation)
+//
+// Five families are generated from the spec + templates:
+//   hashmap    src/typed/hashmap/   (36 K×V classes — phase 6b-1)
+//   arraylist  src/typed/arraylist/ (mutable + immutable, 6 prims — 6b-2)
+//   hashset    src/typed/hashset/   (mutable + immutable, 6 prims — 6b-2)
+//   stack      src/typed/stack/     (mutable + immutable, 6 prims — 6b-2)
+//   bag        src/typed/bag/       (mutable only, 6 prims — 6b-2)
 //
 // See src/codegen/README.md for the spec/template model and how to add a type.
 // ---------------------------------------------------------------------------
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { pairs } from "./spec.mjs";
+import { PRIMS, pairs } from "./spec.mjs";
 import {
   renderSource,
   renderTest,
   sourceFileName,
   testFileName,
 } from "./templates.mjs";
+import * as F from "./families.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..", "..");
-const TARGET_DIR = join(REPO_ROOT, "src", "typed", "hashmap");
+const TYPED_DIR = join(REPO_ROOT, "src", "typed");
 
-// The command embedded in every generated file's DO-NOT-EDIT banner.
-export const REGEN_COMMAND = "npm run generate:typed-hashmap";
+// Each family declares its target sub-directory, its regenerate command (which
+// is embedded in every generated file's DO-NOT-EDIT banner), and a builder that
+// returns the family's {fileName -> contents} map. The builder is the single
+// place that knows whether a family has a K×V cross-product (hashmap), a single
+// element axis (the 6b-2 families), or an immutable companion.
+const FAMILIES = [
+  {
+    name: "hashmap",
+    dir: "hashmap",
+    command: "npm run generate:typed-hashmap",
+    build(command) {
+      const files = new Map();
+      for (const pair of pairs()) {
+        files.set(sourceFileName(pair.key, pair.val), renderSource(pair, command));
+        files.set(testFileName(pair.key, pair.val), renderTest(pair, command));
+      }
+      return files;
+    },
+  },
+  {
+    name: "arraylist",
+    dir: "arraylist",
+    command: "npm run generate:typed-arraylist",
+    build(command) {
+      const files = new Map();
+      for (const p of PRIMS) {
+        files.set(F.arrayListSourceFileName(p), F.renderArrayList(p, command));
+        files.set(F.arrayListTestFileName(p), F.renderArrayListTest(p, command));
+        files.set(F.immArrayListSourceFileName(p), F.renderImmutableArrayList(p, command));
+        files.set(F.immArrayListTestFileName(p), F.renderImmutableArrayListTest(p, command));
+      }
+      return files;
+    },
+  },
+  {
+    name: "hashset",
+    dir: "hashset",
+    command: "npm run generate:typed-hashset",
+    build(command) {
+      const files = new Map();
+      for (const p of PRIMS) {
+        files.set(F.hashSetSourceFileName(p), F.renderHashSet(p, command));
+        files.set(F.hashSetTestFileName(p), F.renderHashSetTest(p, command));
+        files.set(F.immHashSetSourceFileName(p), F.renderImmutableHashSet(p, command));
+        files.set(F.immHashSetTestFileName(p), F.renderImmutableHashSetTest(p, command));
+      }
+      return files;
+    },
+  },
+  {
+    name: "stack",
+    dir: "stack",
+    command: "npm run generate:typed-stack",
+    build(command) {
+      const files = new Map();
+      for (const p of PRIMS) {
+        files.set(F.stackSourceFileName(p), F.renderStack(p, command));
+        files.set(F.stackTestFileName(p), F.renderStackTest(p, command));
+        files.set(F.immStackSourceFileName(p), F.renderImmutableStack(p, command));
+        files.set(F.immStackTestFileName(p), F.renderImmutableStackTest(p, command));
+      }
+      return files;
+    },
+  },
+  {
+    name: "bag",
+    dir: "bag",
+    command: "npm run generate:typed-bag",
+    build(command) {
+      const files = new Map();
+      for (const p of PRIMS) {
+        files.set(F.bagSourceFileName(p), F.renderBag(p, command));
+        files.set(F.bagTestFileName(p), F.renderBagTest(p, command));
+      }
+      return files;
+    },
+  },
+];
 
-/** Produce the full {relPath -> contents} map of generated files. */
-export function generateFiles() {
-  const files = new Map();
-  for (const pair of pairs()) {
-    files.set(sourceFileName(pair.key, pair.val), renderSource(pair, REGEN_COMMAND));
-    files.set(testFileName(pair.key, pair.val), renderTest(pair, REGEN_COMMAND));
+/** Resolve which families to act on from a --family filter (default: all). */
+function selectFamilies(name) {
+  if (!name) return FAMILIES;
+  const fam = FAMILIES.find((f) => f.name === name);
+  if (!fam) {
+    console.error(
+      `Unknown family "${name}". Known: ${FAMILIES.map((f) => f.name).join(", ")}.`,
+    );
+    process.exit(1);
   }
-  return files;
+  return [fam];
 }
 
-async function writeAll(outDir) {
-  await mkdir(outDir, { recursive: true });
-  const files = generateFiles();
+/** Write a family's generated files into `targetDir`. */
+async function writeFamily(fam, targetDir) {
+  await mkdir(targetDir, { recursive: true });
+  const files = fam.build(fam.command);
   for (const [name, contents] of files) {
-    await writeFile(join(outDir, name), contents, "utf8");
+    await writeFile(join(targetDir, name), contents, "utf8");
   }
   return files.size;
 }
 
-async function check() {
-  const files = generateFiles();
+// Banner stamped into every generated file. A committed file in a target dir
+// that carries this marker but is NOT in the generator's expected set is STALE
+// (the generator stopped emitting it) — the gate must flag it, otherwise a
+// dropped file would silently survive with no comparison.
+const GENERATED_MARKER = "CODE GENERATED";
+
+/** Drift-check a family against its committed files. Returns the drift count. */
+async function checkFamily(fam) {
+  const targetDir = join(TYPED_DIR, fam.dir);
+  const files = fam.build(fam.command);
   let drift = 0;
   for (const [name, contents] of files) {
-    const path = join(TARGET_DIR, name);
+    const path = join(targetDir, name);
     if (!existsSync(path)) {
-      console.error(`MISSING: ${name} (generator would create it)`);
+      console.error(`MISSING: ${fam.name}/${name} (generator would create it)`);
       drift++;
       continue;
     }
     const existing = await readFile(path, "utf8");
     if (existing !== contents) {
-      console.error(`DRIFT: ${name} differs from generator output`);
+      console.error(`DRIFT: ${fam.name}/${name} differs from generator output`);
       drift++;
     }
   }
-  if (drift > 0) {
-    console.error(
-      `\n${drift} file(s) drifted. Run \`${REGEN_COMMAND}\` and commit the result.`,
-    );
-    process.exit(1);
+  // Catch STALE/EXTRA generated files: any banner-carrying file on disk that the
+  // generator no longer emits. (Hand-written files lack the banner and are
+  // correctly ignored.) Without this, dropping a file from the generator would
+  // leave its stale committed copy unchecked and the gate would still pass.
+  for (const entry of await readdir(targetDir)) {
+    if (files.has(entry)) continue;
+    const path = join(targetDir, entry);
+    let head;
+    try {
+      head = await readFile(path, "utf8");
+    } catch {
+      continue; // not a readable file (e.g. a subdirectory)
+    }
+    if (head.includes(GENERATED_MARKER)) {
+      console.error(
+        `STALE: ${fam.name}/${entry} is generator-stamped but no longer emitted (delete it or restore the generator)`,
+      );
+      drift++;
+    }
   }
-  console.log(`OK: all ${files.size} generated files match the template.`);
+  return { drift, count: files.size };
 }
 
 async function main() {
   const args = process.argv.slice(2);
+
+  const famIdx = args.indexOf("--family");
+  const familyName = famIdx >= 0 ? args[famIdx + 1] : undefined;
+  const families = selectFamilies(familyName);
+
   if (args.includes("--check")) {
-    await check();
+    let totalDrift = 0;
+    let totalCount = 0;
+    for (const fam of families) {
+      const { drift, count } = await checkFamily(fam);
+      totalDrift += drift;
+      totalCount += count;
+    }
+    if (totalDrift > 0) {
+      console.error(
+        `\n${totalDrift} file(s) drifted. Run \`npm run generate\` and commit the result.`,
+      );
+      process.exit(1);
+    }
+    console.log(
+      `OK: all ${totalCount} generated files match the templates (${families.length} ${families.length === 1 ? "family" : "families"}).`,
+    );
     return;
   }
+
   const outIdx = args.indexOf("--out");
-  const outDir = outIdx >= 0 ? resolve(args[outIdx + 1]) : TARGET_DIR;
-  const count = await writeAll(outDir);
-  console.log(`Generated ${count} files into ${outDir}`);
+  if (outIdx >= 0) {
+    // Scratch/reconciliation mode: every selected family lands flat in DIR.
+    const outDir = resolve(args[outIdx + 1]);
+    let total = 0;
+    for (const fam of families) total += await writeFamily(fam, outDir);
+    console.log(`Generated ${total} files into ${outDir}`);
+    return;
+  }
+
+  let total = 0;
+  for (const fam of families) {
+    total += await writeFamily(fam, join(TYPED_DIR, fam.dir));
+  }
+  console.log(
+    `Generated ${total} files across ${families.length} ${families.length === 1 ? "family" : "families"}.`,
+  );
 }
 
 main().catch((err) => {
