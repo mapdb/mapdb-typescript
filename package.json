@@ -118,7 +118,10 @@
     "prepack": "npm run build",
     "test": "npx vitest run",
     "typecheck": "tsc --noEmit",
-    "format": "npx prettier --write src/"
+    "format": "npx prettier --write src/",
+    "generate": "npm run generate:typed-hashmap",
+    "generate:typed-hashmap": "node src/codegen/generate.mjs",
+    "generate:check": "node src/codegen/generate.mjs --check"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
