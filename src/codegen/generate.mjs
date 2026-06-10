@@ -5,7 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 // ---------------------------------------------------------------------------
-// Typed-collection code generator (phases 6b-1 + 6b-2).
+// Collection code generator (phases 6b-1 + 6b-2 + 6b-3).
 //
 //   node src/codegen/generate.mjs                 # write ALL generated families
 //   node src/codegen/generate.mjs --check         # drift gate (ALL families)
@@ -13,12 +13,19 @@
 //   node src/codegen/generate.mjs --family stack --check  # drift gate, one family
 //   node src/codegen/generate.mjs --out DIR       # emit to DIR (reconciliation)
 //
-// Five families are generated from the spec + templates:
-//   hashmap    src/typed/hashmap/   (36 K×V classes — phase 6b-1)
-//   arraylist  src/typed/arraylist/ (mutable + immutable, 6 prims — 6b-2)
-//   hashset    src/typed/hashset/   (mutable + immutable, 6 prims — 6b-2)
-//   stack      src/typed/stack/     (mutable + immutable, 6 prims — 6b-2)
-//   bag        src/typed/bag/       (mutable only, 6 prims — 6b-2)
+// Seven families are generated from the spec + templates:
+//   hashmap            src/typed/hashmap/   (36 K×V classes — phase 6b-1)
+//   arraylist          src/typed/arraylist/ (mutable + immutable, 6 prims — 6b-2)
+//   hashset            src/typed/hashset/   (mutable + immutable, 6 prims — 6b-2)
+//   stack              src/typed/stack/     (mutable + immutable, 6 prims — 6b-2)
+//   bag                src/typed/bag/       (mutable only, 6 prims — 6b-2)
+//   hashmap-nontyped   src/hashmap/   (number/bigint map+bimap+immutable — 6b-3)
+//   multimap-nontyped  src/multimap/  (number/bigint list+set multimap — 6b-3)
+//
+// The 6b-3 families emit into MIXED directories (src/hashmap, src/multimap) that
+// also hold hand-written object-keyed maps + the multimap aggregator; those hand
+// files carry no generated banner, so the STALE scan ignores them and the
+// builders never emit object-keyed names.
 //
 // See src/codegen/README.md for the spec/template model and how to add a type.
 // ---------------------------------------------------------------------------
@@ -36,16 +43,25 @@ import {
   testFileName,
 } from "./templates.mjs";
 import * as F from "./families.mjs";
+import * as NT from "./nontyped.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, "..", "..");
-const TYPED_DIR = join(REPO_ROOT, "src", "typed");
+const SRC_DIR = join(REPO_ROOT, "src");
+const TYPED_DIR = join(SRC_DIR, "typed");
 
-// Each family declares its target sub-directory, its regenerate command (which
-// is embedded in every generated file's DO-NOT-EDIT banner), and a builder that
-// returns the family's {fileName -> contents} map. The builder is the single
-// place that knows whether a family has a K×V cross-product (hashmap), a single
-// element axis (the 6b-2 families), or an immutable companion.
+// Each family declares its target directory (`dir`, resolved under `base`, which
+// defaults to src/typed/), its regenerate command (which is embedded in every
+// generated file's DO-NOT-EDIT banner), and a builder that returns the family's
+// {fileName -> contents} map. The builder is the single place that knows whether
+// a family has a K×V cross-product (hashmap), a single element axis (the 6b-2
+// families), or an immutable companion.
+//
+// The phase-6b-3 NON-TYPED number/bigint map families set `base: SRC_DIR` so
+// they emit directly into src/hashmap/ and src/multimap/, alongside the
+// HAND-WRITTEN object-keyed maps and aggregators. Those hand files carry NO
+// generated banner, so the STALE scan in checkFamily ignores them; the builders
+// here emit ONLY the number/bigint file names, never the object-keyed ones.
 const FAMILIES = [
   {
     name: "hashmap",
@@ -118,7 +134,51 @@ const FAMILIES = [
       return files;
     },
   },
+  // ---- phase 6b-3: NON-TYPED number/bigint K×V maps (plain Array / Map) ----
+  {
+    name: "hashmap-nontyped",
+    base: SRC_DIR,
+    dir: "hashmap",
+    command: "npm run generate:hashmap-nontyped",
+    build(command) {
+      const files = new Map();
+      for (const pair of NT.nonTypedPairs()) {
+        // mutable hash map + its generated test
+        files.set(NT.hashMapSourceFileName(pair), NT.renderHashMap(pair, command));
+        files.set(NT.hashMapTestFileName(pair), NT.renderHashMapTest(pair, command));
+        // hash bi-map (no generated test)
+        files.set(NT.biMapSourceFileName(pair), NT.renderBiMap(pair, command));
+        // immutable hash map + its generated test
+        files.set(NT.immMapSourceFileName(pair), NT.renderImmutableMap(pair, command));
+        files.set(NT.immMapTestFileName(pair), NT.renderImmutableMapTest(pair, command));
+      }
+      return files;
+    },
+  },
+  {
+    name: "multimap-nontyped",
+    base: SRC_DIR,
+    dir: "multimap",
+    command: "npm run generate:multimap-nontyped",
+    build(command) {
+      const files = new Map();
+      for (const pair of NT.nonTypedPairs()) {
+        for (const variant of ["list", "set"]) {
+          files.set(
+            NT.multimapSourceFileName(pair, variant),
+            NT.renderMultimap(pair, variant, command),
+          );
+        }
+      }
+      return files;
+    },
+  },
 ];
+
+/** Absolute target dir for a family (`base` defaults to src/typed/). */
+function familyDir(fam) {
+  return join(fam.base ?? TYPED_DIR, fam.dir);
+}
 
 /** Resolve which families to act on from a --family filter (default: all). */
 function selectFamilies(name) {
@@ -151,7 +211,7 @@ const GENERATED_MARKER = "CODE GENERATED";
 
 /** Drift-check a family against its committed files. Returns the drift count. */
 async function checkFamily(fam) {
-  const targetDir = join(TYPED_DIR, fam.dir);
+  const targetDir = familyDir(fam);
   const files = fam.build(fam.command);
   let drift = 0;
   for (const [name, contents] of files) {
@@ -229,7 +289,7 @@ async function main() {
 
   let total = 0;
   for (const fam of families) {
-    total += await writeFamily(fam, join(TYPED_DIR, fam.dir));
+    total += await writeFamily(fam, familyDir(fam));
   }
   console.log(
     `Generated ${total} files across ${families.length} ${families.length === 1 ? "family" : "families"}.`,

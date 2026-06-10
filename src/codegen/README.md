@@ -1,10 +1,10 @@
-# `src/codegen` — typed-collection code generator
+# `src/codegen` — collection code generator
 
-This directory holds the code generator that produces **five typed-collection
-families** under `src/typed/`. Every `*.ts` class plus its `*.generated.test.ts`
-companion in those directories is **generated output**, not a hand-maintained
-file. A drift gate (`npm run generate:check`) keeps the committed files in
-lock-step with the templates.
+This directory holds the code generator that produces **seven collection
+families**. Every `*.ts` class plus its `*.generated.test.ts` companion in the
+target directories is **generated output**, not a hand-maintained file. A drift
+gate (`npm run generate:check`) keeps the committed files in lock-step with the
+templates.
 
 | Family | Directory | Files | Sub-phase |
 | --- | --- | --- | --- |
@@ -13,11 +13,54 @@ lock-step with the templates.
 | hash set | `src/typed/hashset/` | 6 mutable + 6 immutable (+ tests) | 6b-2 |
 | array stack | `src/typed/stack/` | 6 mutable + 6 immutable (+ tests) | 6b-2 |
 | hash bag | `src/typed/bag/` | 6 mutable only (+ tests) | 6b-2 |
+| non-typed map | `src/hashmap/` | 4 map (+4 tests), 4 bimap, 4 immutable (+4 tests) | 6b-3 |
+| non-typed multimap | `src/multimap/` | 4 `K×V` × {list, set} = 8 classes | 6b-3 |
 
 Phase 6b-1 (hash map) was the proof; phase 6b-2 extends the same
-spec+template+runner model to the four single-element-type families above. The
-hash map keys on a `K×V` cross-product of the six primitives; the 6b-2 families
-have a single element type and vary along just the six-primitive axis.
+spec+template+runner model to the four single-element-type families. The hash
+map keys on a `K×V` cross-product of the six primitives; the 6b-2 families have
+a single element type and vary along just the six-primitive axis. Phase 6b-3
+extends the model again to the **non-typed** number/bigint maps that live under
+`src/hashmap/` and `src/multimap/` (backed by plain `Array` open-addressing or a
+JS `Map`, not `TypedArray`; type axis = `{number, bigint}` only).
+
+### Non-typed map families (6b-3) — a MIXED directory
+
+`src/hashmap/` and `src/multimap/` contain BOTH generated number/bigint maps and
+**hand-written** object-keyed maps (`number-object-hash-map.ts`,
+`object-number-hash-map.ts`, `bigint-object-hash-map.ts`,
+`object-bigint-hash-map.ts`, and the `multimap.ts` aggregator). The object-keyed
+maps are a DIFFERENT (Map-backed identity) implementation that is **not
+templatable** with this generator, so they are left hand-written and carry **no**
+`CODE GENERATED` banner. The drift gate's STALE scan keys on that banner, so the
+hand-written files are correctly ignored; the family builders emit ONLY the
+number/bigint file names and never an object-keyed name. The 6b-3 templates live
+in `nontyped.mjs` (separate from the typed `templates.mjs`/`families.mjs`) and
+their per-type metadata is a small self-contained `NONTYPED_PRIMS` table
+(`number` → `f64HashSeed`/`0`; `bigint` → `bigintHashSeed`/`0n`).
+
+Per-type behavioural nuances folded into `nontyped.mjs` (NOT pure type
+substitution, reproduced verbatim so regeneration never reverts a hand fix):
+
+- **hash-map key-import layout** differs by key kind: a number key places
+  `import { f64HashSeed }` *above* `import type { MapDbMutableMap }`; a bigint
+  key places the `import type` first with `import { bigintHashSeed }` adjacent
+  below it. The `hashKey()` seed is `f64HashSeed(key)` / `bigintHashSeed(key)`
+  (no `| 0`; the sign is folded with `h < 0 ? -h : h`).
+- **bimap `inverse()`** returns the `V×K`-swapped bimap class; when `K !== V`
+  that class differs from `this`, so a sibling import is emitted (none when
+  `K === V`). Bimaps have no generated test.
+- **multimap structure switches on KEY kind**: a number key uses the
+  `mapKeyOf`/`NEG_ZERO_KEY` tuple machinery (so `-0`/`+0` keys stay distinct); a
+  bigint key uses a plain `Map<bigint, V[]>`. The value-equality helper follows
+  kind — `containsKeyValue` and the set-dedup track the KEY kind (`Object.is`
+  for number keys, `===` for bigint keys); `equals` uses `Object.is` only in the
+  number-key + number-value case and `!==` everywhere else. `list` vs `set`
+  differ only in the `put()` body (set dedups) and the doc wording. Multimaps
+  have no generated test.
+- **number-keyed hash maps** get the same `IEEE 754 edge cases` test block as the
+  float-keyed typed maps (NaN findable/replace/remove, `-0`/`+0` distinct,
+  `±Infinity` keys), gated on the number key kind.
 
 ## Why these files are generated instead of being a TS generic
 
@@ -43,7 +86,8 @@ All of that is data, captured in the **spec**.
 | `spec.mjs` | The **type axis** (`PRIMS`) + per-type metadata, and the `KEY_HASH` table that maps a `kind` to its canonical hash helper. The single source of truth for "what types exist and how they behave." Shared by every family. |
 | `templates.mjs` | Pure string builders for the **hash-map** family: `renderSource()` / `renderTest()`. They read only spec metadata — never branching on a type *name*. Canonical hash helpers are imported **by name** (`f64HashSeed`, `bigintHashSeed`), never inlined. |
 | `families.mjs` | Pure string builders for the four **6b-2 families** (array list / hash set / stack / bag, each `render*` + `*FileName` + `*ClassName`). Same rules: spec-driven, helpers imported by name. Per-type behavioural nuances that are not pure type substitution are folded in here (see below). |
-| `generate.mjs` | The runner. Declares the five families in one `FAMILIES` table, then writes them, or (`--check`) acts as the drift gate, or (`--out DIR`) emits flat to a scratch dir for reconciliation. `--family <name>` scopes any mode to one family. |
+| `nontyped.mjs` | Pure string builders for the **6b-3 non-typed families** (number/bigint hash map + bimap + immutable + multimap). Self-contained `NONTYPED_PRIMS` metadata (only the `{number, bigint}` axis); helpers imported by name. Per-type structural nuances (multimap key-branch, bimap inverse import, hash-map import layout) folded in (see above). |
+| `generate.mjs` | The runner. Declares the seven families in one `FAMILIES` table (each with a target `dir`, resolved under `base` — `src/typed/` by default, `src/` for the 6b-3 families), then writes them, or (`--check`) acts as the drift gate, or (`--out DIR`) emits flat to a scratch dir for reconciliation. `--family <name>` scopes any mode to one family. |
 
 ### Per-type behavioural nuances folded into `families.mjs`
 
@@ -117,9 +161,11 @@ every family automatically.
 ## Commands
 
 ```bash
-npm run generate                 # regenerate ALL five families (156 files)
-npm run generate:typed-hashmap   # one family (also: -arraylist / -hashset / -stack / -bag)
-npm run generate:check           # drift gate over ALL families — non-zero on any drift
+npm run generate                    # regenerate ALL seven families (184 files)
+npm run generate:typed-hashmap      # one family (also: -arraylist / -hashset / -stack / -bag)
+npm run generate:hashmap-nontyped   # 6b-3 number/bigint maps in src/hashmap/ (20 files)
+npm run generate:multimap-nontyped  # 6b-3 number/bigint multimaps in src/multimap/ (8 files)
+npm run generate:check              # drift gate over ALL families — non-zero on any drift
 node src/codegen/generate.mjs --family stack --check        # drift gate, one family
 node src/codegen/generate.mjs --family arraylist --out /tmp/scratch  # scratch dir (reconcile)
 ```
@@ -127,10 +173,13 @@ node src/codegen/generate.mjs --family arraylist --out /tmp/scratch  # scratch d
 ### Drift gate (CI / dev)
 
 `npm run generate:check` regenerates every family in memory and compares against
-the committed files, failing if any differs. Equivalent to a
-`git diff --exit-code` over `src/typed/` after a fresh regenerate. Wire it into
-CI so a hand-edit to a generated file (or a template change that wasn't
-regenerated) fails the build.
+the committed files, failing if any differs. For each family it also runs a
+**STALE scan**: any banner-stamped file on disk that the generator no longer
+emits is flagged. Because `src/hashmap/` and `src/multimap/` are mixed
+directories, this scan is what lets the hand-written object-keyed maps and the
+`multimap.ts` aggregator coexist with generated files — they carry no banner, so
+the scan ignores them. Wire it into CI so a hand-edit to a generated file (or a
+template change that wasn't regenerated) fails the build.
 
 Every generated file carries a banner naming its own regenerate command, e.g.:
 

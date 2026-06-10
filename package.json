@@ -125,6 +125,8 @@
     "generate:typed-hashset": "node src/codegen/generate.mjs --family hashset",
     "generate:typed-stack": "node src/codegen/generate.mjs --family stack",
     "generate:typed-bag": "node src/codegen/generate.mjs --family bag",
+    "generate:hashmap-nontyped": "node src/codegen/generate.mjs --family hashmap-nontyped",
+    "generate:multimap-nontyped": "node src/codegen/generate.mjs --family multimap-nontyped",
     "generate:check": "node src/codegen/generate.mjs --check"
   },
   "devDependencies": {
