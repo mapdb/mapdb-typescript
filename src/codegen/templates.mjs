@@ -329,6 +329,426 @@ function nextPowerOfTwo(n: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// Immutable hash-map source template
+// ---------------------------------------------------------------------------
+
+/** Bare file name (no dir) for the immutable source class of a (key,val) pair. */
+export function immSourceFileName(key, val) {
+  return `immutable_${key.id}-${val.id}-hash-map.ts`;
+}
+
+/** Bare file name (no dir) for the immutable generated test of a (key,val) pair. */
+export function immTestFileName(key, val) {
+  return `immutable_${key.id}-${val.id}-hash-map.generated.test.ts`;
+}
+
+/** Class / export name for an immutable (key,val) pair, e.g. ImmutableInt32BigInt64HashMap. */
+export function immClassName(key, val) {
+  return `Immutable${key.name}${val.name}HashMap`;
+}
+
+/**
+ * Build the full immutable_<k>-<v>-hash-map.ts source for one (key,val) pair.
+ * Exposes the READ-ONLY subset of the mutable map (no set/remove/clear): keys
+ * are inserted once at construction into an open-addressed backing store, then
+ * the instance is frozen. select/reject return MUTABLE, mirroring the other
+ * immutable typed families.
+ * @param {{key: import('./spec.mjs').Prim, val: import('./spec.mjs').Prim}} pair
+ * @param {string} command  the regenerate command, embedded in the banner.
+ */
+export function renderImmutableSource({ key, val }, command) {
+  const cls = immClassName(key, val);
+  const mut = className(key, val);
+  const K = key.tsType;
+  const V = val.tsType;
+  const keyArr = key.arrayClass;
+  const valArr = val.arrayClass;
+  const keyHash = KEY_HASH[key.kind];
+  const slotBytes = key.bytes + val.bytes + 1;
+
+  // Same preamble rule as the mutable map: a key needing a hash helper imports
+  // it BY NAME; the mutable-sibling import always follows. Int keys import only
+  // the mutable sibling.
+  const mutImport = `import { ${mut} } from "./${key.id}-${val.id}-hash-map.js";`;
+  const preamble = keyHash.import
+    ? `\nimport { ${keyHash.import.names.join(", ")} } from "${keyHash.import.from}";\n${mutImport}\n`
+    : `\n${mutImport}\n`;
+
+  return `${LICENSE}${generatedHeader(command)}${preamble}
+/**
+ * Immutable ${key.name}→${val.name} hash map backed by ${keyArr} and ${valArr}.
+ * Keys: ${key.bytes} bytes each, values: ${val.bytes} bytes each.
+ * Construct via static of(entries) or fromMutable(mutable).
+ * Mutations create new instances; select/reject return MUTABLE.
+ * Memory: ${slotBytes} bytes/slot (vs ~50-70 bytes in Map<${K}, ${V}>).
+ */
+export class ${cls} {
+  private keys: ${keyArr};
+  private values: ${valArr};
+  private occupied: Uint8Array;
+  private _size: number;
+  private capacity: number;
+
+  /** Creates an immutable map from an array of [key, value] entries (defensive copy). */
+  static of(entries: [${K}, ${V}][]): ${cls} {
+    const map = new ${mut}(entries.length);
+    for (const [k, v] of entries) {
+      map.set(k, v);
+    }
+    return ${cls}.fromMutable(map);
+  }
+
+  /** Creates an immutable copy from a mutable map (defensive copy). */
+  static fromMutable(mutable: ${mut}): ${cls} {
+    const entries: [${K}, ${V}][] = [...mutable.entries()];
+    const c = nextPowerOfTwo(Math.max(entries.length * 2, 16));
+    const keys = new ${keyArr}(c);
+    const values = new ${valArr}(c);
+    const occupied = new Uint8Array(c);
+    let size = 0;
+    const mask = c - 1;
+    for (const [k, v] of entries) {
+      let idx = hash(k) & mask;
+      while (true) {
+        if (!occupied[idx]) {
+          keys[idx] = k;
+          values[idx] = v;
+          occupied[idx] = 1;
+          size++;
+          break;
+        }
+        if (Object.is(keys[idx], k)) {
+          values[idx] = v;
+          break;
+        }
+        idx = (idx + 1) & mask;
+      }
+    }
+    return new ${cls}(keys, values, occupied, size, c);
+  }
+
+  private constructor(
+    keys: ${keyArr},
+    values: ${valArr},
+    occupied: Uint8Array,
+    size: number,
+    capacity: number,
+  ) {
+    this.keys = keys;
+    this.values = values;
+    this.occupied = occupied;
+    this._size = size;
+    this.capacity = capacity;
+  }
+
+  /** Returns the value for the key, or undefined. */
+  get(key: ${K}): ${V} | undefined {
+    if (this.capacity === 0) return undefined;
+    const mask = this.capacity - 1;
+    let idx = hash(key) & mask;
+    while (true) {
+      if (!this.occupied[idx]) return undefined;
+      if (Object.is(this.keys[idx], key)) return this.values[idx];
+      idx = (idx + 1) & mask;
+    }
+  }
+
+  /** Returns the value for the key, or the given default. */
+  getOrDefault(key: ${K}, defaultValue: ${V}): ${V} {
+    const v = this.get(key);
+    return v !== undefined ? v : defaultValue;
+  }
+
+  /** Returns true if the map contains the given key. */
+  has(key: ${K}): boolean {
+    return this.get(key) !== undefined;
+  }
+
+  /** Returns the number of entries. */
+  get size(): number {
+    return this._size;
+  }
+
+  /** Returns true if the map is empty. */
+  isEmpty(): boolean {
+    return this._size === 0;
+  }
+
+  /** Yields [key, value] pairs. */
+  *entries(): Generator<[${K}, ${V}]> {
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i]) yield [this.keys[i], this.values[i]];
+    }
+  }
+
+  /** Yields [key, value] pairs (delegates to {@link entries}), so the map is
+   * spreadable and for-of-iterable like a JS Map. */
+  [Symbol.iterator](): Generator<[${K}, ${V}]> {
+    return this.entries();
+  }
+
+  /** Yields all keys. */
+  *keysIter(): Generator<${K}> {
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i]) yield this.keys[i];
+    }
+  }
+
+  /** Yields all values. */
+  *valuesIter(): Generator<${V}> {
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i]) yield this.values[i];
+    }
+  }
+
+  /** Calls the function for each entry. */
+  forEach(f: (key: ${K}, value: ${V}) => void): void {
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i]) f(this.keys[i], this.values[i]);
+    }
+  }
+
+  /** Returns a new MUTABLE map with entries satisfying the predicate. */
+  select(predicate: (key: ${K}, value: ${V}) => boolean): ${mut} {
+    const result = new ${mut}();
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i] && predicate(this.keys[i], this.values[i])) {
+        result.set(this.keys[i], this.values[i]);
+      }
+    }
+    return result;
+  }
+
+  /** Returns a new MUTABLE map with entries NOT satisfying the predicate. */
+  reject(predicate: (key: ${K}, value: ${V}) => boolean): ${mut} {
+    const result = new ${mut}();
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i] && !predicate(this.keys[i], this.values[i])) {
+        result.set(this.keys[i], this.values[i]);
+      }
+    }
+    return result;
+  }
+
+  /** Returns true if any entry satisfies the predicate. */
+  anySatisfy(predicate: (key: ${K}, value: ${V}) => boolean): boolean {
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i] && predicate(this.keys[i], this.values[i]))
+        return true;
+    }
+    return false;
+  }
+
+  /** Returns true if all entries satisfy the predicate. */
+  allSatisfy(predicate: (key: ${K}, value: ${V}) => boolean): boolean {
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i] && !predicate(this.keys[i], this.values[i]))
+        return false;
+    }
+    return true;
+  }
+
+  /** Folds the entries into a single value. */
+  injectInto<R>(initial: R, f: (acc: R, key: ${K}, value: ${V}) => R): R {
+    let result = initial;
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i]) result = f(result, this.keys[i], this.values[i]);
+    }
+    return result;
+  }
+
+  /** Returns a mutable copy of this immutable map. */
+  toMutable(): ${mut} {
+    const result = new ${mut}();
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i]) result.set(this.keys[i], this.values[i]);
+    }
+    return result;
+  }
+
+  /** Memory stats for this map. */
+  memoryBytes(): number {
+    return this.capacity * (${key.bytes} + ${val.bytes} + 1);
+  }
+
+  toString(): string {
+    const parts: string[] = [];
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.occupied[i]) parts.push(\`\${this.keys[i]}: \${this.values[i]}\`);
+    }
+    return \`{\${parts.join(", ")}}\`;
+  }
+}
+
+function hash(key: ${K}): number {
+  let h = ${keyHash.seedExpr("key")};
+  h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
+  h = (((h >> 16) ^ h) * 0x45d9f3b) | 0;
+  return ((h >> 16) ^ h) >>> 0;
+}
+
+function nextPowerOfTwo(n: number): number {
+  if (n <= 0) return 16;
+  n--;
+  n |= n >> 1;
+  n |= n >> 2;
+  n |= n >> 4;
+  n |= n >> 8;
+  n |= n >> 16;
+  n++;
+  return n;
+}
+`;
+}
+
+/**
+ * Build the full immutable_<k>-<v>-hash-map.generated.test.ts for one pair.
+ * @param {{key: import('./spec.mjs').Prim, val: import('./spec.mjs').Prim}} pair
+ * @param {string} command  the regenerate command, embedded in the banner.
+ */
+export function renderImmutableTest({ key, val }, command) {
+  const cls = immClassName(key, val);
+  const mut = className(key, val);
+  const k1 = keyLit(key, 1);
+  const k2 = keyLit(key, 2);
+  const k3 = keyLit(key, 3);
+  const k99 = keyLit(key, 99);
+  const v1 = valLit(val, 1);
+  const v2 = valLit(val, 2);
+  const v3 = valLit(val, 3);
+  const v0 = valLit(val, 0);
+  const ent = (...pairsList) =>
+    `[${pairsList.map(([k, v]) => `[${keyLit(key, k)}, ${valLit(val, v)}]`).join(", ")}]`;
+
+  return `${LICENSE}${generatedHeader(command)}
+
+import { describe, it, expect } from "vitest";
+import { ${cls} } from "./immutable_${key.id}-${val.id}-hash-map.js";
+import { ${mut} } from "./${key.id}-${val.id}-hash-map.js";
+
+describe("${cls} generated", () => {
+  it("static of creates immutable map", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2], [3, 3])});
+    expect(m.get(${k1})).toBe(${v1});
+    expect(m.get(${k99})).toBeUndefined();
+    expect(m.size).toBe(3);
+  });
+
+  it("fromMutable creates defensive copy", () => {
+    const mutable = new ${mut}();
+    mutable.set(${k1}, ${v1});
+    mutable.set(${k2}, ${v2});
+    const imm = ${cls}.fromMutable(mutable);
+    mutable.set(${k3}, ${v3});
+    expect(imm.size).toBe(2);
+    expect(imm.has(${k3})).toBe(false);
+    expect(mutable.size).toBe(3);
+  });
+
+  it("get and has", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2])});
+    expect(m.get(${k1})).toBe(${v1});
+    expect(m.has(${k1})).toBe(true);
+    expect(m.has(${k99})).toBe(false);
+  });
+
+  it("getOrDefault", () => {
+    const m = ${cls}.of(${ent([1, 1])});
+    expect(m.getOrDefault(${k1}, ${v3})).toBe(${v1});
+    expect(m.getOrDefault(${k99}, ${v3})).toBe(${v3});
+  });
+
+  it("size and isEmpty", () => {
+    const empty = ${cls}.of([]);
+    expect(empty.size).toBe(0);
+    expect(empty.isEmpty()).toBe(true);
+    const nonEmpty = ${cls}.of(${ent([1, 1])});
+    expect(nonEmpty.size).toBe(1);
+    expect(nonEmpty.isEmpty()).toBe(false);
+  });
+
+  it("entries and Symbol.iterator", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2])});
+    expect([...m.entries()].length).toBe(2);
+    expect([...m].length).toBe(2);
+  });
+
+  it("keysIter and valuesIter", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2])});
+    expect([...m.keysIter()].length).toBe(2);
+    expect([...m.valuesIter()].length).toBe(2);
+  });
+
+  it("forEach", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2])});
+    let count = 0;
+    m.forEach(() => {
+      count++;
+    });
+    expect(count).toBe(2);
+  });
+
+  it("select returns MUTABLE", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2], [3, 3])});
+    const result = m.select((_k, v) => v > ${v1});
+    expect(typeof result.set).toBe("function");
+    expect(result.size).toBe(2);
+  });
+
+  it("reject returns MUTABLE", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2], [3, 3])});
+    const result = m.reject((_k, v) => v > ${v1});
+    expect(typeof result.set).toBe("function");
+    expect(result.size).toBe(1);
+  });
+
+  it("anySatisfy / allSatisfy", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2])});
+    expect(m.anySatisfy((_k, v) => v === ${v2})).toBe(true);
+    expect(m.allSatisfy((_k, v) => v > ${v0})).toBe(true);
+  });
+
+  it("injectInto", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2])});
+    const count = m.injectInto(0, (acc) => acc + 1);
+    expect(count).toBe(2);
+  });
+
+  it("toMutable round-trip", () => {
+    const original = ${cls}.of(${ent([1, 1], [2, 2])});
+    const mutable = original.toMutable();
+    mutable.set(${k3}, ${v3});
+    expect(mutable.size).toBe(3);
+    expect(original.size).toBe(2);
+  });
+
+  it("memoryBytes", () => {
+    const m = ${cls}.of(${ent([1, 1], [2, 2], [3, 3])});
+    expect(m.memoryBytes()).toBeGreaterThan(0);
+  });
+
+  it("toString", () => {
+    const m = ${cls}.of(${ent([1, 1])});
+    expect(m.toString()).not.toBe("");
+  });
+
+  // Verify mutators are not available
+  it("has no set method", () => {
+    const m = ${cls}.of(${ent([1, 1])});
+    // @ts-expect-error - set should not exist on immutable
+    expect(m.set).toBeUndefined();
+  });
+
+  it("has no remove method", () => {
+    const m = ${cls}.of(${ent([1, 1])});
+    // @ts-expect-error - remove should not exist on immutable
+    expect(m.remove).toBeUndefined();
+  });
+});
+`;
+}
+
+// ---------------------------------------------------------------------------
 // Test template
 // ---------------------------------------------------------------------------
 

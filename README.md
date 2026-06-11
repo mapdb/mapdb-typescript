@@ -17,9 +17,9 @@ JavaScript's `Map` and `Set` are general-purpose but lack the rich functional AP
 |------|---------|-----------|----------|
 | **ArrayList** | `NumberArrayList`, `Int32ArrayList` | `ImmutableNumberArrayList`, `ImmutableInt32ArrayList` | number/bigint + typed arrays |
 | **HashSet** | `NumberHashSet`, `Int32HashSet` | `ImmutableNumberHashSet`, `ImmutableInt32HashSet` | number/bigint + typed arrays |
-| **HashBag** | `NumberHashBag` | `ImmutableNumberHashBag` | number/bigint |
+| **HashBag** | `NumberHashBag`, `Int32HashBag` | `ImmutableNumberHashBag`, `ImmutableInt32HashBag` | number/bigint + typed arrays |
 | **ArrayStack** | `NumberArrayStack` | `ImmutableNumberArrayStack` | number/bigint + typed arrays |
-| **HashMap** | `NumberNumberHashMap`, `Int32BigInt64HashMap` | `ImmutableNumberNumberHashMap` | number/bigint + typed arrays |
+| **HashMap** | `NumberNumberHashMap`, `Int32BigInt64HashMap` | `ImmutableNumberNumberHashMap`, `ImmutableInt32BigInt64HashMap` | number/bigint + typed arrays |
 | **TreeSet** | `NumberTreeSet` | — | number/bigint |
 | **TreeMap** | `NumberNumberTreeMap` | — | number/bigint |
 | **Pair** | `NumberNumberPair` | — | number/bigint |
@@ -74,7 +74,7 @@ const squares = range(1, 6).map(x => x * x).toArray();
 
 ## Stats
 
-- **166 source files**, **1,836 tests** passing
+- **209 source files**, **2,550 tests** passing
 - All 8 primitive types + generic object types
 - Zero runtime dependencies
 - Requires Node.js 18+ / TypeScript 5.0+

@@ -82,6 +82,10 @@
       "types": "./dist/tuple/*.d.ts",
       "import": "./dist/tuple/*.js"
     },
+    "./typed": {
+      "types": "./dist/typed/index.d.ts",
+      "import": "./dist/typed/index.js"
+    },
     "./typed/*": {
       "types": "./dist/typed/*.d.ts",
       "import": "./dist/typed/*.js"

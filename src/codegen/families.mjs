@@ -3062,3 +3062,329 @@ describe("${cls} generated", () => {
 });
 `;
 }
+
+// ===========================================================================
+// BAG — immutable
+// ===========================================================================
+
+export function immBagSourceFileName(prim) {
+  return `immutable_${prim.id}-hash-bag.ts`;
+}
+export function immBagTestFileName(prim) {
+  return `immutable_${prim.id}-hash-bag.generated.test.ts`;
+}
+export function immBagClassName(prim) {
+  return `Immutable${prim.name}HashBag`;
+}
+
+export function renderImmutableBag(prim, command) {
+  const cls = immBagClassName(prim);
+  const mut = bagClassName(prim);
+  const T = prim.tsType;
+  const Arr = prim.arrayClass;
+
+  return `${LICENSE}${banner(command)}
+
+import { ${mut} } from "./${prim.id}-hash-bag.js";
+
+/**
+ * Immutable bag (multiset) for ${T} values backed by Map<${T}, number>.
+ * Tracks occurrence counts for each distinct value.
+ * Construct via static of(values) or fromMutable(mutable).
+ * Mutations create new instances; select/reject return MUTABLE.
+ */
+export class ${cls} {
+  private counts: Map<${T}, number>;
+  private _size: number;
+
+  /** Creates an immutable bag from an array of values (defensive copy). */
+  static of(values: ${T}[]): ${cls} {
+    const counts = new Map<${T}, number>();
+    let size = 0;
+    for (const v of values) {
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+      size++;
+    }
+    return new ${cls}(counts, size);
+  }
+
+  /** Creates an immutable copy from a mutable bag (defensive copy). */
+  static fromMutable(mutable: ${mut}): ${cls} {
+    const counts = new Map<${T}, number>();
+    let size = 0;
+    mutable.forEachWithOccurrences((value, occurrences) => {
+      counts.set(value, occurrences);
+      size += occurrences;
+    });
+    return new ${cls}(counts, size);
+  }
+
+  private constructor(counts: Map<${T}, number>, size: number) {
+    this.counts = counts;
+    this._size = size;
+  }
+
+  /** Returns the number of occurrences of the given value. */
+  occurrencesOf(value: ${T}): number {
+    return this.counts.get(value) ?? 0;
+  }
+
+  /** Returns true if the bag contains the given value. */
+  has(value: ${T}): boolean {
+    return this.counts.has(value);
+  }
+
+  /** Total number of items including duplicates. */
+  get size(): number {
+    return this._size;
+  }
+
+  /** Number of distinct values. */
+  sizeDistinct(): number {
+    return this.counts.size;
+  }
+
+  /** Returns true if the bag is empty. */
+  isEmpty(): boolean {
+    return this._size === 0;
+  }
+
+  /** Yields [value, occurrences] pairs for each distinct value. */
+  *entries(): Generator<[${T}, number]> {
+    for (const entry of this.counts) {
+      yield entry;
+    }
+  }
+
+  /** Makes the bag iterable with for-of loops; yields each item repeated by
+   * its occurrence count (matching forEach / toArray). */
+  *[Symbol.iterator](): IterableIterator<${T}> {
+    for (const [value, count] of this.counts) {
+      for (let i = 0; i < count; i++) yield value;
+    }
+  }
+
+  /** Iterates over each item, repeating by occurrence count. */
+  forEach(f: (value: ${T}) => void): void {
+    for (const [value, count] of this.counts) {
+      for (let i = 0; i < count; i++) {
+        f(value);
+      }
+    }
+  }
+
+  /** Iterates over each distinct value with its occurrence count. */
+  forEachWithOccurrences(
+    f: (value: ${T}, occurrences: number) => void,
+  ): void {
+    for (const [value, count] of this.counts) {
+      f(value, count);
+    }
+  }
+
+  /** Returns a new MUTABLE bag with values satisfying the predicate. */
+  select(predicate: (value: ${T}) => boolean): ${mut} {
+    const result = new ${mut}();
+    for (const [value, count] of this.counts) {
+      if (predicate(value)) result.addOccurrences(value, count);
+    }
+    return result;
+  }
+
+  /** Returns a new MUTABLE bag with values NOT satisfying the predicate. */
+  reject(predicate: (value: ${T}) => boolean): ${mut} {
+    const result = new ${mut}();
+    for (const [value, count] of this.counts) {
+      if (!predicate(value)) result.addOccurrences(value, count);
+    }
+    return result;
+  }
+
+  /** Returns a ${Arr} with all items, each repeated by occurrence count. */
+  toArray(): ${Arr} {
+    const result = new ${Arr}(this._size);
+    let idx = 0;
+    for (const [value, count] of this.counts) {
+      for (let i = 0; i < count; i++) {
+        result[idx++] = value;
+      }
+    }
+    return result;
+  }
+
+  /** Returns a mutable copy of this immutable bag. */
+  toMutable(): ${mut} {
+    const result = new ${mut}();
+    for (const [value, count] of this.counts) {
+      result.addOccurrences(value, count);
+    }
+    return result;
+  }
+
+  toString(): string {
+    const parts: string[] = [];
+    for (const [value, count] of this.counts) {
+      parts.push(\`\${value}×\${count}\`);
+    }
+    return \`{\${parts.join(", ")}}\`;
+  }
+
+  /** Estimated memory: Map overhead + this object overhead. */
+  memoryBytes(): number {
+    // Map<${T}, number>: ~80 bytes per entry overhead in V8
+    // This is an estimate; exact memory depends on the JS engine.
+    return this.counts.size * 80;
+  }
+}
+`;
+}
+
+export function renderImmutableBagTest(prim, command) {
+  const cls = immBagClassName(prim);
+  const mut = bagClassName(prim);
+  const T = prim.tsType;
+  const L = (n) => lit(prim, n);
+  const arr = (...ns) => `[${ns.map(L).join(", ")}]`;
+  return `${LICENSE}${banner(command)}
+
+import { describe, it, expect } from "vitest";
+import { ${cls} } from "./immutable_${prim.id}-hash-bag.js";
+import { ${mut} } from "./${prim.id}-hash-bag.js";
+
+describe("${cls} generated", () => {
+  it("static of creates immutable bag", () => {
+    const b = ${cls}.of(${arr(1, 1, 2)});
+    expect(b.occurrencesOf(${L(1)})).toBe(2);
+    expect(b.occurrencesOf(${L(2)})).toBe(1);
+    expect(b.size).toBe(3);
+    expect(b.sizeDistinct()).toBe(2);
+  });
+
+  it("fromMutable creates defensive copy", () => {
+    const mutable = new ${mut}();
+    mutable.add(${L(1)});
+    mutable.add(${L(1)});
+    mutable.add(${L(2)});
+    const imm = ${cls}.fromMutable(mutable);
+    mutable.add(${L(3)});
+    expect(imm.size).toBe(3);
+    expect(imm.has(${L(3)})).toBe(false);
+    expect(mutable.size).toBe(4);
+  });
+
+  it("occurrencesOf and has", () => {
+    const b = ${cls}.of(${arr(1, 1, 2)});
+    expect(b.occurrencesOf(${L(1)})).toBe(2);
+    expect(b.occurrencesOf(${L(99)})).toBe(0);
+    expect(b.has(${L(1)})).toBe(true);
+    expect(b.has(${L(99)})).toBe(false);
+  });
+
+  it("size, sizeDistinct, isEmpty", () => {
+    const empty = ${cls}.of([]);
+    expect(empty.size).toBe(0);
+    expect(empty.sizeDistinct()).toBe(0);
+    expect(empty.isEmpty()).toBe(true);
+    const nonEmpty = ${cls}.of(${arr(1, 1)});
+    expect(nonEmpty.size).toBe(2);
+    expect(nonEmpty.sizeDistinct()).toBe(1);
+    expect(nonEmpty.isEmpty()).toBe(false);
+  });
+
+  it("entries", () => {
+    const b = ${cls}.of(${arr(1, 1, 2)});
+    let total = 0;
+    for (const [, count] of b.entries()) {
+      total += count;
+    }
+    expect(total).toBe(3);
+  });
+
+  it("Symbol.iterator yields repeated items", () => {
+    const b = ${cls}.of(${arr(1, 1, 2)});
+    const collected: ${T}[] = [];
+    for (const v of b) {
+      collected.push(v);
+    }
+    expect(collected.length).toBe(3);
+  });
+
+  it("forEach repeats by occurrence count", () => {
+    const b = ${cls}.of(${arr(1, 1, 2)});
+    let count = 0;
+    b.forEach(() => {
+      count++;
+    });
+    expect(count).toBe(3);
+  });
+
+  it("forEachWithOccurrences", () => {
+    const b = ${cls}.of(${arr(1, 1, 2)});
+    let total = 0;
+    b.forEachWithOccurrences((_v, c) => {
+      total += c;
+    });
+    expect(total).toBe(3);
+  });
+
+  it("select returns MUTABLE", () => {
+    const b = ${cls}.of(${arr(1, 2, 3)});
+    const result = b.select((v) => v > ${L(1)});
+    expect(typeof result.add).toBe("function");
+    expect(result.size).toBe(2);
+  });
+
+  it("reject returns MUTABLE", () => {
+    const b = ${cls}.of(${arr(1, 2, 3)});
+    const result = b.reject((v) => v > ${L(1)});
+    expect(typeof result.add).toBe("function");
+    expect(result.size).toBe(1);
+  });
+
+  it("toArray repeats by occurrence count", () => {
+    const b = ${cls}.of(${arr(1, 1, 2)});
+    const arr = b.toArray();
+    expect(arr.length).toBe(3);
+  });
+
+  it("toMutable round-trip", () => {
+    const original = ${cls}.of(${arr(1, 1, 2)});
+    const mutable = original.toMutable();
+    mutable.add(${L(3)});
+    expect(mutable.size).toBe(4);
+    expect(original.size).toBe(3);
+  });
+
+  it("toString", () => {
+    const b = ${cls}.of(${arr(1)});
+    expect(b.toString()).not.toBe("");
+  });
+
+  it("memoryBytes", () => {
+    const b = ${cls}.of(${arr(1, 2, 3)});
+    expect(b.memoryBytes()).toBeGreaterThanOrEqual(0);
+  });
+
+  it("defensive copy - modifying source array doesn't affect immutable", () => {
+    const source = ${arr(1, 2, 3)};
+    const b = ${cls}.of(source);
+    source[0] = ${L(99)} as any;
+    expect(b.has(${L(1)})).toBe(true);
+    expect(b.has(${L(99)})).toBe(false);
+  });
+
+  // Verify mutators are not available
+  it("has no add method", () => {
+    const b = ${cls}.of(${arr(1)});
+    // @ts-expect-error - add should not exist on immutable
+    expect(b.add).toBeUndefined();
+  });
+
+  it("has no remove method", () => {
+    const b = ${cls}.of(${arr(1)});
+    // @ts-expect-error - remove should not exist on immutable
+    expect(b.remove).toBeUndefined();
+  });
+});
+`;
+}

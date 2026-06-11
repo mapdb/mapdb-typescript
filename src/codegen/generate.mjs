@@ -14,11 +14,11 @@
 //   node src/codegen/generate.mjs --out DIR       # emit to DIR (reconciliation)
 //
 // Seven families are generated from the spec + templates:
-//   hashmap            src/typed/hashmap/   (36 K×V classes — phase 6b-1)
+//   hashmap            src/typed/hashmap/   (36 K×V classes, mutable + immutable — 6b-1)
 //   arraylist          src/typed/arraylist/ (mutable + immutable, 6 prims — 6b-2)
 //   hashset            src/typed/hashset/   (mutable + immutable, 6 prims — 6b-2)
 //   stack              src/typed/stack/     (mutable + immutable, 6 prims — 6b-2)
-//   bag                src/typed/bag/       (mutable only, 6 prims — 6b-2)
+//   bag                src/typed/bag/       (mutable + immutable, 6 prims — 6b-2)
 //   hashmap-nontyped   src/hashmap/   (number/bigint map+bimap+immutable — 6b-3)
 //   multimap-nontyped  src/multimap/  (number/bigint list+set multimap — 6b-3)
 //
@@ -41,6 +41,10 @@ import {
   renderTest,
   sourceFileName,
   testFileName,
+  renderImmutableSource,
+  renderImmutableTest,
+  immSourceFileName,
+  immTestFileName,
 } from "./templates.mjs";
 import * as F from "./families.mjs";
 import * as NT from "./nontyped.mjs";
@@ -72,6 +76,8 @@ const FAMILIES = [
       for (const pair of pairs()) {
         files.set(sourceFileName(pair.key, pair.val), renderSource(pair, command));
         files.set(testFileName(pair.key, pair.val), renderTest(pair, command));
+        files.set(immSourceFileName(pair.key, pair.val), renderImmutableSource(pair, command));
+        files.set(immTestFileName(pair.key, pair.val), renderImmutableTest(pair, command));
       }
       return files;
     },
@@ -130,6 +136,8 @@ const FAMILIES = [
       for (const p of PRIMS) {
         files.set(F.bagSourceFileName(p), F.renderBag(p, command));
         files.set(F.bagTestFileName(p), F.renderBagTest(p, command));
+        files.set(F.immBagSourceFileName(p), F.renderImmutableBag(p, command));
+        files.set(F.immBagTestFileName(p), F.renderImmutableBagTest(p, command));
       }
       return files;
     },

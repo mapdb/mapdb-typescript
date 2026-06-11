@@ -34,7 +34,7 @@ export { BigIntBigIntTreeMap } from "./treemap/bigint-bigint-tree-map.js";
 export { NumberNumberPair } from "./tuple/number-number-pair.js";
 export { BigIntBigIntPair } from "./tuple/bigint-bigint-pair.js";
 export { NumberInterval } from "./interval/number-interval.js";
-export { Int32ArrayList } from "./typed/arraylist/int32-array-list.js";
-export { ImmutableInt32ArrayList } from "./typed/arraylist/immutable_int32-array-list.js";
-export { Int32HashSet } from "./typed/hashset/int32-hash-set.js";
-export { Int32BigInt64HashMap } from "./typed/hashmap/int32-bigint64-hash-map.js";
+
+// Full typed primitive collection surface (mutable + immutable; all six
+// element types and 36 key×value hash-map pairs). See src/typed/index.ts.
+export * from "./typed/index.js";
