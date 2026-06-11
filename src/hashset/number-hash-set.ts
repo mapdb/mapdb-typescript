@@ -93,6 +93,11 @@ export class NumberHashSet implements MapDbMutableSet<number> {
     }
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: number): boolean {
+    return this.contains(value);
+  }
+
   /** Returns the number of elements. */
   size(): number {
     return this._size;

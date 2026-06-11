@@ -56,6 +56,11 @@ export class BigIntObjectHashMap<V> implements MapDbMutableMap<bigint, V> {
     return this.map.has(key);
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: bigint): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns the number of entries. */
   size(): number {
     return this.map.size;
@@ -76,6 +81,12 @@ export class BigIntObjectHashMap<V> implements MapDbMutableMap<bigint, V> {
     for (const entry of this.map) {
       yield entry;
     }
+  }
+
+  /** Yields [key, value] pairs (delegates to {@link entries}), so the map is
+   * spreadable and for-of-iterable like a JS Map. */
+  [Symbol.iterator](): Generator<[bigint, V]> {
+    return this.entries();
   }
 
   /** Calls the function for each key-value pair. */

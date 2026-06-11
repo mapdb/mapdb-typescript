@@ -76,6 +76,11 @@ export class BitSet {
     return (this.words[wi] & this.wordMask(bit)) !== 0;
   }
 
+  /** Returns true if the bit is set. Alias for `get`. */
+  has(bit: number): boolean {
+    return this.get(bit);
+  }
+
   /** Logical bit length (tracks highest bit set + 1, or explicit prealloc). */
   get length(): number {
     return this._bitLength;
@@ -208,5 +213,14 @@ export class BitSet {
   /** String of set bit indices. */
   toString(): string {
     return `{${this.toArray().join(", ")}}`;
+  }
+
+  /** Iterates set bit indices in ascending order. */
+  *[Symbol.iterator](): Generator<number> {
+    let bit = this.nextSetBit(0);
+    while (bit >= 0) {
+      yield bit;
+      bit = this.nextSetBit(bit + 1);
+    }
   }
 }

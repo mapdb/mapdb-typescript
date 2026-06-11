@@ -95,6 +95,11 @@ export class TreeMap<K, V> {
     return this.findNode(key) !== null;
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: K): boolean {
+    return this.containsKey(key);
+  }
+
   remove(key: K): V | undefined {
     const n = this.findNode(key);
     if (n === null) return undefined;

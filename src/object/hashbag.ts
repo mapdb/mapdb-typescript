@@ -65,6 +65,11 @@ export class HashBag<T> implements MapDbMutableBag<T> {
     return this.data.has(value);
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: T): boolean {
+    return this.contains(value);
+  }
+
   // ── Iteration / functional ──────────────────────────────────────────
 
   forEach(f: (value: T) => void): void {

@@ -93,6 +93,11 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
     return this.counts.has(value);
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: bigint): boolean {
+    return this.contains(value);
+  }
+
   /** Returns the total number of elements (including duplicates). */
   size(): number {
     return this._size;

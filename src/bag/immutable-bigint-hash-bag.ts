@@ -37,6 +37,11 @@ export class ImmutableBigIntHashBag implements MapDbBag<bigint> {
     return this.delegate.contains(value);
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: bigint): boolean {
+    return this.contains(value);
+  }
+
   /** Returns the total number of elements (including duplicates). */
   size(): number {
     return this.delegate.size();

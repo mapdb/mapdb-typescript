@@ -114,6 +114,11 @@ export class HashMapWithStrategy<K, V> {
     return this.get(key) !== undefined;
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: K): boolean {
+    return this.containsKey(key);
+  }
+
   get size(): number {
     return this._size;
   }

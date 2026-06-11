@@ -66,6 +66,11 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
     return this.map.has(mapKeyOf(key));
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: number): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns the number of entries. */
   size(): number {
     return this.map.size;
@@ -86,6 +91,12 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
     for (const [key, value] of this.map.values()) {
       yield [key, value];
     }
+  }
+
+  /** Yields [key, value] pairs (delegates to {@link entries}), so the map is
+   * spreadable and for-of-iterable like a JS Map. */
+  [Symbol.iterator](): Generator<[number, V]> {
+    return this.entries();
   }
 
   /** Calls the function for each key-value pair. */

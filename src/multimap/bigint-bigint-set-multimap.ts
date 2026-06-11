@@ -65,6 +65,11 @@ export class BigIntBigIntSetMultimap {
     return this._map.has(key);
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: bigint): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns true if the multimap contains the given key-value pair. */
   containsKeyValue(key: bigint, value: bigint): boolean {
     const list = this._map.get(key);

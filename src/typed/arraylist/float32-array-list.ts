@@ -175,6 +175,13 @@ export class Float32ArrayList {
     return list;
   }
 
+  /** Makes the list iterable with for-of loops. Yields elements in order. */
+  *[Symbol.iterator](): IterableIterator<number> {
+    for (let i = 0; i < this._size; i++) {
+      yield this.data[i];
+    }
+  }
+
   forEach(f: (value: number, index: number) => void): void {
     for (let i = 0; i < this._size; i++) {
       f(this.data[i], i);

@@ -64,6 +64,11 @@ export class BigIntNumberHashBiMap {
     return this._forward.has(key);
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: bigint): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns true if the map contains the given value. */
   containsValue(value: number): boolean {
     return this._inverse.has(value);

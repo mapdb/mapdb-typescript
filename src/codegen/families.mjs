@@ -279,6 +279,13 @@ ${sumBody}
     return list;
   }
 
+  /** Makes the list iterable with for-of loops. Yields elements in order. */
+  *[Symbol.iterator](): IterableIterator<${T}> {
+    for (let i = 0; i < this._size; i++) {
+      yield this.data[i];
+    }
+  }
+
   forEach(f: (value: ${T}, index: number) => void): void {
     for (let i = 0; i < this._size; i++) {
       f(this.data[i], i);
@@ -1015,6 +1022,11 @@ export class ${cls} {
     }
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: ${T}): boolean {
+    return this.contains(value);
+  }
+
   size(): number {
     return this._size;
   }
@@ -1062,6 +1074,11 @@ export class ${cls} {
     for (let i = 0; i < this.capacity; i++) {
       if (this.occupied[i]) yield this.items[i];
     }
+  }
+
+  /** Makes the set iterable with for-of loops (delegates to values()). */
+  [Symbol.iterator](): Generator<${T}> {
+    return this.values();
   }
 
   toArray(): ${Arr} {
@@ -1295,6 +1312,11 @@ export class ${cls} {
 
   /** Alias for contains. */
   includes(value: ${T}): boolean {
+    return this.contains(value);
+  }
+
+  /** Set-shaped alias for {@link contains}. */
+  has(value: ${T}): boolean {
     return this.contains(value);
   }
 
@@ -2887,6 +2909,11 @@ export class ${cls} {
     return this.counts.has(value);
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: ${T}): boolean {
+    return this.contains(value);
+  }
+
   /** Total number of items including duplicates */
   size(): number {
     return this._size;
@@ -2910,6 +2937,14 @@ export class ${cls} {
   *entries(): Generator<[${T}, number]> {
     for (const entry of this.counts) {
       yield entry;
+    }
+  }
+
+  /** Makes the bag iterable with for-of loops; yields each item repeated by
+   * its occurrence count (matching forEach / toArray). */
+  *[Symbol.iterator](): IterableIterator<${T}> {
+    for (const [value, count] of this.counts) {
+      for (let i = 0; i < count; i++) yield value;
     }
   }
 

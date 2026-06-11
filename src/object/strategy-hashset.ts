@@ -96,6 +96,11 @@ export class HashSetWithStrategy<T> {
     }
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: T): boolean {
+    return this.contains(value);
+  }
+
   get size(): number {
     return this._size;
   }

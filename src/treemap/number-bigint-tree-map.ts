@@ -96,6 +96,11 @@ export class NumberBigIntTreeMap implements MapDbMutableMap<number, bigint> {
     return this.findNode(key) !== null;
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: number): boolean {
+    return this.containsKey(key);
+  }
+
   remove(key: number): bigint | undefined {
     const node = this.findNode(key);
     if (!node) return undefined;
@@ -167,6 +172,13 @@ export class NumberBigIntTreeMap implements MapDbMutableMap<number, bigint> {
       yield* inorder(node.right);
     }
     yield* inorder(this.root);
+  }
+
+  /** Yields [key, value] pairs in ascending key order (delegates to
+   * {@link entries}), so the map is spreadable and for-of-iterable like a JS
+   * Map. */
+  [Symbol.iterator](): Generator<[number, bigint]> {
+    return this.entries();
   }
 
   *keys(): Generator<number> {

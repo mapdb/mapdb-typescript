@@ -41,6 +41,11 @@ export class Multimap<K, V> {
     return vals !== undefined && vals.length > 0;
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: K): boolean {
+    return this.containsKey(key);
+  }
+
   /** Removes all values for the key. Returns the removed values. */
   removeAll(key: K): V[] {
     const vals = this.data.get(key);
@@ -83,6 +88,12 @@ export class Multimap<K, V> {
         yield [k, v];
       }
     }
+  }
+
+  /** Yields all (key, value) pairs (delegates to {@link entries}), one tuple per
+   * individual value — consistent with the typed multimaps. */
+  [Symbol.iterator](): Generator<[K, V]> {
+    return this.entries();
   }
 
   /** Calls f for each distinct key with a copy of its values. */

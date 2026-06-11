@@ -253,6 +253,11 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
     return this.get(key) !== undefined;
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: ${K}): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns the number of entries. */
   size(): number {
     return this._size;
@@ -278,6 +283,12 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
         yield [this.keys[i], this.values[i]];
       }
     }
+  }
+
+  /** Yields [key, value] pairs (delegates to {@link entries}), so the map is
+   * spreadable and for-of-iterable like a JS Map. */
+  [Symbol.iterator](): Generator<[${K}, ${V}]> {
+    return this.entries();
   }
 
   /** Yields all keys. */
@@ -762,6 +773,11 @@ export class ${cls} {
     return this._forward.has(key);
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: ${K}): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns true if the map contains the given value. */
   containsValue(value: ${V}): boolean {
     return this._inverse.has(value);
@@ -940,6 +956,11 @@ export class ${cls} implements MapDbMap<${K}, ${V}> {
     return this.delegate.containsKey(key);
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: ${K}): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns the number of entries. */
   size(): number {
     return this.delegate.size();
@@ -953,6 +974,12 @@ export class ${cls} implements MapDbMap<${K}, ${V}> {
   /** Yields all key-value pairs as [key, value] tuples. */
   *entries(): Generator<[${K}, ${V}]> {
     yield* this.delegate.entries();
+  }
+
+  /** Yields [key, value] pairs (delegates to {@link entries}), so the map is
+   * spreadable and for-of-iterable like a JS Map. */
+  [Symbol.iterator](): Generator<[${K}, ${V}]> {
+    return this.entries();
   }
 
   /** Yields all keys. */
@@ -1222,6 +1249,11 @@ ${putBody}
     return this._map.has(mapKeyOf(key));
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: ${K}): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns true if the multimap contains the given key-value pair. */
   containsKeyValue(key: ${K}, value: ${V}): boolean {
     const entry = this._map.get(mapKeyOf(key));
@@ -1437,6 +1469,11 @@ ${putBody}
   /** Returns true if the multimap contains the given key. */
   containsKey(key: ${K}): boolean {
     return this._map.has(key);
+  }
+
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: ${K}): boolean {
+    return this.containsKey(key);
   }
 
   /** Returns true if the multimap contains the given key-value pair. */

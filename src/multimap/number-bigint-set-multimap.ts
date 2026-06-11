@@ -74,6 +74,11 @@ export class NumberBigIntSetMultimap {
     return this._map.has(mapKeyOf(key));
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: number): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns true if the multimap contains the given key-value pair. */
   containsKeyValue(key: number, value: bigint): boolean {
     const entry = this._map.get(mapKeyOf(key));

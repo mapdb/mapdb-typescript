@@ -111,6 +111,11 @@ export class BigIntBigIntHashMap implements MapDbMutableMap<bigint, bigint> {
     return this.get(key) !== undefined;
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: bigint): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns the number of entries. */
   size(): number {
     return this._size;
@@ -136,6 +141,12 @@ export class BigIntBigIntHashMap implements MapDbMutableMap<bigint, bigint> {
         yield [this.keys[i], this.values[i]];
       }
     }
+  }
+
+  /** Yields [key, value] pairs (delegates to {@link entries}), so the map is
+   * spreadable and for-of-iterable like a JS Map. */
+  [Symbol.iterator](): Generator<[bigint, bigint]> {
+    return this.entries();
   }
 
   /** Yields all keys. */

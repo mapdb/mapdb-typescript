@@ -36,6 +36,11 @@ export class TreeSet<T> {
     return this.tree.containsKey(value);
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: T): boolean {
+    return this.contains(value);
+  }
+
   get size(): number {
     return this.tree.size;
   }

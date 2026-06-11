@@ -47,6 +47,11 @@ export class ImmutableBigIntNumberHashMap implements MapDbMap<bigint, number> {
     return this.delegate.containsKey(key);
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: bigint): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns the number of entries. */
   size(): number {
     return this.delegate.size();
@@ -60,6 +65,12 @@ export class ImmutableBigIntNumberHashMap implements MapDbMap<bigint, number> {
   /** Yields all key-value pairs as [key, value] tuples. */
   *entries(): Generator<[bigint, number]> {
     yield* this.delegate.entries();
+  }
+
+  /** Yields [key, value] pairs (delegates to {@link entries}), so the map is
+   * spreadable and for-of-iterable like a JS Map. */
+  [Symbol.iterator](): Generator<[bigint, number]> {
+    return this.entries();
   }
 
   /** Yields all keys. */

@@ -32,6 +32,11 @@ export class ImmutableNumberHashSet implements MapDbSet<number> {
     return this.delegate.contains(value);
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: number): boolean {
+    return this.contains(value);
+  }
+
   /** Returns the number of elements. */
   size(): number {
     return this.delegate.size();

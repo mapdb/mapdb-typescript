@@ -63,6 +63,11 @@ export class ImmutableBitSet {
     return this.delegate.toArray();
   }
 
+  /** Iterates set bit indices in ascending order. */
+  [Symbol.iterator](): Generator<number> {
+    return this.delegate[Symbol.iterator]();
+  }
+
   /** Returns a NEW immutable BitSet with the bit at `index` set to 1. */
   set(bit: number): ImmutableBitSet {
     const copy = this.delegate;

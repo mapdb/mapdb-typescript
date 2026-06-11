@@ -123,6 +123,11 @@ export class NumberTreeBag {
     return this.findNode(value) !== null;
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: number): boolean {
+    return this.contains(value);
+  }
+
   /** Total count including duplicates. */
   get size(): number {
     return this._size;

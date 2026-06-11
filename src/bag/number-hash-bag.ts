@@ -112,6 +112,11 @@ export class NumberHashBag implements MapDbMutableBag<number> {
     return this.counts.has(mapKeyOf(value));
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: number): boolean {
+    return this.contains(value);
+  }
+
   /** Returns the total number of elements (including duplicates). */
   size(): number {
     return this._size;

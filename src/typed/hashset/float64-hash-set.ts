@@ -71,6 +71,11 @@ export class Float64HashSet {
     }
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: number): boolean {
+    return this.contains(value);
+  }
+
   size(): number {
     return this._size;
   }
@@ -118,6 +123,11 @@ export class Float64HashSet {
     for (let i = 0; i < this.capacity; i++) {
       if (this.occupied[i]) yield this.items[i];
     }
+  }
+
+  /** Makes the set iterable with for-of loops (delegates to values()). */
+  [Symbol.iterator](): Generator<number> {
+    return this.values();
   }
 
   toArray(): Float64Array {

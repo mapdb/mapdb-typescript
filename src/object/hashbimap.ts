@@ -66,6 +66,11 @@ export class HashBiMap<K, V> {
     return this.forward.has(key);
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: K): boolean {
+    return this.containsKey(key);
+  }
+
   containsValue(value: V): boolean {
     return this.backward.has(value);
   }

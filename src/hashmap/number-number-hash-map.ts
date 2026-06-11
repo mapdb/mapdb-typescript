@@ -112,6 +112,11 @@ export class NumberNumberHashMap implements MapDbMutableMap<number, number> {
     return this.get(key) !== undefined;
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: number): boolean {
+    return this.containsKey(key);
+  }
+
   /** Returns the number of entries. */
   size(): number {
     return this._size;
@@ -137,6 +142,12 @@ export class NumberNumberHashMap implements MapDbMutableMap<number, number> {
         yield [this.keys[i], this.values[i]];
       }
     }
+  }
+
+  /** Yields [key, value] pairs (delegates to {@link entries}), so the map is
+   * spreadable and for-of-iterable like a JS Map. */
+  [Symbol.iterator](): Generator<[number, number]> {
+    return this.entries();
   }
 
   /** Yields all keys. */

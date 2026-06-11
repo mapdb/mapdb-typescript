@@ -64,6 +64,11 @@ export class BigInt64HashBag {
     return this.counts.has(value);
   }
 
+  /** Set-shaped alias for {@link contains}. */
+  has(value: bigint): boolean {
+    return this.contains(value);
+  }
+
   /** Total number of items including duplicates */
   size(): number {
     return this._size;
@@ -87,6 +92,14 @@ export class BigInt64HashBag {
   *entries(): Generator<[bigint, number]> {
     for (const entry of this.counts) {
       yield entry;
+    }
+  }
+
+  /** Makes the bag iterable with for-of loops; yields each item repeated by
+   * its occurrence count (matching forEach / toArray). */
+  *[Symbol.iterator](): IterableIterator<bigint> {
+    for (const [value, count] of this.counts) {
+      for (let i = 0; i < count; i++) yield value;
     }
   }
 

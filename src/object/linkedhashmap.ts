@@ -51,6 +51,11 @@ export class LinkedHashMap<K, V> implements MapDbMutableMap<K, V> {
     return this.data.has(key);
   }
 
+  /** Map-shaped alias for {@link containsKey}. */
+  has(key: K): boolean {
+    return this.containsKey(key);
+  }
+
   get(key: K): V | undefined {
     return this.data.get(key);
   }
