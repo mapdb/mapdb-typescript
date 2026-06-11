@@ -111,7 +111,15 @@ export class HashMapWithStrategy<K, V> {
   }
 
   containsKey(key: K): boolean {
-    return this.get(key) !== undefined;
+    if (this._size === 0) return false;
+    const mask = this.entries.length - 1;
+    let idx = this.strategy.hashCode(key) & mask;
+    for (;;) {
+      const e = this.entries[idx];
+      if (!e.occupied) return false;
+      if (this.strategy.equals(e.key, key)) return true;
+      idx = (idx + 1) & mask;
+    }
   }
 
   /** Map-shaped alias for {@link containsKey}. */

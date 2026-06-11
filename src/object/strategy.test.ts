@@ -187,6 +187,31 @@ describe("HashMapWithStrategy", () => {
     m.clear();
     expect(m.isEmpty()).toBe(true);
   });
+
+  it("containsKey distinguishes undefined value from absent key", () => {
+    const m = new HashMapWithStrategy<string, number | undefined>(
+      stringHashingStrategy(),
+    );
+    m.put("present", undefined);
+
+    // Key is present but mapped to undefined.
+    expect(m.containsKey("present")).toBe(true);
+    expect(m.has("present")).toBe(true);
+
+    // Absent key.
+    expect(m.containsKey("absent")).toBe(false);
+    expect(m.has("absent")).toBe(false);
+
+    // get() must remain unchanged: undefined for both.
+    expect(m.get("present")).toBeUndefined();
+    expect(m.get("absent")).toBeUndefined();
+
+    // After removing a real value, containsKey is false.
+    m.put("real", 42);
+    expect(m.containsKey("real")).toBe(true);
+    m.remove("real");
+    expect(m.containsKey("real")).toBe(false);
+  });
 });
 
 // ── TreeMap tests ───────────────────────────────────────────────────
