@@ -86,7 +86,7 @@ export class Int8Int16HashMap {
   has(key: number): boolean {
     return this.get(key) !== undefined;
   }
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {

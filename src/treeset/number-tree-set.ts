@@ -89,7 +89,7 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
   has(value: number): boolean {
     return this.findNode(value) !== null;
   }
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {

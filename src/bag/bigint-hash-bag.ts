@@ -94,7 +94,7 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
   }
 
   /** Returns the total number of elements (including duplicates). */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

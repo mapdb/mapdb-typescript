@@ -57,7 +57,7 @@ export class ArrayStack<T> implements MapDbMutableStack<T> {
     this.data = [];
   }
 
-  size(): number {
+  get size(): number {
     return this.data.length;
   }
 

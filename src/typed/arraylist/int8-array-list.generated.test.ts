@@ -15,7 +15,7 @@ describe("Int8ArrayList generated", () => {
     l.add(1);
     l.add(2);
     l.add(3);
-    expect(l.size()).toBe(3);
+    expect(l.size).toBe(3);
     expect(l.get(0)).toBe(1);
     expect(l.get(2)).toBe(3);
   });
@@ -34,7 +34,7 @@ describe("Int8ArrayList generated", () => {
     l.add(3);
     const removed = l.removeAtIndex(1);
     expect(removed).toBe(2);
-    expect(l.size()).toBe(2);
+    expect(l.size).toBe(2);
   });
   it("contains and indexOf", () => {
     const l = new Int8ArrayList();
@@ -51,7 +51,7 @@ describe("Int8ArrayList generated", () => {
     l.add(1);
     expect(l.isEmpty()).toBe(false);
     l.clear();
-    expect(l.size()).toBe(0);
+    expect(l.size).toBe(0);
   });
   it("select", () => {
     const l = new Int8ArrayList();
@@ -60,7 +60,7 @@ describe("Int8ArrayList generated", () => {
     l.add(3);
     l.add(4);
     l.add(5);
-    expect(l.select((v) => v > 3).size()).toBe(2);
+    expect(l.select((v) => v > 3).size).toBe(2);
   });
   it("reject", () => {
     const l = new Int8ArrayList();
@@ -69,7 +69,7 @@ describe("Int8ArrayList generated", () => {
     l.add(3);
     l.add(4);
     l.add(5);
-    expect(l.reject((v) => v > 3).size()).toBe(3);
+    expect(l.reject((v) => v > 3).size).toBe(3);
   });
   it("detect", () => {
     const l = new Int8ArrayList();
@@ -115,7 +115,7 @@ describe("Int8ArrayList generated", () => {
   it("resize", () => {
     const l = new Int8ArrayList();
     for (let i = 0; i < 100; i += 1) l.add(i);
-    expect(l.size()).toBe(100);
+    expect(l.size).toBe(100);
   });
   it("memoryBytes", () => {
     const l = new Int8ArrayList(64);

@@ -17,7 +17,7 @@ describe("BigInt64HashBag generated", () => {
     b.add(2n);
     expect(b.occurrencesOf(1n)).toBe(2);
     expect(b.occurrencesOf(2n)).toBe(1);
-    expect(b.size()).toBe(3);
+    expect(b.size).toBe(3);
     expect(b.sizeDistinct()).toBe(2);
   });
   it("remove and removeAll", () => {
@@ -53,7 +53,7 @@ describe("BigInt64HashBag generated", () => {
     b.add(1n);
     b.add(2n);
     b.add(3n);
-    expect(b.select((v) => v > 1n).size()).toBe(2);
+    expect(b.select((v) => v > 1n).size).toBe(2);
   });
   it("toString", () => {
     const b = new BigInt64HashBag();

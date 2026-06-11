@@ -14,7 +14,7 @@ describe("BigIntBigIntTreeMap generated", () => {
     m.set(3n, 3n);
     m.set(1n, 1n);
     m.set(2n, 2n);
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
     expect(m.get(2n)).toBe(2n);
     expect(m.get(99n)).toBeUndefined();
   });
@@ -23,7 +23,7 @@ describe("BigIntBigIntTreeMap generated", () => {
     m.set(1n, 1n);
     m.set(2n, 2n);
     expect(m.remove(1n)).toBe(1n);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
   });
   it("min and max", () => {
     const m = new BigIntBigIntTreeMap();
@@ -53,7 +53,7 @@ describe("BigIntBigIntTreeMap generated", () => {
     m.set(1n, 1n);
     m.set(2n, 2n);
     m.set(3n, 3n);
-    expect(m.select((_k, v) => v > 1n).size()).toBe(2);
+    expect(m.select((_k, v) => v > 1n).size).toBe(2);
   });
   it("toString", () => {
     const m = new BigIntBigIntTreeMap();

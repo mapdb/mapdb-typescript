@@ -13,7 +13,7 @@ import { Int8HashSet } from "./int8-hash-set.js";
 describe("ImmutableInt8HashSet generated", () => {
   it("static of creates immutable set", () => {
     const set = ImmutableInt8HashSet.of([1, 2, 3]);
-    expect(set.size()).toBe(3);
+    expect(set.size).toBe(3);
     expect(set.has(1)).toBe(true);
     expect(set.has(3)).toBe(true);
   });
@@ -24,8 +24,8 @@ describe("ImmutableInt8HashSet generated", () => {
     mutable.add(2);
     const imm = ImmutableInt8HashSet.fromMutable(mutable);
     mutable.add(3);
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("contains and includes", () => {
@@ -38,10 +38,10 @@ describe("ImmutableInt8HashSet generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ImmutableInt8HashSet.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ImmutableInt8HashSet.of([1]);
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -49,14 +49,14 @@ describe("ImmutableInt8HashSet generated", () => {
     const set = ImmutableInt8HashSet.of([1, 2, 3, 4, 5]);
     const result = set.select((v) => v > 3);
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const set = ImmutableInt8HashSet.of([1, 2, 3, 4, 5]);
     const result = set.reject((v) => v > 3);
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("anySatisfy / allSatisfy", () => {
@@ -88,8 +88,8 @@ describe("ImmutableInt8HashSet generated", () => {
     const original = ImmutableInt8HashSet.of([1, 2, 3]);
     const mutable = original.toMutable();
     mutable.add(4);
-    expect(mutable.size()).toBe(4);
-    expect(original.size()).toBe(3);
+    expect(mutable.size).toBe(4);
+    expect(original.size).toBe(3);
   });
 
   it("forEach", () => {

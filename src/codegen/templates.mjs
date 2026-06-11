@@ -162,7 +162,7 @@ export class ${cls} {
   has(key: ${K}): boolean {
     return this.get(key) !== undefined;
   }
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {
@@ -391,14 +391,14 @@ function floatKeyEdgeCases(cls, vLit) {
       m.set(NaN, ${v1});
       expect(m.has(NaN)).toBe(true);
       expect(m.get(NaN)).toBe(${v1});
-      expect(m.size()).toBe(1);
+      expect(m.size).toBe(1);
     });
     it("NaN key replaces, does not duplicate", () => {
       const m = new ${cls}();
       m.set(NaN, ${v1});
       m.set(NaN, ${v2});
       m.set(NaN, ${v3});
-      expect(m.size()).toBe(1);
+      expect(m.size).toBe(1);
       expect(m.get(NaN)).toBe(${v3});
     });
     it("NaN key remove works", () => {
@@ -406,14 +406,14 @@ function floatKeyEdgeCases(cls, vLit) {
       m.set(NaN, ${v1});
       const removed = m.remove(NaN);
       expect(removed).toBe(${v1});
-      expect(m.size()).toBe(0);
+      expect(m.size).toBe(0);
       expect(m.has(NaN)).toBe(false);
     });
     it("-0.0 is distinct from +0.0", () => {
       const m = new ${cls}();
       m.set(0.0, ${v1});
       m.set(-0.0, ${v2});
-      expect(m.size()).toBe(2);
+      expect(m.size).toBe(2);
       expect(m.get(0.0)).toBe(${v1});
       expect(m.get(-0.0)).toBe(${v2});
     });
@@ -421,7 +421,7 @@ function floatKeyEdgeCases(cls, vLit) {
       const m = new ${cls}();
       m.set(Number.POSITIVE_INFINITY, ${v1});
       m.set(Number.NEGATIVE_INFINITY, ${v2});
-      expect(m.size()).toBe(2);
+      expect(m.size).toBe(2);
       expect(m.get(Number.POSITIVE_INFINITY)).toBe(${v1});
       expect(m.get(Number.NEGATIVE_INFINITY)).toBe(${v2});
     });
@@ -458,7 +458,7 @@ describe("${cls} generated", () => {
     m.set(${k3}, ${v3});
     expect(m.get(${k1})).toBe(${v1});
     expect(m.get(${k99})).toBeUndefined();
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
   });
   it("put overwrite", () => {
     const m = new ${cls}();
@@ -472,7 +472,7 @@ describe("${cls} generated", () => {
     m.set(${k1}, ${v1});
     m.set(${k2}, ${v2});
     expect(m.remove(${k1})).toBe(${v1});
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
     expect(m.has(${k1})).toBe(false);
   });
   it("getOrDefault", () => {
@@ -494,7 +494,7 @@ describe("${cls} generated", () => {
     m.set(${k1}, ${v1});
     m.set(${k2}, ${v2});
     m.set(${k3}, ${v3});
-    expect(m.select((_k, v) => v > ${v1}).size()).toBe(2);
+    expect(m.select((_k, v) => v > ${v1}).size).toBe(2);
   });
   it("anySatisfy / allSatisfy", () => {
     const m = new ${cls}();
@@ -506,7 +506,7 @@ describe("${cls} generated", () => {
   it("resize", () => {
     const m = new ${cls}();
 ${resizeLoop(key, val)}
-    expect(m.size()).toBe(100);
+    expect(m.size).toBe(100);
   });
   it("memoryBytes", () => {
     const m = new ${cls}(64);

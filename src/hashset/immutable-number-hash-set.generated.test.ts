@@ -12,22 +12,22 @@ import { ImmutableNumberHashSet } from "./immutable-number-hash-set.js";
 describe("ImmutableNumberHashSet generated", () => {
   it("contains and size", () => {
     const im = ImmutableNumberHashSet.of([1, 2, 3]);
-    expect(im.size()).toBe(3);
+    expect(im.size).toBe(3);
     expect(im.has(2)).toBe(true);
   });
   it("union", () => {
     const a = ImmutableNumberHashSet.of([1, 2]);
     const b = ImmutableNumberHashSet.of([2, 3]);
-    expect(a.union(b).size()).toBe(3);
+    expect(a.union(b).size).toBe(3);
   });
   it("intersect", () => {
     const a = ImmutableNumberHashSet.of([1, 2]);
     const b = ImmutableNumberHashSet.of([2, 3]);
-    expect(a.intersect(b).size()).toBe(1);
+    expect(a.intersect(b).size).toBe(1);
   });
   it("toMutable does not affect immutable", () => {
     const im = ImmutableNumberHashSet.of([1]);
     im.toMutable().add(2);
-    expect(im.size()).toBe(1);
+    expect(im.size).toBe(1);
   });
 });

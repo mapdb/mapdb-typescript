@@ -14,10 +14,10 @@ describe("BigIntArrayStack generated", () => {
     s.push(1n);
     s.push(2n);
     s.push(3n);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.peek()).toBe(3n);
     expect(s.pop()).toBe(3n);
-    expect(s.size()).toBe(2);
+    expect(s.size).toBe(2);
   });
   it("LIFO order", () => {
     const s = new BigIntArrayStack();

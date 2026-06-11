@@ -66,7 +66,7 @@ export class NumberArrayStack implements MapDbMutableStack<number> {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

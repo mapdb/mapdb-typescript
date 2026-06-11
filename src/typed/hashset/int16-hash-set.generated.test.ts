@@ -15,7 +15,7 @@ describe("Int16HashSet generated", () => {
     s.add(1);
     s.add(2);
     s.add(3);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.has(2)).toBe(true);
     expect(s.has(99)).toBe(false);
   });
@@ -23,7 +23,7 @@ describe("Int16HashSet generated", () => {
     const s = new Int16HashSet();
     expect(s.add(1)).toBe(true);
     expect(s.add(1)).toBe(false);
-    expect(s.size()).toBe(1);
+    expect(s.size).toBe(1);
   });
   it("remove", () => {
     const s = new Int16HashSet();
@@ -48,7 +48,7 @@ describe("Int16HashSet generated", () => {
     const b = new Int16HashSet();
     b.add(2);
     b.add(3);
-    expect(a.union(b).size()).toBe(3);
+    expect(a.union(b).size).toBe(3);
   });
   it("intersect", () => {
     const a = new Int16HashSet();
@@ -57,7 +57,7 @@ describe("Int16HashSet generated", () => {
     const b = new Int16HashSet();
     b.add(2);
     b.add(3);
-    expect(a.intersect(b).size()).toBe(1);
+    expect(a.intersect(b).size).toBe(1);
   });
   it("difference", () => {
     const a = new Int16HashSet();
@@ -66,14 +66,14 @@ describe("Int16HashSet generated", () => {
     const b = new Int16HashSet();
     b.add(2);
     b.add(3);
-    expect(a.difference(b).size()).toBe(1);
+    expect(a.difference(b).size).toBe(1);
   });
   it("select", () => {
     const s = new Int16HashSet();
     s.add(1);
     s.add(2);
     s.add(3);
-    expect(s.select((v) => v > 1).size()).toBe(2);
+    expect(s.select((v) => v > 1).size).toBe(2);
   });
   it("memoryBytes", () => {
     const s = new Int16HashSet(64);

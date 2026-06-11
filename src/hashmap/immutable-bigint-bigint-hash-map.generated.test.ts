@@ -16,7 +16,7 @@ describe("ImmutableBigIntBigIntHashMap generated", () => {
       [1n, 1n],
       [2n, 2n],
     ]);
-    expect(im.size()).toBe(2);
+    expect(im.size).toBe(2);
     expect(im.get(1n)).toBe(1n);
     expect(im.get(99n)).toBeUndefined();
   });
@@ -31,11 +31,11 @@ describe("ImmutableBigIntBigIntHashMap generated", () => {
       [2n, 2n],
       [3n, 3n],
     ]);
-    expect(im.select((_k, v) => v > 1n).size()).toBe(2);
+    expect(im.select((_k, v) => v > 1n).size).toBe(2);
   });
   it("toMutable does not affect immutable", () => {
     const im = ImmutableBigIntBigIntHashMap.of([[1n, 1n]]);
     im.toMutable().set(2n, 2n);
-    expect(im.size()).toBe(1);
+    expect(im.size).toBe(1);
   });
 });

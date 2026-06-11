@@ -12,7 +12,7 @@ import { ImmutableBigIntArrayList } from "./immutable-bigint-array-list.js";
 describe("ImmutableBigIntArrayList generated", () => {
   it("get and size", () => {
     const im = ImmutableBigIntArrayList.of([1n, 2n, 3n]);
-    expect(im.size()).toBe(3);
+    expect(im.size).toBe(3);
     expect(im.get(1)).toBe(2n);
   });
   it("contains", () => {
@@ -22,8 +22,8 @@ describe("ImmutableBigIntArrayList generated", () => {
   });
   it("select and reject", () => {
     const im = ImmutableBigIntArrayList.of([1n, 2n, 3n, 4n, 5n]);
-    expect(im.select((v) => v > 3n).size()).toBe(2);
-    expect(im.reject((v) => v > 3n).size()).toBe(3);
+    expect(im.select((v) => v > 3n).size).toBe(2);
+    expect(im.reject((v) => v > 3n).size).toBe(3);
   });
   it("toArray", () => {
     const im = ImmutableBigIntArrayList.of([1n, 2n]);
@@ -33,7 +33,7 @@ describe("ImmutableBigIntArrayList generated", () => {
     const im = ImmutableBigIntArrayList.of([1n]);
     const m = im.toMutable();
     m.add(2n);
-    expect(im.size()).toBe(1);
+    expect(im.size).toBe(1);
   });
   it("toString", () => {
     const im = ImmutableBigIntArrayList.of([1n]);

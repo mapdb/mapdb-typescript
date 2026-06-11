@@ -12,7 +12,7 @@ import { ImmutableNumberArrayList } from "./immutable-number-array-list.js";
 describe("ImmutableNumberArrayList generated", () => {
   it("get and size", () => {
     const im = ImmutableNumberArrayList.of([1, 2, 3]);
-    expect(im.size()).toBe(3);
+    expect(im.size).toBe(3);
     expect(im.get(1)).toBe(2);
   });
   it("contains", () => {
@@ -22,8 +22,8 @@ describe("ImmutableNumberArrayList generated", () => {
   });
   it("select and reject", () => {
     const im = ImmutableNumberArrayList.of([1, 2, 3, 4, 5]);
-    expect(im.select((v) => v > 3).size()).toBe(2);
-    expect(im.reject((v) => v > 3).size()).toBe(3);
+    expect(im.select((v) => v > 3).size).toBe(2);
+    expect(im.reject((v) => v > 3).size).toBe(3);
   });
   it("toArray", () => {
     const im = ImmutableNumberArrayList.of([1, 2]);
@@ -33,7 +33,7 @@ describe("ImmutableNumberArrayList generated", () => {
     const im = ImmutableNumberArrayList.of([1]);
     const m = im.toMutable();
     m.add(2);
-    expect(im.size()).toBe(1);
+    expect(im.size).toBe(1);
   });
   it("toString", () => {
     const im = ImmutableNumberArrayList.of([1]);

@@ -71,7 +71,7 @@ export class BigInt64HashSet {
     }
   }
 
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {
@@ -137,7 +137,7 @@ export class BigInt64HashSet {
   /** Creates a mutable set from an immutable one. */
   static fromImmutable(imm: {
     toArray(): bigint[];
-    size(): number;
+    readonly size: number;
   }): BigInt64HashSet {
     const arr = imm.toArray();
     const set = new BigInt64HashSet(arr.length);

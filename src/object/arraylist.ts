@@ -46,7 +46,7 @@ export class ArrayList<T> implements MapDbMutableList<T> {
     return -1;
   }
 
-  size(): number {
+  get size(): number {
     return this.data.length;
   }
 

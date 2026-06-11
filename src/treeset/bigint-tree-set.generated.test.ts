@@ -14,7 +14,7 @@ describe("BigIntTreeSet generated", () => {
     s.add(3n);
     s.add(1n);
     s.add(2n);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.has(2n)).toBe(true);
     expect(s.has(99n)).toBe(false);
   });

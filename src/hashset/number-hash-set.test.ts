@@ -15,20 +15,20 @@ describe("NumberHashSet", () => {
     expect(s.add(1)).toBe(false); // duplicate
     expect(s.has(1)).toBe(true);
     expect(s.has(99)).toBe(false);
-    expect(s.size()).toBe(2);
+    expect(s.size).toBe(2);
   });
 
   it("union and intersect", () => {
     const a = NumberHashSet.of([1, 2, 3]);
     const b = NumberHashSet.of([3, 4, 5]);
-    expect(a.union(b).size()).toBe(5);
-    expect(a.intersect(b).size()).toBe(1);
-    expect(a.difference(b).size()).toBe(2);
+    expect(a.union(b).size).toBe(5);
+    expect(a.intersect(b).size).toBe(1);
+    expect(a.difference(b).size).toBe(2);
   });
 
   it("select", () => {
     const s = NumberHashSet.of([1, 2, 3, 4, 5]);
     const evens = s.select((v) => v % 2 === 0);
-    expect(evens.size()).toBe(2);
+    expect(evens.size).toBe(2);
   });
 });

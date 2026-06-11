@@ -11,12 +11,12 @@ import { BigIntInterval } from "./bigint-interval.js";
 describe("BigIntInterval generated", () => {
   it("fromTo ascending", () => {
     const iv = BigIntInterval.fromTo(1n, 5n);
-    expect(iv.size()).toBe(5);
+    expect(iv.size).toBe(5);
     expect(iv.toArray()).toEqual([1n, 2n, 3n, 4n, 5n]);
   });
   it("fromTo descending", () => {
     const iv = BigIntInterval.fromTo(5n, 1n);
-    expect(iv.size()).toBe(5);
+    expect(iv.size).toBe(5);
     expect(iv.toArray()).toEqual([5n, 4n, 3n, 2n, 1n]);
   });
   it("fromToBy", () => {
@@ -29,7 +29,7 @@ describe("BigIntInterval generated", () => {
   });
   it("single element", () => {
     const iv = BigIntInterval.fromTo(3n, 3n);
-    expect(iv.size()).toBe(1);
+    expect(iv.size).toBe(1);
     expect(iv.toArray()).toEqual([3n]);
   });
   it("contains", () => {

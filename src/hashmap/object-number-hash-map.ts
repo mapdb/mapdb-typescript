@@ -57,7 +57,7 @@ export class ObjectNumberHashMap<K> implements MapDbMutableMap<K, number> {
   }
 
   /** Returns the number of entries. */
-  size(): number {
+  get size(): number {
     return this.map.size;
   }
 

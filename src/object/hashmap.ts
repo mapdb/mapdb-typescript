@@ -39,7 +39,7 @@ export class HashMap<K, V> implements MapDbMutableMap<K, V> {
     this.data.clear();
   }
 
-  size(): number {
+  get size(): number {
     return this.data.size;
   }
 

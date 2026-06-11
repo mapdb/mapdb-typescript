@@ -17,7 +17,7 @@ describe("NumberBigIntHashMap generated", () => {
     m.set(3, 3n);
     expect(m.get(1)).toBe(1n);
     expect(m.get(99)).toBeUndefined();
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
   });
   it("put overwrite", () => {
     const m = new NumberBigIntHashMap();
@@ -32,7 +32,7 @@ describe("NumberBigIntHashMap generated", () => {
     m.set(2, 2n);
     const old = m.remove(1);
     expect(old).toBe(1n);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
     expect(m.has(1)).toBe(false);
   });
   it("containsKey", () => {
@@ -59,8 +59,8 @@ describe("NumberBigIntHashMap generated", () => {
     m.set(1, 1n);
     m.set(2, 2n);
     m.set(3, 3n);
-    expect(m.select((_k, v) => v > 1n).size()).toBe(2);
-    expect(m.reject((_k, v) => v > 1n).size()).toBe(1);
+    expect(m.select((_k, v) => v > 1n).size).toBe(2);
+    expect(m.reject((_k, v) => v > 1n).size).toBe(1);
   });
   it("entries generator", () => {
     const m = new NumberBigIntHashMap();
@@ -85,7 +85,7 @@ describe("NumberBigIntHashMap generated", () => {
   it("resize", () => {
     const m = new NumberBigIntHashMap();
     for (let i = 0; i < 100; i += 1) m.set(i, BigInt(i) * 10n);
-    expect(m.size()).toBe(100);
+    expect(m.size).toBe(100);
   });
   it("toString", () => {
     const m = new NumberBigIntHashMap();
@@ -99,14 +99,14 @@ describe("NumberBigIntHashMap generated", () => {
       m.set(NaN, 1n);
       expect(m.has(NaN)).toBe(true);
       expect(m.get(NaN)).toBe(1n);
-      expect(m.size()).toBe(1);
+      expect(m.size).toBe(1);
     });
     it("NaN key replaces, does not duplicate", () => {
       const m = new NumberBigIntHashMap();
       m.set(NaN, 1n);
       m.set(NaN, 2n);
       m.set(NaN, 3n);
-      expect(m.size()).toBe(1);
+      expect(m.size).toBe(1);
       expect(m.get(NaN)).toBe(3n);
     });
     it("NaN key remove works", () => {
@@ -114,14 +114,14 @@ describe("NumberBigIntHashMap generated", () => {
       m.set(NaN, 1n);
       const removed = m.remove(NaN);
       expect(removed).toBe(1n);
-      expect(m.size()).toBe(0);
+      expect(m.size).toBe(0);
       expect(m.has(NaN)).toBe(false);
     });
     it("-0.0 is distinct from +0.0", () => {
       const m = new NumberBigIntHashMap();
       m.set(0.0, 1n);
       m.set(-0.0, 2n);
-      expect(m.size()).toBe(2);
+      expect(m.size).toBe(2);
       expect(m.get(0.0)).toBe(1n);
       expect(m.get(-0.0)).toBe(2n);
     });
@@ -129,7 +129,7 @@ describe("NumberBigIntHashMap generated", () => {
       const m = new NumberBigIntHashMap();
       m.set(Number.POSITIVE_INFINITY, 1n);
       m.set(Number.NEGATIVE_INFINITY, 2n);
-      expect(m.size()).toBe(2);
+      expect(m.size).toBe(2);
       expect(m.get(Number.POSITIVE_INFINITY)).toBe(1n);
       expect(m.get(Number.NEGATIVE_INFINITY)).toBe(2n);
     });

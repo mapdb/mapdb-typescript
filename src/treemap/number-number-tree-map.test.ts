@@ -15,7 +15,7 @@ describe("NumberNumberTreeMap", () => {
     m.set(2, 20);
     expect(m.get(2)).toBe(20);
     expect(m.get(99)).toBeUndefined();
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
   });
 
   it("sorted iteration", () => {
@@ -54,7 +54,7 @@ describe("NumberNumberTreeMap", () => {
     const m = new NumberNumberTreeMap();
     for (let i = 1; i <= 20; i++) m.set(i, i * 10);
     for (let i = 1; i <= 20; i += 2) m.remove(i);
-    expect(m.size()).toBe(10);
+    expect(m.size).toBe(10);
     const keys = [...m.keys()];
     for (const k of keys) {
       expect(k % 2).toBe(0);
@@ -75,9 +75,9 @@ describe("NumberNumberTreeMap", () => {
   it("large insert/delete", () => {
     const m = new NumberNumberTreeMap();
     for (let i = 0; i < 1000; i++) m.set(i, i);
-    expect(m.size()).toBe(1000);
+    expect(m.size).toBe(1000);
     for (let i = 0; i < 500; i++) m.remove(i);
-    expect(m.size()).toBe(500);
+    expect(m.size).toBe(500);
     // verify sorted
     const keys = [...m.keys()];
     for (let i = 1; i < keys.length; i++) {
@@ -90,7 +90,7 @@ describe("NumberNumberTreeMap", () => {
     expect(m.isEmpty()).toBe(true);
     expect(m.min()).toBeUndefined();
     expect(m.max()).toBeUndefined();
-    expect(m.size()).toBe(0);
+    expect(m.size).toBe(0);
   });
 
   it("select", () => {
@@ -99,7 +99,7 @@ describe("NumberNumberTreeMap", () => {
     m.set(2, 20);
     m.set(3, 30);
     const big = m.select((_k, v) => v > 15);
-    expect(big.size()).toBe(2);
+    expect(big.size).toBe(2);
     // result should also be sorted
     const keys = [...big.keys()];
     expect(keys).toEqual([2, 3]);

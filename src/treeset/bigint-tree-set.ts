@@ -87,7 +87,7 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
   has(value: bigint): boolean {
     return this.findNode(value) !== null;
   }
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {

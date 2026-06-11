@@ -13,7 +13,7 @@ import { BigInt64ArrayList } from "./bigint64-array-list.js";
 describe("ImmutableBigInt64ArrayList generated", () => {
   it("static of creates immutable copy", () => {
     const list = ImmutableBigInt64ArrayList.of([1n, 2n, 3n]);
-    expect(list.size()).toBe(3);
+    expect(list.size).toBe(3);
     expect(list.get(0)).toBe(1n);
     expect(list.get(2)).toBe(3n);
   });
@@ -25,8 +25,8 @@ describe("ImmutableBigInt64ArrayList generated", () => {
     const imm = ImmutableBigInt64ArrayList.fromMutable(mutable);
     // Mutating original doesn't affect immutable
     mutable.add(3n);
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("get with bounds check", () => {
@@ -39,10 +39,10 @@ describe("ImmutableBigInt64ArrayList generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ImmutableBigInt64ArrayList.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ImmutableBigInt64ArrayList.of([1n]);
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -66,14 +66,14 @@ describe("ImmutableBigInt64ArrayList generated", () => {
     const result = list.select((v) => v > 3n);
     // Verify it's mutable by checking it has add method
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const list = ImmutableBigInt64ArrayList.of([1n, 2n, 3n, 4n, 5n]);
     const result = list.reject((v) => v > 3n);
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("find", () => {
@@ -118,9 +118,9 @@ describe("ImmutableBigInt64ArrayList generated", () => {
     const original = ImmutableBigInt64ArrayList.of([1n, 2n, 3n]);
     const mutable = original.toMutable();
     mutable.add(4n);
-    expect(mutable.size()).toBe(4);
+    expect(mutable.size).toBe(4);
     // Original unchanged
-    expect(original.size()).toBe(3);
+    expect(original.size).toBe(3);
   });
 
   it("forEach", () => {

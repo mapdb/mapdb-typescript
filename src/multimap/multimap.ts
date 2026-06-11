@@ -53,7 +53,7 @@ export class Multimap<K, V> {
   }
 
   /** Total number of values across all keys. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

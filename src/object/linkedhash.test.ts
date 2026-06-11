@@ -15,10 +15,10 @@ describe("LinkedHashMap", () => {
     expect(m.set("a", 1)).toBeUndefined();
     expect(m.set("b", 2)).toBeUndefined();
     expect(m.set("a", 10)).toBe(1);
-    expect(m.size()).toBe(2);
+    expect(m.size).toBe(2);
     expect(m.get("a")).toBe(10);
     expect(m.remove("a")).toBe(10);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
   });
 
   it("preserves insertion order", () => {
@@ -55,7 +55,7 @@ describe("LinkedHashMap", () => {
     m.set(2, 20);
     m.set(3, 30);
     const big = m.select((_k, v) => v > 15);
-    expect(big.size()).toBe(2);
+    expect(big.size).toBe(2);
     expect(big.keysToArray()).toEqual([2, 3]);
   });
 
@@ -80,7 +80,7 @@ describe("LinkedHashSet", () => {
     expect(s.add(1)).toBe(true);
     expect(s.add(2)).toBe(true);
     expect(s.add(1)).toBe(false);
-    expect(s.size()).toBe(2);
+    expect(s.size).toBe(2);
     expect(s.has(1)).toBe(true);
     expect(s.has(99)).toBe(false);
   });

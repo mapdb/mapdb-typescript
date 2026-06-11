@@ -16,7 +16,7 @@ describe("NumberArrayStack", () => {
     expect(s.peek()).toBe(30);
     expect(s.pop()).toBe(30);
     expect(s.pop()).toBe(20);
-    expect(s.size()).toBe(1);
+    expect(s.size).toBe(1);
   });
 
   it("peekAt", () => {

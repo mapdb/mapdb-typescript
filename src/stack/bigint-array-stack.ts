@@ -66,7 +66,7 @@ export class BigIntArrayStack implements MapDbMutableStack<bigint> {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

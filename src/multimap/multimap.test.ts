@@ -13,7 +13,7 @@ describe("Multimap", () => {
     m.set("a", 1);
     m.set("a", 2);
     m.set("b", 3);
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
     expect(m.sizeDistinct()).toBe(2);
     expect(m.get("a")).toEqual([1, 2]);
     expect(m.get("b")).toEqual([3]);
@@ -24,7 +24,7 @@ describe("Multimap", () => {
     const m = new Multimap<string, number>();
     m.putAll("x", 1, 2, 3);
     expect(m.get("x")).toEqual([1, 2, 3]);
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
   });
 
   it("removeAll", () => {
@@ -32,7 +32,7 @@ describe("Multimap", () => {
     m.putAll("x", 1, 2, 3);
     const removed = m.removeAll("x");
     expect(removed).toEqual([1, 2, 3]);
-    expect(m.size()).toBe(0);
+    expect(m.size).toBe(0);
     expect(m.has("x")).toBe(false);
   });
 

@@ -15,7 +15,7 @@ describe("BigInt64ArrayStack generated", () => {
     s.push(1n);
     s.push(2n);
     s.push(3n);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.pop()).toBe(3n);
     expect(s.pop()).toBe(2n);
     expect(s.pop()).toBe(1n);
@@ -26,7 +26,7 @@ describe("BigInt64ArrayStack generated", () => {
     s.push(1n);
     s.push(2n);
     expect(s.peek()).toBe(2n);
-    expect(s.size()).toBe(2); // peek doesn't remove
+    expect(s.size).toBe(2); // peek doesn't remove
   });
 
   it("peekAt", () => {
@@ -66,7 +66,7 @@ describe("BigInt64ArrayStack generated", () => {
     s.push(1n);
     expect(s.isEmpty()).toBe(false);
     s.clear();
-    expect(s.size()).toBe(0);
+    expect(s.size).toBe(0);
     expect(s.isEmpty()).toBe(true);
   });
 
@@ -79,7 +79,7 @@ describe("BigInt64ArrayStack generated", () => {
     s.push(5n);
     // select preserves order (but stack reversal means bottom-to-top becomes top-to-bottom in result)
     const result = s.select((v) => v > 3n);
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject", () => {
@@ -89,7 +89,7 @@ describe("BigInt64ArrayStack generated", () => {
     s.push(3n);
     s.push(4n);
     s.push(5n);
-    expect(s.reject((v) => v > 3n).size()).toBe(3);
+    expect(s.reject((v) => v > 3n).size).toBe(3);
   });
 
   it("find", () => {
@@ -191,7 +191,7 @@ describe("BigInt64ArrayStack generated", () => {
   it("resize", () => {
     const s = new BigInt64ArrayStack();
     for (let i = 0n; i < 100n; i += 1n) s.push(i);
-    expect(s.size()).toBe(100);
+    expect(s.size).toBe(100);
   });
 
   it("memoryBytes", () => {
@@ -239,7 +239,7 @@ describe("BigInt64ArrayStack generated", () => {
 
   it("of factory", () => {
     const s = BigInt64ArrayStack.of([1n, 2n, 3n]); // last element is top
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.peek()).toBe(3n);
     expect(s.pop()).toBe(3n);
     expect(s.pop()).toBe(2n);

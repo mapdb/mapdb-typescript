@@ -57,7 +57,7 @@ export class BigIntObjectHashMap<V> implements MapDbMutableMap<bigint, V> {
   }
 
   /** Returns the number of entries. */
-  size(): number {
+  get size(): number {
     return this.map.size;
   }
 

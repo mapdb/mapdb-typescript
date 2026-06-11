@@ -63,7 +63,7 @@ export class Int16ArrayList {
     return -1;
   }
 
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {

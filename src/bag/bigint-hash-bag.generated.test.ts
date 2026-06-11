@@ -16,12 +16,12 @@ describe("BigIntHashBag generated", () => {
     b.add(2n);
     expect(b.occurrencesOf(1n)).toBe(2);
     expect(b.occurrencesOf(2n)).toBe(1);
-    expect(b.size()).toBe(3);
+    expect(b.size).toBe(3);
     expect(b.sizeDistinct()).toBe(2);
   });
   it("of", () => {
     const b = BigIntHashBag.of([1n, 1n, 2n]);
-    expect(b.size()).toBe(3);
+    expect(b.size).toBe(3);
   });
   it("remove", () => {
     const b = BigIntHashBag.of([1n, 1n, 1n, 2n]);
@@ -48,7 +48,7 @@ describe("BigIntHashBag generated", () => {
   });
   it("select", () => {
     const b = BigIntHashBag.of([1n, 2n, 3n]);
-    expect(b.select((v) => v > 1n).size()).toBe(2);
+    expect(b.select((v) => v > 1n).size).toBe(2);
   });
   it("entries generator", () => {
     const b = BigIntHashBag.of([1n, 1n, 2n]);

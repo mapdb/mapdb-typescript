@@ -65,7 +65,7 @@ export class Int8HashBag {
   }
 
   /** Total number of items including duplicates */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

@@ -93,7 +93,7 @@ export class HashBiMap<K, V> {
     return new Map(this.backward);
   }
 
-  size(): number {
+  get size(): number {
     return this.forward.size;
   }
 

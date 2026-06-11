@@ -71,7 +71,7 @@ export class Float64HashSet {
     }
   }
 
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {
@@ -137,7 +137,7 @@ export class Float64HashSet {
   /** Creates a mutable set from an immutable one. */
   static fromImmutable(imm: {
     toArray(): number[];
-    size(): number;
+    readonly size: number;
   }): Float64HashSet {
     const arr = imm.toArray();
     const set = new Float64HashSet(arr.length);

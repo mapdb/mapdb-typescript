@@ -103,7 +103,7 @@ export class BigIntNumberTreeMap implements MapDbMutableMap<bigint, number> {
     return old;
   }
 
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {

@@ -14,7 +14,7 @@ describe("Int32BigInt64HashMap (TypedArray-backed)", () => {
     m.set(2, 200n);
     expect(m.get(1)).toBe(100n);
     expect(m.get(99)).toBeUndefined();
-    expect(m.size()).toBe(2);
+    expect(m.size).toBe(2);
   });
 
   it("overwrite", () => {
@@ -30,14 +30,14 @@ describe("Int32BigInt64HashMap (TypedArray-backed)", () => {
     m.set(1, 100n);
     m.set(2, 200n);
     expect(m.remove(1)).toBe(100n);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
     expect(m.has(1)).toBe(false);
   });
 
   it("resize with many entries", () => {
     const m = new Int32BigInt64HashMap();
     for (let i = 0; i < 1000; i++) m.set(i, BigInt(i * 10));
-    expect(m.size()).toBe(1000);
+    expect(m.size).toBe(1000);
     for (let i = 0; i < 1000; i++) expect(m.get(i)).toBe(BigInt(i * 10));
   });
 
@@ -55,7 +55,7 @@ describe("Int32BigInt64HashMap (TypedArray-backed)", () => {
     m.set(2, 20n);
     m.set(3, 30n);
     const big = m.select((_k, v) => v > 15n);
-    expect(big.size()).toBe(2);
+    expect(big.size).toBe(2);
   });
 
   it("memoryBytes reports correct size", () => {

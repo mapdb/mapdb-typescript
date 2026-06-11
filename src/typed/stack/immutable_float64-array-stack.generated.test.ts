@@ -13,7 +13,7 @@ import { Float64ArrayStack } from "./float64-array-stack.js";
 describe("ImmutableFloat64ArrayStack generated", () => {
   it("static of creates immutable stack", () => {
     const stack = ImmutableFloat64ArrayStack.of([1, 2, 3]); // last = top
-    expect(stack.size()).toBe(3);
+    expect(stack.size).toBe(3);
     expect(stack.peek()).toBe(3);
   });
 
@@ -23,8 +23,8 @@ describe("ImmutableFloat64ArrayStack generated", () => {
     mutable.push(2);
     const imm = ImmutableFloat64ArrayStack.fromMutable(mutable);
     mutable.push(3);
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("peek returns top element", () => {
@@ -52,10 +52,10 @@ describe("ImmutableFloat64ArrayStack generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ImmutableFloat64ArrayStack.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ImmutableFloat64ArrayStack.of([1]);
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -71,14 +71,14 @@ describe("ImmutableFloat64ArrayStack generated", () => {
     const stack = ImmutableFloat64ArrayStack.of([1, 2, 3, 4, 5]);
     const result = stack.select((v) => v > 3);
     expect(typeof result.push).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const stack = ImmutableFloat64ArrayStack.of([1, 2, 3, 4, 5]);
     const result = stack.reject((v) => v > 3);
     expect(typeof result.push).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("find", () => {
@@ -124,8 +124,8 @@ describe("ImmutableFloat64ArrayStack generated", () => {
     const original = ImmutableFloat64ArrayStack.of([1, 2, 3]);
     const mutable = original.toMutable();
     mutable.push(4);
-    expect(mutable.size()).toBe(4);
-    expect(original.size()).toBe(3);
+    expect(mutable.size).toBe(4);
+    expect(original.size).toBe(3);
   });
 
   it("forEach top to bottom", () => {

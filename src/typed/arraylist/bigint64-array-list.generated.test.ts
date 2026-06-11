@@ -15,7 +15,7 @@ describe("BigInt64ArrayList generated", () => {
     l.add(1n);
     l.add(2n);
     l.add(3n);
-    expect(l.size()).toBe(3);
+    expect(l.size).toBe(3);
     expect(l.get(0)).toBe(1n);
     expect(l.get(2)).toBe(3n);
   });
@@ -34,7 +34,7 @@ describe("BigInt64ArrayList generated", () => {
     l.add(3n);
     const removed = l.removeAtIndex(1);
     expect(removed).toBe(2n);
-    expect(l.size()).toBe(2);
+    expect(l.size).toBe(2);
   });
   it("contains and indexOf", () => {
     const l = new BigInt64ArrayList();
@@ -51,7 +51,7 @@ describe("BigInt64ArrayList generated", () => {
     l.add(1n);
     expect(l.isEmpty()).toBe(false);
     l.clear();
-    expect(l.size()).toBe(0);
+    expect(l.size).toBe(0);
   });
   it("select", () => {
     const l = new BigInt64ArrayList();
@@ -60,7 +60,7 @@ describe("BigInt64ArrayList generated", () => {
     l.add(3n);
     l.add(4n);
     l.add(5n);
-    expect(l.select((v) => v > 3n).size()).toBe(2);
+    expect(l.select((v) => v > 3n).size).toBe(2);
   });
   it("reject", () => {
     const l = new BigInt64ArrayList();
@@ -69,7 +69,7 @@ describe("BigInt64ArrayList generated", () => {
     l.add(3n);
     l.add(4n);
     l.add(5n);
-    expect(l.reject((v) => v > 3n).size()).toBe(3);
+    expect(l.reject((v) => v > 3n).size).toBe(3);
   });
   it("detect", () => {
     const l = new BigInt64ArrayList();
@@ -115,7 +115,7 @@ describe("BigInt64ArrayList generated", () => {
   it("resize", () => {
     const l = new BigInt64ArrayList();
     for (let i = 0n; i < 100n; i += 1n) l.add(i);
-    expect(l.size()).toBe(100);
+    expect(l.size).toBe(100);
   });
   it("memoryBytes", () => {
     const l = new BigInt64ArrayList(64);

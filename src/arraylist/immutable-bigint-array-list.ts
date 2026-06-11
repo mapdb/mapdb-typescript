@@ -16,8 +16,8 @@ export class ImmutableBigIntArrayList implements MapDbList<bigint> {
 
   constructor(source: BigIntArrayList) {
     // Copy all entries into a fresh mutable list so the caller cannot mutate our data.
-    this.delegate = new BigIntArrayList(source.size());
-    for (let i = 0; i < source.size(); i++) {
+    this.delegate = new BigIntArrayList(source.size);
+    for (let i = 0; i < source.size; i++) {
       this.delegate.add(source.get(i));
     }
   }
@@ -33,8 +33,8 @@ export class ImmutableBigIntArrayList implements MapDbList<bigint> {
   }
 
   /** Returns the number of elements. */
-  size(): number {
-    return this.delegate.size();
+  get size(): number {
+    return this.delegate.size;
   }
 
   /** Returns true if the list is empty. */

@@ -37,7 +37,7 @@ describe("Property-based tests", () => {
       const n = rng.next(200);
       const list = new ArrayList<number>();
       for (let i = 0; i < n; i++) list.add(i);
-      expect(list.size()).toBe(n);
+      expect(list.size).toBe(n);
     }
   });
 
@@ -77,7 +77,7 @@ describe("Property-based tests", () => {
       for (const [v, expected] of counts) {
         expect(bag.occurrencesOf(v)).toBe(expected);
       }
-      expect(bag.size()).toBe(n);
+      expect(bag.size).toBe(n);
     }
   });
 
@@ -96,7 +96,7 @@ describe("Property-based tests", () => {
       for (const [k, v] of expected) {
         expect(map.get(k)).toBe(v);
       }
-      expect(map.size()).toBe(expected.size);
+      expect(map.size).toBe(expected.size);
     }
   });
 
@@ -114,7 +114,7 @@ describe("Property-based tests", () => {
       for (let i = values.length - 1; i >= 0; i--) {
         expect(stack.pop()).toBe(values[i]);
       }
-      expect(stack.size()).toBe(0);
+      expect(stack.size).toBe(0);
     }
   });
 

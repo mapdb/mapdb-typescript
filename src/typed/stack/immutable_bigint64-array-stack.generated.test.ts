@@ -13,7 +13,7 @@ import { BigInt64ArrayStack } from "./bigint64-array-stack.js";
 describe("ImmutableBigInt64ArrayStack generated", () => {
   it("static of creates immutable stack", () => {
     const stack = ImmutableBigInt64ArrayStack.of([1n, 2n, 3n]); // last = top
-    expect(stack.size()).toBe(3);
+    expect(stack.size).toBe(3);
     expect(stack.peek()).toBe(3n);
   });
 
@@ -23,8 +23,8 @@ describe("ImmutableBigInt64ArrayStack generated", () => {
     mutable.push(2n);
     const imm = ImmutableBigInt64ArrayStack.fromMutable(mutable);
     mutable.push(3n);
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("peek returns top element", () => {
@@ -52,10 +52,10 @@ describe("ImmutableBigInt64ArrayStack generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ImmutableBigInt64ArrayStack.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ImmutableBigInt64ArrayStack.of([1n]);
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -71,14 +71,14 @@ describe("ImmutableBigInt64ArrayStack generated", () => {
     const stack = ImmutableBigInt64ArrayStack.of([1n, 2n, 3n, 4n, 5n]);
     const result = stack.select((v) => v > 3n);
     expect(typeof result.push).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const stack = ImmutableBigInt64ArrayStack.of([1n, 2n, 3n, 4n, 5n]);
     const result = stack.reject((v) => v > 3n);
     expect(typeof result.push).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("find", () => {
@@ -124,8 +124,8 @@ describe("ImmutableBigInt64ArrayStack generated", () => {
     const original = ImmutableBigInt64ArrayStack.of([1n, 2n, 3n]);
     const mutable = original.toMutable();
     mutable.push(4n);
-    expect(mutable.size()).toBe(4);
-    expect(original.size()).toBe(3);
+    expect(mutable.size).toBe(4);
+    expect(original.size).toBe(3);
   });
 
   it("forEach top to bottom", () => {

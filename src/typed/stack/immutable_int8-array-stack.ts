@@ -58,7 +58,7 @@ export class ImmutableInt8ArrayStack {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

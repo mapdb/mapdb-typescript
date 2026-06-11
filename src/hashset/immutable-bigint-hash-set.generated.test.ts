@@ -12,22 +12,22 @@ import { ImmutableBigIntHashSet } from "./immutable-bigint-hash-set.js";
 describe("ImmutableBigIntHashSet generated", () => {
   it("contains and size", () => {
     const im = ImmutableBigIntHashSet.of([1n, 2n, 3n]);
-    expect(im.size()).toBe(3);
+    expect(im.size).toBe(3);
     expect(im.has(2n)).toBe(true);
   });
   it("union", () => {
     const a = ImmutableBigIntHashSet.of([1n, 2n]);
     const b = ImmutableBigIntHashSet.of([2n, 3n]);
-    expect(a.union(b).size()).toBe(3);
+    expect(a.union(b).size).toBe(3);
   });
   it("intersect", () => {
     const a = ImmutableBigIntHashSet.of([1n, 2n]);
     const b = ImmutableBigIntHashSet.of([2n, 3n]);
-    expect(a.intersect(b).size()).toBe(1);
+    expect(a.intersect(b).size).toBe(1);
   });
   it("toMutable does not affect immutable", () => {
     const im = ImmutableBigIntHashSet.of([1n]);
     im.toMutable().add(2n);
-    expect(im.size()).toBe(1);
+    expect(im.size).toBe(1);
   });
 });

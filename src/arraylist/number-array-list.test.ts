@@ -13,7 +13,7 @@ describe("NumberArrayList", () => {
     l.add(10);
     l.add(20);
     l.add(30);
-    expect(l.size()).toBe(3);
+    expect(l.size).toBe(3);
     expect(l.get(1)).toBe(20);
   });
 

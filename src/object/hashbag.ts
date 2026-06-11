@@ -49,7 +49,7 @@ export class HashBag<T> implements MapDbMutableBag<T> {
     return this.data.size;
   }
 
-  size(): number {
+  get size(): number {
     let total = 0;
     for (const c of this.data.values()) {
       total += c;

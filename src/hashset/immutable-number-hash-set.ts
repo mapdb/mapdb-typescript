@@ -33,8 +33,8 @@ export class ImmutableNumberHashSet implements MapDbSet<number> {
   }
 
   /** Returns the number of elements. */
-  size(): number {
-    return this.delegate.size();
+  get size(): number {
+    return this.delegate.size;
   }
 
   /** Returns true if the set is empty. */

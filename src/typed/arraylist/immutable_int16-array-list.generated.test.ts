@@ -13,7 +13,7 @@ import { Int16ArrayList } from "./int16-array-list.js";
 describe("ImmutableInt16ArrayList generated", () => {
   it("static of creates immutable copy", () => {
     const list = ImmutableInt16ArrayList.of([1, 2, 3]);
-    expect(list.size()).toBe(3);
+    expect(list.size).toBe(3);
     expect(list.get(0)).toBe(1);
     expect(list.get(2)).toBe(3);
   });
@@ -25,8 +25,8 @@ describe("ImmutableInt16ArrayList generated", () => {
     const imm = ImmutableInt16ArrayList.fromMutable(mutable);
     // Mutating original doesn't affect immutable
     mutable.add(3);
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("get with bounds check", () => {
@@ -39,10 +39,10 @@ describe("ImmutableInt16ArrayList generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ImmutableInt16ArrayList.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ImmutableInt16ArrayList.of([1]);
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -66,14 +66,14 @@ describe("ImmutableInt16ArrayList generated", () => {
     const result = list.select((v) => v > 3);
     // Verify it's mutable by checking it has add method
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const list = ImmutableInt16ArrayList.of([1, 2, 3, 4, 5]);
     const result = list.reject((v) => v > 3);
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("find", () => {
@@ -118,9 +118,9 @@ describe("ImmutableInt16ArrayList generated", () => {
     const original = ImmutableInt16ArrayList.of([1, 2, 3]);
     const mutable = original.toMutable();
     mutable.add(4);
-    expect(mutable.size()).toBe(4);
+    expect(mutable.size).toBe(4);
     // Original unchanged
-    expect(original.size()).toBe(3);
+    expect(original.size).toBe(3);
   });
 
   it("forEach", () => {

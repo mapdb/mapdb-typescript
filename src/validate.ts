@@ -255,7 +255,7 @@ function applyOperation(coll: Collection, op: Operation, f32Mode: boolean): void
         // First, add a dummy at the end to grow the list, then shift.
         const idx = op.index!;
         const val = v();
-        const currentSize = coll.size();
+        const currentSize = coll.size;
         // add a placeholder at the end
         coll.add(0);
         // shift elements from end-1 down to idx
@@ -457,11 +457,11 @@ function evaluateAssertion(
   }
 
   // --- simple properties ---
-  if (key === "size") return coll.size();
+  if (key === "size") return coll.size;
   if (key === "is_empty") return coll.isEmpty();
 
   // --- other_size ---
-  if (key === "other_size") return other!.size();
+  if (key === "other_size") return other!.size;
 
   // --- size_distinct (bags) ---
   if (key === "size_distinct") {
@@ -832,7 +832,7 @@ function evaluateAssertion(
   }
   if (key === "union_size") {
     if (coll instanceof NumberHashSet && other instanceof NumberHashSet) {
-      return coll.union(other).size();
+      return coll.union(other).size;
     }
     throw new Error(`union_size not supported for ${coll.constructor.name}`);
   }
@@ -851,7 +851,7 @@ function evaluateAssertion(
   }
   if (key === "intersect_size") {
     if (coll instanceof NumberHashSet && other instanceof NumberHashSet) {
-      return coll.intersect(other).size();
+      return coll.intersect(other).size;
     }
     throw new Error(
       `intersect_size not supported for ${coll.constructor.name}`,
@@ -872,7 +872,7 @@ function evaluateAssertion(
   }
   if (key === "difference_size") {
     if (coll instanceof NumberHashSet && other instanceof NumberHashSet) {
-      return coll.difference(other).size();
+      return coll.difference(other).size;
     }
     throw new Error(
       `difference_size not supported for ${coll.constructor.name}`,
@@ -898,7 +898,7 @@ function evaluateAssertion(
     if (coll instanceof NumberHashSet && other instanceof NumberHashSet) {
       const aMinusB = coll.difference(other);
       const bMinusA = other.difference(coll);
-      return aMinusB.union(bMinusA).size();
+      return aMinusB.union(bMinusA).size;
     }
     throw new Error(
       `symmetric_difference_size not supported for ${coll.constructor.name}`,
@@ -1085,7 +1085,7 @@ function runI64HashMap(scenario: Scenario): void {
 }
 
 function evalI64MapAssertion(key: string, m: BigIntNumberHashMap): string | undefined {
-  if (key === "size") return String(m.size());
+  if (key === "size") return String(m.size);
   if (key === "is_empty") return String(m.isEmpty());
   if (key === "sorted_keys") {
     // i64 keys exceed 2^53: serialize each as a plain decimal STRING in a

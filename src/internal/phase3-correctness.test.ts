@@ -72,7 +72,7 @@ describe("NumberNumberTreeMap NaN/±0 keys (Bug 1)", () => {
     m.set(NaN, 5);
     // Before the fix: get(1) === 5, size() === 1 (NaN overwrote key 1).
     expect(m.get(1)).toBe(100);
-    expect(m.size()).toBe(2);
+    expect(m.size).toBe(2);
     expect(m.get(NaN)).toBe(5);
   });
 
@@ -84,14 +84,14 @@ describe("NumberNumberTreeMap NaN/±0 keys (Bug 1)", () => {
     expect(m.get(-1)).toBe(10);
     expect(m.get(-100)).toBe(20);
     expect(m.has(NaN)).toBe(true);
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
   });
 
   it("-0 and +0 are distinct keys", () => {
     const m = new NumberNumberTreeMap();
     m.set(0, 1);
     m.set(-0, 2);
-    expect(m.size()).toBe(2);
+    expect(m.size).toBe(2);
     expect(m.get(0)).toBe(1);
     expect(m.get(-0)).toBe(2);
   });
@@ -110,7 +110,7 @@ describe("NumberBigIntTreeMap NaN key (Bug 1, number-keyed side)", () => {
     m.set(1, 100n);
     m.set(NaN, 5n);
     expect(m.get(1)).toBe(100n);
-    expect(m.size()).toBe(2);
+    expect(m.size).toBe(2);
     expect(m.get(NaN)).toBe(5n);
   });
 });
@@ -125,7 +125,7 @@ describe("NumberTreeSet NaN/±0 (Bug 2)", () => {
     expect(s.add(5)).toBe(true);
     // Before the fix: add(NaN) returned false (NaN swallowed).
     expect(s.add(NaN)).toBe(true);
-    expect(s.size()).toBe(2);
+    expect(s.size).toBe(2);
     expect(s.has(NaN)).toBe(true);
     expect(s.has(5)).toBe(true);
   });
@@ -141,7 +141,7 @@ describe("NumberTreeSet NaN/±0 (Bug 2)", () => {
     const s = new NumberTreeSet();
     s.add(0);
     s.add(-0);
-    expect(s.size()).toBe(2);
+    expect(s.size).toBe(2);
   });
 });
 
@@ -217,14 +217,14 @@ describe("bigint hash spread (Bug 4)", () => {
     const m = new BigIntBigIntHashMap();
     const keys = keysHighBitsOnly(2000);
     for (const k of keys) m.set(k, k + 1n);
-    expect(m.size()).toBe(2000);
+    expect(m.size).toBe(2000);
     for (const k of keys) expect(m.get(k)).toBe(k + 1n);
   });
 
   it("BigIntHashSet does not collapse high-bit-only values", () => {
     const s = new BigIntHashSet();
     for (const v of keysHighBitsOnly(2000)) s.add(v);
-    expect(s.size()).toBe(2000);
+    expect(s.size).toBe(2000);
   });
 });
 
@@ -264,7 +264,7 @@ describe("NumberObjectHashMap ±0 distinct (Bug 5)", () => {
     const m = new NumberObjectHashMap<string>();
     m.set(0, "pos");
     m.set(-0, "neg");
-    expect(m.size()).toBe(2);
+    expect(m.size).toBe(2);
     expect(m.get(0)).toBe("pos");
     expect(m.get(-0)).toBe("neg");
   });
@@ -319,7 +319,7 @@ describe("load factor strictly < 0.75 (Bug 6)", () => {
     // 12th entry, so no occupied bucket sits exactly at the 0.75 ceiling.
     const m = new NumberNumberHashMap();
     for (let i = 0; i < 12; i++) m.set(i, i);
-    expect(m.size()).toBe(12);
+    expect(m.size).toBe(12);
     for (let i = 0; i < 12; i++) expect(m.get(i)).toBe(i);
   });
 });
@@ -333,7 +333,7 @@ describe("NaN payload hash canonicalization (f64HashSeed)", () => {
     const s = new NumberHashSet();
     expect(s.add(nan1)).toBe(true);
     expect(s.add(nan2)).toBe(false); // equal under Object.is -> no duplicate
-    expect(s.size()).toBe(1);
+    expect(s.size).toBe(1);
     expect(s.has(NaN)).toBe(true); // canonical NaN finds it
   });
 });

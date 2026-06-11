@@ -15,7 +15,7 @@ describe("Int32HashSet (TypedArray-backed)", () => {
     expect(s.add(1)).toBe(false);
     expect(s.has(1)).toBe(true);
     expect(s.has(99)).toBe(false);
-    expect(s.size()).toBe(2);
+    expect(s.size).toBe(2);
   });
 
   it("union and intersect", () => {
@@ -27,9 +27,9 @@ describe("Int32HashSet (TypedArray-backed)", () => {
     b.add(3);
     b.add(4);
     b.add(5);
-    expect(a.union(b).size()).toBe(5);
-    expect(a.intersect(b).size()).toBe(1);
-    expect(a.difference(b).size()).toBe(2);
+    expect(a.union(b).size).toBe(5);
+    expect(a.intersect(b).size).toBe(1);
+    expect(a.difference(b).size).toBe(2);
   });
 
   it("remove", () => {
@@ -38,7 +38,7 @@ describe("Int32HashSet (TypedArray-backed)", () => {
     s.add(2);
     s.add(3);
     expect(s.remove(2)).toBe(true);
-    expect(s.size()).toBe(2);
+    expect(s.size).toBe(2);
     expect(s.has(2)).toBe(false);
   });
 });

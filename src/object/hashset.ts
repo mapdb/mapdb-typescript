@@ -33,7 +33,7 @@ export class HashSet<T> implements MapDbMutableSet<T> {
     this.data.clear();
   }
 
-  size(): number {
+  get size(): number {
     return this.data.size;
   }
 

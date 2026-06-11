@@ -14,7 +14,7 @@ describe("NumberNumberTreeMap generated", () => {
     m.set(3, 3);
     m.set(1, 1);
     m.set(2, 2);
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
     expect(m.get(2)).toBe(2);
     expect(m.get(99)).toBeUndefined();
   });
@@ -23,7 +23,7 @@ describe("NumberNumberTreeMap generated", () => {
     m.set(1, 1);
     m.set(2, 2);
     expect(m.remove(1)).toBe(1);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
   });
   it("min and max", () => {
     const m = new NumberNumberTreeMap();
@@ -53,7 +53,7 @@ describe("NumberNumberTreeMap generated", () => {
     m.set(1, 1);
     m.set(2, 2);
     m.set(3, 3);
-    expect(m.select((_k, v) => v > 1).size()).toBe(2);
+    expect(m.select((_k, v) => v > 1).size).toBe(2);
   });
   it("toString", () => {
     const m = new NumberNumberTreeMap();

@@ -63,7 +63,7 @@ export class NumberInterval {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     if (
       (this._step > 0 && this._from > this._to) ||
       (this._step < 0 && this._from < this._to)
@@ -75,7 +75,7 @@ export class NumberInterval {
 
   /** Returns true if the interval is empty. */
   isEmpty(): boolean {
-    return this.size() === 0;
+    return this.size === 0;
   }
 
   /** Returns true if the interval contains the given value. */
@@ -96,9 +96,9 @@ export class NumberInterval {
 
   /** Returns the element at the given index, or throws if out of bounds. */
   get(index: number): number {
-    if (index < 0 || index >= this.size()) {
+    if (index < 0 || index >= this.size) {
       throw new RangeError(
-        `${index} out of bounds for interval size ${this.size()}`,
+        `${index} out of bounds for interval size ${this.size}`,
       );
     }
     return this._from + this._step * (index as number);

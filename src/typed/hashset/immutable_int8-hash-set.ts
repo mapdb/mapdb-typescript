@@ -83,7 +83,7 @@ export class ImmutableInt8HashSet {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

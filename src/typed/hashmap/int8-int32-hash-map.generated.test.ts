@@ -17,7 +17,7 @@ describe("Int8Int32HashMap generated", () => {
     m.set(3, 3);
     expect(m.get(1)).toBe(1);
     expect(m.get(99)).toBeUndefined();
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
   });
   it("put overwrite", () => {
     const m = new Int8Int32HashMap();
@@ -31,7 +31,7 @@ describe("Int8Int32HashMap generated", () => {
     m.set(1, 1);
     m.set(2, 2);
     expect(m.remove(1)).toBe(1);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
     expect(m.has(1)).toBe(false);
   });
   it("getOrDefault", () => {
@@ -53,7 +53,7 @@ describe("Int8Int32HashMap generated", () => {
     m.set(1, 1);
     m.set(2, 2);
     m.set(3, 3);
-    expect(m.select((_k, v) => v > 1).size()).toBe(2);
+    expect(m.select((_k, v) => v > 1).size).toBe(2);
   });
   it("anySatisfy / allSatisfy", () => {
     const m = new Int8Int32HashMap();
@@ -65,7 +65,7 @@ describe("Int8Int32HashMap generated", () => {
   it("resize", () => {
     const m = new Int8Int32HashMap();
     for (let i = 0; i < 100; i += 1) m.set(i, i * 10);
-    expect(m.size()).toBe(100);
+    expect(m.size).toBe(100);
   });
   it("memoryBytes", () => {
     const m = new Int8Int32HashMap(64);

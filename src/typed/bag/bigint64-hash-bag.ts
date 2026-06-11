@@ -65,7 +65,7 @@ export class BigInt64HashBag {
   }
 
   /** Total number of items including duplicates */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

@@ -17,7 +17,7 @@ describe("NumberNumberHashMap generated", () => {
     m.set(3, 3);
     expect(m.get(1)).toBe(1);
     expect(m.get(99)).toBeUndefined();
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
   });
   it("put overwrite", () => {
     const m = new NumberNumberHashMap();
@@ -32,7 +32,7 @@ describe("NumberNumberHashMap generated", () => {
     m.set(2, 2);
     const old = m.remove(1);
     expect(old).toBe(1);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
     expect(m.has(1)).toBe(false);
   });
   it("containsKey", () => {
@@ -59,8 +59,8 @@ describe("NumberNumberHashMap generated", () => {
     m.set(1, 1);
     m.set(2, 2);
     m.set(3, 3);
-    expect(m.select((_k, v) => v > 1).size()).toBe(2);
-    expect(m.reject((_k, v) => v > 1).size()).toBe(1);
+    expect(m.select((_k, v) => v > 1).size).toBe(2);
+    expect(m.reject((_k, v) => v > 1).size).toBe(1);
   });
   it("entries generator", () => {
     const m = new NumberNumberHashMap();
@@ -85,7 +85,7 @@ describe("NumberNumberHashMap generated", () => {
   it("resize", () => {
     const m = new NumberNumberHashMap();
     for (let i = 0; i < 100; i += 1) m.set(i, i * 10);
-    expect(m.size()).toBe(100);
+    expect(m.size).toBe(100);
   });
   it("toString", () => {
     const m = new NumberNumberHashMap();
@@ -99,14 +99,14 @@ describe("NumberNumberHashMap generated", () => {
       m.set(NaN, 1);
       expect(m.has(NaN)).toBe(true);
       expect(m.get(NaN)).toBe(1);
-      expect(m.size()).toBe(1);
+      expect(m.size).toBe(1);
     });
     it("NaN key replaces, does not duplicate", () => {
       const m = new NumberNumberHashMap();
       m.set(NaN, 1);
       m.set(NaN, 2);
       m.set(NaN, 3);
-      expect(m.size()).toBe(1);
+      expect(m.size).toBe(1);
       expect(m.get(NaN)).toBe(3);
     });
     it("NaN key remove works", () => {
@@ -114,14 +114,14 @@ describe("NumberNumberHashMap generated", () => {
       m.set(NaN, 1);
       const removed = m.remove(NaN);
       expect(removed).toBe(1);
-      expect(m.size()).toBe(0);
+      expect(m.size).toBe(0);
       expect(m.has(NaN)).toBe(false);
     });
     it("-0.0 is distinct from +0.0", () => {
       const m = new NumberNumberHashMap();
       m.set(0.0, 1);
       m.set(-0.0, 2);
-      expect(m.size()).toBe(2);
+      expect(m.size).toBe(2);
       expect(m.get(0.0)).toBe(1);
       expect(m.get(-0.0)).toBe(2);
     });
@@ -129,7 +129,7 @@ describe("NumberNumberHashMap generated", () => {
       const m = new NumberNumberHashMap();
       m.set(Number.POSITIVE_INFINITY, 1);
       m.set(Number.NEGATIVE_INFINITY, 2);
-      expect(m.size()).toBe(2);
+      expect(m.size).toBe(2);
       expect(m.get(Number.POSITIVE_INFINITY)).toBe(1);
       expect(m.get(Number.NEGATIVE_INFINITY)).toBe(2);
     });

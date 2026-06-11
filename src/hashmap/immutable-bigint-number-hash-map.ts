@@ -48,8 +48,8 @@ export class ImmutableBigIntNumberHashMap implements MapDbMap<bigint, number> {
   }
 
   /** Returns the number of entries. */
-  size(): number {
-    return this.delegate.size();
+  get size(): number {
+    return this.delegate.size;
   }
 
   /** Returns true if the map is empty. */

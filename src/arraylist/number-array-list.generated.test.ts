@@ -14,14 +14,14 @@ describe("NumberArrayList generated", () => {
     l.add(1);
     l.add(2);
     l.add(3);
-    expect(l.size()).toBe(3);
+    expect(l.size).toBe(3);
     expect(l.get(0)).toBe(1);
     expect(l.get(2)).toBe(3);
   });
 
   it("of", () => {
     const l = NumberArrayList.of([1, 2, 3]);
-    expect(l.size()).toBe(3);
+    expect(l.size).toBe(3);
     expect(l.get(1)).toBe(2);
   });
 
@@ -36,7 +36,7 @@ describe("NumberArrayList generated", () => {
     const l = NumberArrayList.of([1, 2, 3]);
     const removed = l.removeAtIndex(1);
     expect(removed).toBe(2);
-    expect(l.size()).toBe(2);
+    expect(l.size).toBe(2);
   });
 
   it("contains", () => {
@@ -57,14 +57,14 @@ describe("NumberArrayList generated", () => {
     l.add(1);
     expect(l.isEmpty()).toBe(false);
     l.clear();
-    expect(l.size()).toBe(0);
+    expect(l.size).toBe(0);
     expect(l.isEmpty()).toBe(true);
   });
 
   it("select and reject", () => {
     const l = NumberArrayList.of([1, 2, 3, 4, 5]);
-    expect(l.select((v) => v > 3).size()).toBe(2);
-    expect(l.reject((v) => v > 3).size()).toBe(3);
+    expect(l.select((v) => v > 3).size).toBe(2);
+    expect(l.reject((v) => v > 3).size).toBe(3);
   });
 
   it("detect", () => {
@@ -117,6 +117,6 @@ describe("NumberArrayList generated", () => {
   it("resize", () => {
     const l = new NumberArrayList();
     for (let i = 0; i < 100; i += 1) l.add(i);
-    expect(l.size()).toBe(100);
+    expect(l.size).toBe(100);
   });
 });

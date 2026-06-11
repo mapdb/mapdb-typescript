@@ -164,7 +164,7 @@ describe("Pet Kata", () => {
     void people; // TODO: replace with people.select(...)
     const catPeople = new ArrayList<Person>();
 
-    expect(catPeople.size()).toBe(3);
+    expect(catPeople.size).toBe(3);
     const names = new HashSet<string>();
     catPeople.forEach((p) => names.add(p.firstName));
     expect(names.has("Mary")).toBe(true);
@@ -179,7 +179,7 @@ describe("Pet Kata", () => {
     void people; // TODO: replace with people.reject(...)
     const noCatPeople = new ArrayList<Person>();
 
-    expect(noCatPeople.size()).toBe(4);
+    expect(noCatPeople.size).toBe(4);
   });
 
   // Exercise 7: Find Mary Smith.
@@ -191,7 +191,7 @@ describe("Pet Kata", () => {
 
     expect(mary).toBeDefined();
     expect(mary!.fullName()).toBe("Mary Smith");
-    expect(mary!.pets.size()).toBe(1);
+    expect(mary!.pets.size).toBe(1);
   });
 
   // Exercise 8: Collect all pet names across all people.
@@ -201,7 +201,7 @@ describe("Pet Kata", () => {
     const petNames = new ArrayList<string>();
     void people; // TODO: iterate people and their pets, add each pet name
 
-    expect(petNames.size()).toBe(11);
+    expect(petNames.size).toBe(11);
     expect(petNames.has("Tabby")).toBe(true);
     expect(petNames.has("Tweety")).toBe(true);
   });
@@ -219,7 +219,7 @@ describe("Pet Kata", () => {
     expect(petTypeBag.occurrencesOf(PetType.SNAKE)).toBe(1);
     expect(petTypeBag.occurrencesOf(PetType.TURTLE)).toBe(1);
     expect(petTypeBag.occurrencesOf(PetType.BIRD)).toBe(1);
-    expect(petTypeBag.size()).toBe(11);
+    expect(petTypeBag.size).toBe(11);
 
     const top = petTypeBag.topOccurrences(2);
     expect(top).toHaveLength(2);
@@ -233,7 +233,7 @@ describe("Pet Kata", () => {
     const petTypes = new HashSet<PetType>();
     void people; // TODO: populate petTypes
 
-    expect(petTypes.size()).toBe(6);
+    expect(petTypes.size).toBe(6);
     for (const pt of [
       PetType.CAT,
       PetType.DOG,
@@ -247,7 +247,7 @@ describe("Pet Kata", () => {
   });
 
   // Exercise 11: Count total pets using injectInto (fold/reduce).
-  // Hint: people.injectInto(0, (acc, person) => acc + person.pets.size())
+  // Hint: people.injectInto(0, (acc, person) => acc + person.pets.size)
   test("Exercise 11 — total pet count via injectInto", () => {
     const people = setupPeople();
     void people; // TODO: replace 0 with people.injectInto(...)

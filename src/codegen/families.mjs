@@ -175,7 +175,7 @@ export class ${cls} {
     return -1;
   }
 
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {
@@ -394,7 +394,7 @@ export class ${cls} {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 
@@ -612,7 +612,7 @@ describe("${cls} generated", () => {
     l.add(${L(1)});
     l.add(${L(2)});
     l.add(${L(3)});
-    expect(l.size()).toBe(3);
+    expect(l.size).toBe(3);
     expect(l.get(0)).toBe(${L(1)});
     expect(l.get(2)).toBe(${L(3)});
   });
@@ -631,7 +631,7 @@ describe("${cls} generated", () => {
     l.add(${L(3)});
     const removed = l.removeAtIndex(1);
     expect(removed).toBe(${L(2)});
-    expect(l.size()).toBe(2);
+    expect(l.size).toBe(2);
   });
   it("contains and indexOf", () => {
     const l = new ${cls}();
@@ -648,7 +648,7 @@ describe("${cls} generated", () => {
     l.add(${L(1)});
     expect(l.isEmpty()).toBe(false);
     l.clear();
-    expect(l.size()).toBe(0);
+    expect(l.size).toBe(0);
   });
   it("select", () => {
     const l = new ${cls}();
@@ -657,7 +657,7 @@ describe("${cls} generated", () => {
     l.add(${L(3)});
     l.add(${L(4)});
     l.add(${L(5)});
-    expect(l.select((v) => v > ${L(3)}).size()).toBe(2);
+    expect(l.select((v) => v > ${L(3)}).size).toBe(2);
   });
   it("reject", () => {
     const l = new ${cls}();
@@ -666,7 +666,7 @@ describe("${cls} generated", () => {
     l.add(${L(3)});
     l.add(${L(4)});
     l.add(${L(5)});
-    expect(l.reject((v) => v > ${L(3)}).size()).toBe(3);
+    expect(l.reject((v) => v > ${L(3)}).size).toBe(3);
   });
   it("detect", () => {
     const l = new ${cls}();
@@ -712,7 +712,7 @@ describe("${cls} generated", () => {
   it("resize", () => {
     const l = new ${cls}();
     ${resizeHead}
-    expect(l.size()).toBe(100);
+    expect(l.size).toBe(100);
   });
   it("memoryBytes", () => {
     const l = new ${cls}(64);
@@ -742,7 +742,7 @@ import { ${mut} } from "./${prim.id}-array-list.js";
 describe("${cls} generated", () => {
   it("static of creates immutable copy", () => {
     const list = ${cls}.of(${arr(1, 2, 3)});
-    expect(list.size()).toBe(3);
+    expect(list.size).toBe(3);
     expect(list.get(0)).toBe(${L(1)});
     expect(list.get(2)).toBe(${L(3)});
   });
@@ -754,8 +754,8 @@ describe("${cls} generated", () => {
     const imm = ${cls}.fromMutable(mutable);
     // Mutating original doesn't affect immutable
     mutable.add(${L(3)});
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("get with bounds check", () => {
@@ -768,10 +768,10 @@ describe("${cls} generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ${cls}.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ${cls}.of(${arr(1)});
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -795,14 +795,14 @@ describe("${cls} generated", () => {
     const result = list.select((v) => v > ${L(3)});
     // Verify it's mutable by checking it has add method
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const list = ${cls}.of(${arr(1, 2, 3, 4, 5)});
     const result = list.reject((v) => v > ${L(3)});
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("find", () => {
@@ -847,9 +847,9 @@ describe("${cls} generated", () => {
     const original = ${cls}.of(${arr(1, 2, 3)});
     const mutable = original.toMutable();
     mutable.add(${L(4)});
-    expect(mutable.size()).toBe(4);
+    expect(mutable.size).toBe(4);
     // Original unchanged
-    expect(original.size()).toBe(3);
+    expect(original.size).toBe(3);
   });
 
   it("forEach", () => {
@@ -1022,7 +1022,7 @@ export class ${cls} {
     }
   }
 
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {
@@ -1088,7 +1088,7 @@ export class ${cls} {
   /** Creates a mutable set from an immutable one. */
   static fromImmutable(imm: {
     toArray(): ${T}[];
-    size(): number;
+    readonly size: number;
   }): ${cls} {
     const arr = imm.toArray();
     const set = new ${cls}(arr.length);
@@ -1311,7 +1311,7 @@ export class ${cls} {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 
@@ -1490,27 +1490,27 @@ function floatElemEdgeCases(cls) {
       const s = new ${cls}();
       s.add(NaN);
       expect(s.has(NaN)).toBe(true);
-      expect(s.size()).toBe(1);
+      expect(s.size).toBe(1);
     });
     it("NaN add duplicate does not grow", () => {
       const s = new ${cls}();
       expect(s.add(NaN)).toBe(true);
       expect(s.add(NaN)).toBe(false);
       expect(s.add(NaN)).toBe(false);
-      expect(s.size()).toBe(1);
+      expect(s.size).toBe(1);
     });
     it("NaN remove works", () => {
       const s = new ${cls}();
       s.add(NaN);
       expect(s.remove(NaN)).toBe(true);
       expect(s.has(NaN)).toBe(false);
-      expect(s.size()).toBe(0);
+      expect(s.size).toBe(0);
     });
     it("-0.0 is distinct from +0.0", () => {
       const s = new ${cls}();
       s.add(0.0);
       s.add(-0.0);
-      expect(s.size()).toBe(2);
+      expect(s.size).toBe(2);
       expect(s.has(0.0)).toBe(true);
       expect(s.has(-0.0)).toBe(true);
     });
@@ -1518,7 +1518,7 @@ function floatElemEdgeCases(cls) {
       const s = new ${cls}();
       s.add(Number.POSITIVE_INFINITY);
       s.add(Number.NEGATIVE_INFINITY);
-      expect(s.size()).toBe(2);
+      expect(s.size).toBe(2);
       expect(s.has(Number.POSITIVE_INFINITY)).toBe(true);
       expect(s.has(Number.NEGATIVE_INFINITY)).toBe(true);
     });`;
@@ -1539,7 +1539,7 @@ describe("${cls} generated", () => {
     s.add(${L(1)});
     s.add(${L(2)});
     s.add(${L(3)});
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.has(${L(2)})).toBe(true);
     expect(s.has(${L(99)})).toBe(false);
   });
@@ -1547,7 +1547,7 @@ describe("${cls} generated", () => {
     const s = new ${cls}();
     expect(s.add(${L(1)})).toBe(true);
     expect(s.add(${L(1)})).toBe(false);
-    expect(s.size()).toBe(1);
+    expect(s.size).toBe(1);
   });
   it("remove", () => {
     const s = new ${cls}();
@@ -1572,7 +1572,7 @@ describe("${cls} generated", () => {
     const b = new ${cls}();
     b.add(${L(2)});
     b.add(${L(3)});
-    expect(a.union(b).size()).toBe(3);
+    expect(a.union(b).size).toBe(3);
   });
   it("intersect", () => {
     const a = new ${cls}();
@@ -1581,7 +1581,7 @@ describe("${cls} generated", () => {
     const b = new ${cls}();
     b.add(${L(2)});
     b.add(${L(3)});
-    expect(a.intersect(b).size()).toBe(1);
+    expect(a.intersect(b).size).toBe(1);
   });
   it("difference", () => {
     const a = new ${cls}();
@@ -1590,14 +1590,14 @@ describe("${cls} generated", () => {
     const b = new ${cls}();
     b.add(${L(2)});
     b.add(${L(3)});
-    expect(a.difference(b).size()).toBe(1);
+    expect(a.difference(b).size).toBe(1);
   });
   it("select", () => {
     const s = new ${cls}();
     s.add(${L(1)});
     s.add(${L(2)});
     s.add(${L(3)});
-    expect(s.select((v) => v > ${L(1)}).size()).toBe(2);
+    expect(s.select((v) => v > ${L(1)}).size).toBe(2);
   });
   it("memoryBytes", () => {
     const s = new ${cls}(64);
@@ -1627,7 +1627,7 @@ import { ${mut} } from "./${prim.id}-hash-set.js";
 describe("${cls} generated", () => {
   it("static of creates immutable set", () => {
     const set = ${cls}.of(${arr(1, 2, 3)});
-    expect(set.size()).toBe(3);
+    expect(set.size).toBe(3);
     expect(set.has(${L(1)})).toBe(true);
     expect(set.has(${L(3)})).toBe(true);
   });
@@ -1638,8 +1638,8 @@ describe("${cls} generated", () => {
     mutable.add(${L(2)});
     const imm = ${cls}.fromMutable(mutable);
     mutable.add(${L(3)});
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("contains and includes", () => {
@@ -1652,10 +1652,10 @@ describe("${cls} generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ${cls}.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ${cls}.of(${arr(1)});
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -1663,14 +1663,14 @@ describe("${cls} generated", () => {
     const set = ${cls}.of(${arr(1, 2, 3, 4, 5)});
     const result = set.select((v) => v > ${L(3)});
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const set = ${cls}.of(${arr(1, 2, 3, 4, 5)});
     const result = set.reject((v) => v > ${L(3)});
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("anySatisfy / allSatisfy", () => {
@@ -1702,8 +1702,8 @@ describe("${cls} generated", () => {
     const original = ${cls}.of(${arr(1, 2, 3)});
     const mutable = original.toMutable();
     mutable.add(${L(4)});
-    expect(mutable.size()).toBe(4);
-    expect(original.size()).toBe(3);
+    expect(mutable.size).toBe(4);
+    expect(original.size).toBe(3);
   });
 
   it("forEach", () => {
@@ -1880,7 +1880,7 @@ export class ${cls} {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 
@@ -2169,7 +2169,7 @@ export class ${cls} {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 
@@ -2383,7 +2383,7 @@ describe("${cls} generated", () => {
     s.push(${L(1)});
     s.push(${L(2)});
     s.push(${L(3)});
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.pop()).toBe(${L(3)});
     expect(s.pop()).toBe(${L(2)});
     expect(s.pop()).toBe(${L(1)});
@@ -2394,7 +2394,7 @@ describe("${cls} generated", () => {
     s.push(${L(1)});
     s.push(${L(2)});
     expect(s.peek()).toBe(${L(2)});
-    expect(s.size()).toBe(2); // peek doesn't remove
+    expect(s.size).toBe(2); // peek doesn't remove
   });
 
   it("peekAt", () => {
@@ -2434,7 +2434,7 @@ describe("${cls} generated", () => {
     s.push(${L(1)});
     expect(s.isEmpty()).toBe(false);
     s.clear();
-    expect(s.size()).toBe(0);
+    expect(s.size).toBe(0);
     expect(s.isEmpty()).toBe(true);
   });
 
@@ -2447,7 +2447,7 @@ describe("${cls} generated", () => {
     s.push(${L(5)});
     // select preserves order (but stack reversal means bottom-to-top becomes top-to-bottom in result)
     const result = s.select((v) => v > ${L(3)});
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject", () => {
@@ -2457,7 +2457,7 @@ describe("${cls} generated", () => {
     s.push(${L(3)});
     s.push(${L(4)});
     s.push(${L(5)});
-    expect(s.reject((v) => v > ${L(3)}).size()).toBe(3);
+    expect(s.reject((v) => v > ${L(3)}).size).toBe(3);
   });
 
   it("find", () => {
@@ -2559,7 +2559,7 @@ describe("${cls} generated", () => {
   it("resize", () => {
     const s = new ${cls}();
     ${resizeHead}
-    expect(s.size()).toBe(100);
+    expect(s.size).toBe(100);
   });
 
   it("memoryBytes", () => {
@@ -2607,7 +2607,7 @@ describe("${cls} generated", () => {
 
   it("of factory", () => {
     const s = ${cls}.of(${arr(1, 2, 3)}); // last element is top
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.peek()).toBe(${L(3)});
     expect(s.pop()).toBe(${L(3)});
     expect(s.pop()).toBe(${L(2)});
@@ -2632,7 +2632,7 @@ import { ${mut} } from "./${prim.id}-array-stack.js";
 describe("${cls} generated", () => {
   it("static of creates immutable stack", () => {
     const stack = ${cls}.of(${arr(1, 2, 3)}); // last = top
-    expect(stack.size()).toBe(3);
+    expect(stack.size).toBe(3);
     expect(stack.peek()).toBe(${L(3)});
   });
 
@@ -2642,8 +2642,8 @@ describe("${cls} generated", () => {
     mutable.push(${L(2)});
     const imm = ${cls}.fromMutable(mutable);
     mutable.push(${L(3)});
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("peek returns top element", () => {
@@ -2671,10 +2671,10 @@ describe("${cls} generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ${cls}.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ${cls}.of(${arr(1)});
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -2690,14 +2690,14 @@ describe("${cls} generated", () => {
     const stack = ${cls}.of(${arr(1, 2, 3, 4, 5)});
     const result = stack.select((v) => v > ${L(3)});
     expect(typeof result.push).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const stack = ${cls}.of(${arr(1, 2, 3, 4, 5)});
     const result = stack.reject((v) => v > ${L(3)});
     expect(typeof result.push).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("find", () => {
@@ -2743,8 +2743,8 @@ describe("${cls} generated", () => {
     const original = ${cls}.of(${arr(1, 2, 3)});
     const mutable = original.toMutable();
     mutable.push(${L(4)});
-    expect(mutable.size()).toBe(4);
-    expect(original.size()).toBe(3);
+    expect(mutable.size).toBe(4);
+    expect(original.size).toBe(3);
   });
 
   it("forEach top to bottom", () => {
@@ -2900,7 +2900,7 @@ export class ${cls} {
   }
 
   /** Total number of items including duplicates */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 
@@ -3013,7 +3013,7 @@ describe("${cls} generated", () => {
     b.add(${L(2)});
     expect(b.occurrencesOf(${L(1)})).toBe(2);
     expect(b.occurrencesOf(${L(2)})).toBe(1);
-    expect(b.size()).toBe(3);
+    expect(b.size).toBe(3);
     expect(b.sizeDistinct()).toBe(2);
   });
   it("remove and removeAll", () => {
@@ -3049,7 +3049,7 @@ describe("${cls} generated", () => {
     b.add(${L(1)});
     b.add(${L(2)});
     b.add(${L(3)});
-    expect(b.select((v) => v > ${L(1)}).size()).toBe(2);
+    expect(b.select((v) => v > ${L(1)}).size).toBe(2);
   });
   it("toString", () => {
     const b = new ${cls}();

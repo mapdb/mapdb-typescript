@@ -14,7 +14,7 @@ describe("BigIntHashSet generated", () => {
     s.add(1n);
     s.add(2n);
     s.add(3n);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.has(2n)).toBe(true);
     expect(s.has(99n)).toBe(false);
   });
@@ -22,11 +22,11 @@ describe("BigIntHashSet generated", () => {
     const s = new BigIntHashSet();
     expect(s.add(1n)).toBe(true);
     expect(s.add(1n)).toBe(false);
-    expect(s.size()).toBe(1);
+    expect(s.size).toBe(1);
   });
   it("of", () => {
     const s = BigIntHashSet.of([1n, 2n, 3n]);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
   });
   it("remove", () => {
     const s = BigIntHashSet.of([1n, 2n, 3n]);
@@ -41,23 +41,23 @@ describe("BigIntHashSet generated", () => {
   });
   it("select and reject", () => {
     const s = BigIntHashSet.of([1n, 2n, 3n, 4n, 5n]);
-    expect(s.select((v) => v > 3n).size()).toBe(2);
-    expect(s.reject((v) => v > 3n).size()).toBe(3);
+    expect(s.select((v) => v > 3n).size).toBe(2);
+    expect(s.reject((v) => v > 3n).size).toBe(3);
   });
   it("union", () => {
     const a = BigIntHashSet.of([1n, 2n, 3n]);
     const b = BigIntHashSet.of([3n, 4n, 5n]);
-    expect(a.union(b).size()).toBe(5);
+    expect(a.union(b).size).toBe(5);
   });
   it("intersect", () => {
     const a = BigIntHashSet.of([1n, 2n, 3n]);
     const b = BigIntHashSet.of([2n, 3n, 4n]);
-    expect(a.intersect(b).size()).toBe(2);
+    expect(a.intersect(b).size).toBe(2);
   });
   it("difference", () => {
     const a = BigIntHashSet.of([1n, 2n, 3n]);
     const b = BigIntHashSet.of([2n, 3n, 4n]);
-    expect(a.difference(b).size()).toBe(1);
+    expect(a.difference(b).size).toBe(1);
   });
   it("entries generator", () => {
     const s = BigIntHashSet.of([1n, 2n]);

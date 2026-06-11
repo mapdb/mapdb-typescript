@@ -17,7 +17,7 @@ describe("Float32HashBag generated", () => {
     b.add(2);
     expect(b.occurrencesOf(1)).toBe(2);
     expect(b.occurrencesOf(2)).toBe(1);
-    expect(b.size()).toBe(3);
+    expect(b.size).toBe(3);
     expect(b.sizeDistinct()).toBe(2);
   });
   it("remove and removeAll", () => {
@@ -53,7 +53,7 @@ describe("Float32HashBag generated", () => {
     b.add(1);
     b.add(2);
     b.add(3);
-    expect(b.select((v) => v > 1).size()).toBe(2);
+    expect(b.select((v) => v > 1).size).toBe(2);
   });
   it("toString", () => {
     const b = new Float32HashBag();

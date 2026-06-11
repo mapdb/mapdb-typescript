@@ -38,8 +38,8 @@ export class ImmutableBigIntHashBag implements MapDbBag<bigint> {
   }
 
   /** Returns the total number of elements (including duplicates). */
-  size(): number {
-    return this.delegate.size();
+  get size(): number {
+    return this.delegate.size;
   }
 
   /** Returns the number of distinct elements. */

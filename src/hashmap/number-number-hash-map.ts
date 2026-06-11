@@ -113,7 +113,7 @@ export class NumberNumberHashMap implements MapDbMutableMap<number, number> {
   }
 
   /** Returns the number of entries. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

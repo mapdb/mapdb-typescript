@@ -15,7 +15,7 @@ describe("NumberHashBag", () => {
     b.add(2);
     expect(b.occurrencesOf(1)).toBe(2);
     expect(b.occurrencesOf(2)).toBe(1);
-    expect(b.size()).toBe(3);
+    expect(b.size).toBe(3);
     expect(b.sizeDistinct()).toBe(2);
   });
 

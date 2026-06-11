@@ -15,7 +15,7 @@ describe("Int32ArrayStack generated", () => {
     s.push(1);
     s.push(2);
     s.push(3);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.pop()).toBe(3);
     expect(s.pop()).toBe(2);
     expect(s.pop()).toBe(1);
@@ -26,7 +26,7 @@ describe("Int32ArrayStack generated", () => {
     s.push(1);
     s.push(2);
     expect(s.peek()).toBe(2);
-    expect(s.size()).toBe(2); // peek doesn't remove
+    expect(s.size).toBe(2); // peek doesn't remove
   });
 
   it("peekAt", () => {
@@ -66,7 +66,7 @@ describe("Int32ArrayStack generated", () => {
     s.push(1);
     expect(s.isEmpty()).toBe(false);
     s.clear();
-    expect(s.size()).toBe(0);
+    expect(s.size).toBe(0);
     expect(s.isEmpty()).toBe(true);
   });
 
@@ -79,7 +79,7 @@ describe("Int32ArrayStack generated", () => {
     s.push(5);
     // select preserves order (but stack reversal means bottom-to-top becomes top-to-bottom in result)
     const result = s.select((v) => v > 3);
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject", () => {
@@ -89,7 +89,7 @@ describe("Int32ArrayStack generated", () => {
     s.push(3);
     s.push(4);
     s.push(5);
-    expect(s.reject((v) => v > 3).size()).toBe(3);
+    expect(s.reject((v) => v > 3).size).toBe(3);
   });
 
   it("find", () => {
@@ -191,7 +191,7 @@ describe("Int32ArrayStack generated", () => {
   it("resize", () => {
     const s = new Int32ArrayStack();
     for (let i = 0; i < 100; i += 1) s.push(i);
-    expect(s.size()).toBe(100);
+    expect(s.size).toBe(100);
   });
 
   it("memoryBytes", () => {
@@ -239,7 +239,7 @@ describe("Int32ArrayStack generated", () => {
 
   it("of factory", () => {
     const s = Int32ArrayStack.of([1, 2, 3]); // last element is top
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.peek()).toBe(3);
     expect(s.pop()).toBe(3);
     expect(s.pop()).toBe(2);

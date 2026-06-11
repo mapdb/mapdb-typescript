@@ -17,7 +17,7 @@ export class ImmutableNumberArrayStack implements MapDbStack<number> {
 
   constructor(source: NumberArrayStack) {
     // Copy all entries into a fresh mutable stack so the caller cannot mutate our data.
-    this.delegate = new NumberArrayStack(source.size());
+    this.delegate = new NumberArrayStack(source.size);
     const arr = source.toArray();
     // toArray returns top-first, so push in reverse order to preserve stack order.
     for (let i = arr.length - 1; i >= 0; i--) {
@@ -41,8 +41,8 @@ export class ImmutableNumberArrayStack implements MapDbStack<number> {
   }
 
   /** Returns the number of elements. */
-  size(): number {
-    return this.delegate.size();
+  get size(): number {
+    return this.delegate.size;
   }
 
   /** Returns true if the stack is empty. */
@@ -136,7 +136,7 @@ export class ImmutableNumberArrayStack implements MapDbStack<number> {
 
   /** Returns a new mutable copy of this stack. */
   toMutable(): NumberArrayStack {
-    const m = new NumberArrayStack(this.delegate.size());
+    const m = new NumberArrayStack(this.delegate.size);
     const arr = this.delegate.toArray();
     // toArray returns top-first, so push in reverse order to preserve stack order.
     for (let i = arr.length - 1; i >= 0; i--) {

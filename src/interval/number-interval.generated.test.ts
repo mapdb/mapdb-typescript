@@ -11,12 +11,12 @@ import { NumberInterval } from "./number-interval.js";
 describe("NumberInterval generated", () => {
   it("fromTo ascending", () => {
     const iv = NumberInterval.fromTo(1, 5);
-    expect(iv.size()).toBe(5);
+    expect(iv.size).toBe(5);
     expect(iv.toArray()).toEqual([1, 2, 3, 4, 5]);
   });
   it("fromTo descending", () => {
     const iv = NumberInterval.fromTo(5, 1);
-    expect(iv.size()).toBe(5);
+    expect(iv.size).toBe(5);
     expect(iv.toArray()).toEqual([5, 4, 3, 2, 1]);
   });
   it("fromToBy", () => {
@@ -25,7 +25,7 @@ describe("NumberInterval generated", () => {
   });
   it("single element", () => {
     const iv = NumberInterval.fromTo(3, 3);
-    expect(iv.size()).toBe(1);
+    expect(iv.size).toBe(1);
     expect(iv.toArray()).toEqual([3]);
   });
   it("contains", () => {

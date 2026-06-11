@@ -29,13 +29,13 @@ function main(): void {
 function probeMapNaN(): void {
   const m = new NumberNumberHashMap();
   m.set(NaN, 1);
-  console.log(`map_nan_size_after_put1: ${m.size()}`);
+  console.log(`map_nan_size_after_put1: ${m.size}`);
 
   m.set(NaN, 2);
-  console.log(`map_nan_size_after_put2: ${m.size()}`);
+  console.log(`map_nan_size_after_put2: ${m.size}`);
 
   m.set(NaN, 3);
-  console.log(`map_nan_size_after_put3: ${m.size()}`);
+  console.log(`map_nan_size_after_put3: ${m.size}`);
 
   const v = m.get(NaN);
   console.log(`map_nan_get_found: ${v !== undefined}`);
@@ -45,7 +45,7 @@ function probeMapNaN(): void {
 
   const removed = m.remove(NaN);
   console.log(`map_nan_remove_found: ${removed !== undefined}`);
-  console.log(`map_nan_size_after_remove: ${m.size()}`);
+  console.log(`map_nan_size_after_remove: ${m.size}`);
 }
 
 function probeMapNegZero(): void {
@@ -53,7 +53,7 @@ function probeMapNegZero(): void {
   m.set(0.0, 100);
   m.set(-0.0, 200);
 
-  console.log(`map_zero_size: ${m.size()}`);
+  console.log(`map_zero_size: ${m.size}`);
 
   const v1 = m.get(0.0);
   const v2 = m.get(-0.0);
@@ -80,7 +80,7 @@ function probeMapInfinity(): void {
   m.set(Number.POSITIVE_INFINITY, 111);
   m.set(Number.NEGATIVE_INFINITY, 222);
 
-  console.log(`map_inf_size: ${m.size()}`);
+  console.log(`map_inf_size: ${m.size}`);
 
   const v1 = m.get(Number.POSITIVE_INFINITY);
   const v2 = m.get(Number.NEGATIVE_INFINITY);
@@ -96,7 +96,7 @@ function probeSetNaN(): void {
   s.add(NaN);
   s.add(NaN);
   s.add(NaN);
-  console.log(`set_nan_size: ${s.size()}`);
+  console.log(`set_nan_size: ${s.size}`);
   console.log(`set_nan_contains: ${s.has(NaN)}`);
 }
 
@@ -104,7 +104,7 @@ function probeSetNegZero(): void {
   const s = new NumberHashSet();
   s.add(0.0);
   s.add(-0.0);
-  console.log(`set_zero_size: ${s.size()}`);
+  console.log(`set_zero_size: ${s.size}`);
   console.log(`set_pos_zero_contains: ${s.has(0.0)}`);
   console.log(`set_neg_zero_contains: ${s.has(-0.0)}`);
 }
@@ -116,7 +116,7 @@ function probeSetMixed(): void {
   s.add(Number.POSITIVE_INFINITY);
   s.add(Number.NEGATIVE_INFINITY);
   s.add(0.0);
-  console.log(`set_mixed_size: ${s.size()}`);
+  console.log(`set_mixed_size: ${s.size}`);
 }
 
 main();

@@ -16,12 +16,12 @@ describe("NumberHashBag generated", () => {
     b.add(2);
     expect(b.occurrencesOf(1)).toBe(2);
     expect(b.occurrencesOf(2)).toBe(1);
-    expect(b.size()).toBe(3);
+    expect(b.size).toBe(3);
     expect(b.sizeDistinct()).toBe(2);
   });
   it("of", () => {
     const b = NumberHashBag.of([1, 1, 2]);
-    expect(b.size()).toBe(3);
+    expect(b.size).toBe(3);
   });
   it("remove", () => {
     const b = NumberHashBag.of([1, 1, 1, 2]);
@@ -48,7 +48,7 @@ describe("NumberHashBag generated", () => {
   });
   it("select", () => {
     const b = NumberHashBag.of([1, 2, 3]);
-    expect(b.select((v) => v > 1).size()).toBe(2);
+    expect(b.select((v) => v > 1).size).toBe(2);
   });
   it("entries generator", () => {
     const b = NumberHashBag.of([1, 1, 2]);

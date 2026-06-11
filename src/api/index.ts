@@ -8,7 +8,7 @@
 /** Read-only collection of `T` values. The minimal common surface that
  *  every concrete collection in the library satisfies. */
 export interface MapDbCollection<T> {
-  size(): number;
+  readonly size: number;
   isEmpty(): boolean;
   has(value: T): boolean;
 
@@ -98,7 +98,7 @@ export interface MapDbMutableStack<T>
 
 /** Read-only map from `K` keys to `V` values. */
 export interface MapDbMap<K, V> {
-  size(): number;
+  readonly size: number;
   isEmpty(): boolean;
   has(key: K): boolean;
   get(key: K): V | undefined;

@@ -13,7 +13,7 @@ describe("Int32ArrayList (TypedArray-backed)", () => {
     l.add(10);
     l.add(20);
     l.add(30);
-    expect(l.size()).toBe(3);
+    expect(l.size).toBe(3);
     expect(l.get(1)).toBe(20);
   });
 
@@ -38,13 +38,13 @@ describe("Int32ArrayList (TypedArray-backed)", () => {
     const l = new Int32ArrayList();
     for (let i = 1; i <= 10; i++) l.add(i);
     const evens = l.select((v) => v % 2 === 0);
-    expect(evens.size()).toBe(5);
+    expect(evens.size).toBe(5);
   });
 
   it("resize with many entries", () => {
     const l = new Int32ArrayList();
     for (let i = 0; i < 1000; i++) l.add(i);
-    expect(l.size()).toBe(1000);
+    expect(l.size).toBe(1000);
     expect(l.get(999)).toBe(999);
   });
 

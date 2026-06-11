@@ -13,7 +13,7 @@ import { BigInt64HashSet } from "./bigint64-hash-set.js";
 describe("ImmutableBigInt64HashSet generated", () => {
   it("static of creates immutable set", () => {
     const set = ImmutableBigInt64HashSet.of([1n, 2n, 3n]);
-    expect(set.size()).toBe(3);
+    expect(set.size).toBe(3);
     expect(set.has(1n)).toBe(true);
     expect(set.has(3n)).toBe(true);
   });
@@ -24,8 +24,8 @@ describe("ImmutableBigInt64HashSet generated", () => {
     mutable.add(2n);
     const imm = ImmutableBigInt64HashSet.fromMutable(mutable);
     mutable.add(3n);
-    expect(imm.size()).toBe(2);
-    expect(mutable.size()).toBe(3);
+    expect(imm.size).toBe(2);
+    expect(mutable.size).toBe(3);
   });
 
   it("contains and includes", () => {
@@ -38,10 +38,10 @@ describe("ImmutableBigInt64HashSet generated", () => {
 
   it("size and isEmpty", () => {
     const empty = ImmutableBigInt64HashSet.of([]);
-    expect(empty.size()).toBe(0);
+    expect(empty.size).toBe(0);
     expect(empty.isEmpty()).toBe(true);
     const nonEmpty = ImmutableBigInt64HashSet.of([1n]);
-    expect(nonEmpty.size()).toBe(1);
+    expect(nonEmpty.size).toBe(1);
     expect(nonEmpty.isEmpty()).toBe(false);
   });
 
@@ -49,14 +49,14 @@ describe("ImmutableBigInt64HashSet generated", () => {
     const set = ImmutableBigInt64HashSet.of([1n, 2n, 3n, 4n, 5n]);
     const result = set.select((v) => v > 3n);
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(2);
+    expect(result.size).toBe(2);
   });
 
   it("reject returns MUTABLE", () => {
     const set = ImmutableBigInt64HashSet.of([1n, 2n, 3n, 4n, 5n]);
     const result = set.reject((v) => v > 3n);
     expect(typeof result.add).toBe("function");
-    expect(result.size()).toBe(3);
+    expect(result.size).toBe(3);
   });
 
   it("anySatisfy / allSatisfy", () => {
@@ -88,8 +88,8 @@ describe("ImmutableBigInt64HashSet generated", () => {
     const original = ImmutableBigInt64HashSet.of([1n, 2n, 3n]);
     const mutable = original.toMutable();
     mutable.add(4n);
-    expect(mutable.size()).toBe(4);
-    expect(original.size()).toBe(3);
+    expect(mutable.size).toBe(4);
+    expect(original.size).toBe(3);
   });
 
   it("forEach", () => {

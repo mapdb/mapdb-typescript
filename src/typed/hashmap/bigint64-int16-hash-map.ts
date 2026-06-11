@@ -87,7 +87,7 @@ export class BigInt64Int16HashMap {
   has(key: bigint): boolean {
     return this.get(key) !== undefined;
   }
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {

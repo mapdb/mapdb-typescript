@@ -13,7 +13,7 @@ describe("NumberTreeSet", () => {
     s.add(3);
     s.add(1);
     s.add(2);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.has(2)).toBe(true);
     expect(s.has(99)).toBe(false);
   });
@@ -22,7 +22,7 @@ describe("NumberTreeSet", () => {
     const s = new NumberTreeSet();
     expect(s.add(1)).toBe(true);
     expect(s.add(1)).toBe(false);
-    expect(s.size()).toBe(1);
+    expect(s.size).toBe(1);
   });
 
   it("sorted iteration", () => {
@@ -45,15 +45,15 @@ describe("NumberTreeSet", () => {
   it("union and intersect", () => {
     const a = NumberTreeSet.of([1, 2, 3]);
     const b = NumberTreeSet.of([3, 4, 5]);
-    expect(a.union(b).size()).toBe(5);
-    expect(a.intersect(b).size()).toBe(1);
-    expect(a.difference(b).size()).toBe(2);
+    expect(a.union(b).size).toBe(5);
+    expect(a.intersect(b).size).toBe(1);
+    expect(a.difference(b).size).toBe(2);
   });
 
   it("remove", () => {
     const s = NumberTreeSet.of([1, 2, 3, 4, 5]);
     s.remove(3);
-    expect(s.size()).toBe(4);
+    expect(s.size).toBe(4);
     expect(s.has(3)).toBe(false);
     const values = [...s.values()];
     for (let i = 1; i < values.length; i++) {

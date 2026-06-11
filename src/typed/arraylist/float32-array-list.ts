@@ -63,7 +63,7 @@ export class Float32ArrayList {
     return -1;
   }
 
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {

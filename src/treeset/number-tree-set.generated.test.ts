@@ -14,7 +14,7 @@ describe("NumberTreeSet generated", () => {
     s.add(3);
     s.add(1);
     s.add(2);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.has(2)).toBe(true);
     expect(s.has(99)).toBe(false);
   });

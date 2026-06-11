@@ -15,7 +15,7 @@ describe("NumberNumberHashMap", () => {
     expect(m.get(1)).toBe(100);
     expect(m.get(2)).toBe(200);
     expect(m.get(99)).toBeUndefined();
-    expect(m.size()).toBe(2);
+    expect(m.size).toBe(2);
   });
 
   it("put overwrite", () => {
@@ -32,7 +32,7 @@ describe("NumberNumberHashMap", () => {
     m.set(2, 200);
     const old = m.remove(1);
     expect(old).toBe(100);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
     expect(m.has(1)).toBe(false);
   });
 
@@ -43,10 +43,10 @@ describe("NumberNumberHashMap", () => {
     m.set(3, 30);
 
     const big = m.select((_k, v) => v > 15);
-    expect(big.size()).toBe(2);
+    expect(big.size).toBe(2);
 
     const small = m.reject((_k, v) => v > 15);
-    expect(small.size()).toBe(1);
+    expect(small.size).toBe(1);
   });
 
   it("entries generator", () => {
@@ -63,7 +63,7 @@ describe("NumberNumberHashMap", () => {
     for (let i = 0; i < 1000; i++) {
       m.set(i, i * 10);
     }
-    expect(m.size()).toBe(1000);
+    expect(m.size).toBe(1000);
     for (let i = 0; i < 1000; i++) {
       expect(m.get(i)).toBe(i * 10);
     }
@@ -83,6 +83,6 @@ describe("NumberNumberHashMap", () => {
     expect(m.isEmpty()).toBe(false);
     m.clear();
     expect(m.isEmpty()).toBe(true);
-    expect(m.size()).toBe(0);
+    expect(m.size).toBe(0);
   });
 });

@@ -58,7 +58,7 @@ export class ImmutableInt16ArrayStack {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

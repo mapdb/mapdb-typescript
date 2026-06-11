@@ -112,7 +112,7 @@ export class BigIntNumberHashMap implements MapDbMutableMap<bigint, number> {
   }
 
   /** Returns the number of entries. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

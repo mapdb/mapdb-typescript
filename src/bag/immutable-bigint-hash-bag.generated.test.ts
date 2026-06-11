@@ -13,16 +13,16 @@ describe("ImmutableBigIntHashBag generated", () => {
   it("occurrences and size", () => {
     const im = ImmutableBigIntHashBag.of([1n, 1n, 2n]);
     expect(im.occurrencesOf(1n)).toBe(2);
-    expect(im.size()).toBe(3);
+    expect(im.size).toBe(3);
     expect(im.sizeDistinct()).toBe(2);
   });
   it("select", () => {
     const im = ImmutableBigIntHashBag.of([1n, 2n, 3n]);
-    expect(im.select((v) => v > 1n).size()).toBe(2);
+    expect(im.select((v) => v > 1n).size).toBe(2);
   });
   it("toMutable does not affect immutable", () => {
     const im = ImmutableBigIntHashBag.of([1n]);
     im.toMutable().add(2n);
-    expect(im.size()).toBe(1);
+    expect(im.size).toBe(1);
   });
 });

@@ -79,7 +79,7 @@ export class BigIntArrayList implements MapDbMutableList<bigint> {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

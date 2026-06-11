@@ -17,7 +17,7 @@ describe("BigInt64BigInt64HashMap generated", () => {
     m.set(3n, 3n);
     expect(m.get(1n)).toBe(1n);
     expect(m.get(99n)).toBeUndefined();
-    expect(m.size()).toBe(3);
+    expect(m.size).toBe(3);
   });
   it("put overwrite", () => {
     const m = new BigInt64BigInt64HashMap();
@@ -31,7 +31,7 @@ describe("BigInt64BigInt64HashMap generated", () => {
     m.set(1n, 1n);
     m.set(2n, 2n);
     expect(m.remove(1n)).toBe(1n);
-    expect(m.size()).toBe(1);
+    expect(m.size).toBe(1);
     expect(m.has(1n)).toBe(false);
   });
   it("getOrDefault", () => {
@@ -53,7 +53,7 @@ describe("BigInt64BigInt64HashMap generated", () => {
     m.set(1n, 1n);
     m.set(2n, 2n);
     m.set(3n, 3n);
-    expect(m.select((_k, v) => v > 1n).size()).toBe(2);
+    expect(m.select((_k, v) => v > 1n).size).toBe(2);
   });
   it("anySatisfy / allSatisfy", () => {
     const m = new BigInt64BigInt64HashMap();
@@ -65,7 +65,7 @@ describe("BigInt64BigInt64HashMap generated", () => {
   it("resize", () => {
     const m = new BigInt64BigInt64HashMap();
     for (let i = 0n; i < 100n; i += 1n) m.set(i, i * 10n);
-    expect(m.size()).toBe(100);
+    expect(m.size).toBe(100);
   });
   it("memoryBytes", () => {
     const m = new BigInt64BigInt64HashMap(64);

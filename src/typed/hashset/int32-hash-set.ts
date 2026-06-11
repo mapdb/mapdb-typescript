@@ -70,7 +70,7 @@ export class Int32HashSet {
     }
   }
 
-  size(): number {
+  get size(): number {
     return this._size;
   }
   isEmpty(): boolean {
@@ -136,7 +136,7 @@ export class Int32HashSet {
   /** Creates a mutable set from an immutable one. */
   static fromImmutable(imm: {
     toArray(): number[];
-    size(): number;
+    readonly size: number;
   }): Int32HashSet {
     const arr = imm.toArray();
     const set = new Int32HashSet(arr.length);

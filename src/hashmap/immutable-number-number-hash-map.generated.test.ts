@@ -16,7 +16,7 @@ describe("ImmutableNumberNumberHashMap generated", () => {
       [1, 1],
       [2, 2],
     ]);
-    expect(im.size()).toBe(2);
+    expect(im.size).toBe(2);
     expect(im.get(1)).toBe(1);
     expect(im.get(99)).toBeUndefined();
   });
@@ -31,11 +31,11 @@ describe("ImmutableNumberNumberHashMap generated", () => {
       [2, 2],
       [3, 3],
     ]);
-    expect(im.select((_k, v) => v > 1).size()).toBe(2);
+    expect(im.select((_k, v) => v > 1).size).toBe(2);
   });
   it("toMutable does not affect immutable", () => {
     const im = ImmutableNumberNumberHashMap.of([[1, 1]]);
     im.toMutable().set(2, 2);
-    expect(im.size()).toBe(1);
+    expect(im.size).toBe(1);
   });
 });

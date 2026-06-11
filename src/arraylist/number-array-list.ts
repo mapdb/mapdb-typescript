@@ -80,7 +80,7 @@ export class NumberArrayList implements MapDbMutableList<number> {
   }
 
   /** Returns the number of elements. */
-  size(): number {
+  get size(): number {
     return this._size;
   }
 

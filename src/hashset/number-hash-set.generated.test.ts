@@ -14,7 +14,7 @@ describe("NumberHashSet generated", () => {
     s.add(1);
     s.add(2);
     s.add(3);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
     expect(s.has(2)).toBe(true);
     expect(s.has(99)).toBe(false);
   });
@@ -22,11 +22,11 @@ describe("NumberHashSet generated", () => {
     const s = new NumberHashSet();
     expect(s.add(1)).toBe(true);
     expect(s.add(1)).toBe(false);
-    expect(s.size()).toBe(1);
+    expect(s.size).toBe(1);
   });
   it("of", () => {
     const s = NumberHashSet.of([1, 2, 3]);
-    expect(s.size()).toBe(3);
+    expect(s.size).toBe(3);
   });
   it("remove", () => {
     const s = NumberHashSet.of([1, 2, 3]);
@@ -41,23 +41,23 @@ describe("NumberHashSet generated", () => {
   });
   it("select and reject", () => {
     const s = NumberHashSet.of([1, 2, 3, 4, 5]);
-    expect(s.select((v) => v > 3).size()).toBe(2);
-    expect(s.reject((v) => v > 3).size()).toBe(3);
+    expect(s.select((v) => v > 3).size).toBe(2);
+    expect(s.reject((v) => v > 3).size).toBe(3);
   });
   it("union", () => {
     const a = NumberHashSet.of([1, 2, 3]);
     const b = NumberHashSet.of([3, 4, 5]);
-    expect(a.union(b).size()).toBe(5);
+    expect(a.union(b).size).toBe(5);
   });
   it("intersect", () => {
     const a = NumberHashSet.of([1, 2, 3]);
     const b = NumberHashSet.of([2, 3, 4]);
-    expect(a.intersect(b).size()).toBe(2);
+    expect(a.intersect(b).size).toBe(2);
   });
   it("difference", () => {
     const a = NumberHashSet.of([1, 2, 3]);
     const b = NumberHashSet.of([2, 3, 4]);
-    expect(a.difference(b).size()).toBe(1);
+    expect(a.difference(b).size).toBe(1);
   });
   it("entries generator", () => {
     const s = NumberHashSet.of([1, 2]);
@@ -77,27 +77,27 @@ describe("NumberHashSet generated", () => {
       const s = new NumberHashSet();
       s.add(NaN);
       expect(s.has(NaN)).toBe(true);
-      expect(s.size()).toBe(1);
+      expect(s.size).toBe(1);
     });
     it("NaN add duplicate does not grow", () => {
       const s = new NumberHashSet();
       expect(s.add(NaN)).toBe(true);
       expect(s.add(NaN)).toBe(false);
       expect(s.add(NaN)).toBe(false);
-      expect(s.size()).toBe(1);
+      expect(s.size).toBe(1);
     });
     it("NaN remove works", () => {
       const s = new NumberHashSet();
       s.add(NaN);
       expect(s.remove(NaN)).toBe(true);
       expect(s.has(NaN)).toBe(false);
-      expect(s.size()).toBe(0);
+      expect(s.size).toBe(0);
     });
     it("-0.0 is distinct from +0.0", () => {
       const s = new NumberHashSet();
       s.add(0.0);
       s.add(-0.0);
-      expect(s.size()).toBe(2);
+      expect(s.size).toBe(2);
       expect(s.has(0.0)).toBe(true);
       expect(s.has(-0.0)).toBe(true);
     });
@@ -105,7 +105,7 @@ describe("NumberHashSet generated", () => {
       const s = new NumberHashSet();
       s.add(Number.POSITIVE_INFINITY);
       s.add(Number.NEGATIVE_INFINITY);
-      expect(s.size()).toBe(2);
+      expect(s.size).toBe(2);
       expect(s.has(Number.POSITIVE_INFINITY)).toBe(true);
       expect(s.has(Number.NEGATIVE_INFINITY)).toBe(true);
     });
