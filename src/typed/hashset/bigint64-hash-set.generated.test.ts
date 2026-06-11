@@ -21,8 +21,8 @@ describe("BigInt64HashSet generated", () => {
   });
   it("add duplicate", () => {
     const s = new BigInt64HashSet();
-    expect(s.add(1n)).toBe(true);
-    expect(s.add(1n)).toBe(false);
+    expect(s.add(1n)).toBe(s); // add returns the set for chaining
+    s.add(1n);
     expect(s.size).toBe(1);
   });
   it("remove", () => {

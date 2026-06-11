@@ -103,9 +103,9 @@ export class NumberArrayDeque {
     return this.data.slice();
   }
 
-  /** Yields values from front to back. Alias for [Symbol.iterator]. */
-  *entries(): Generator<number> {
-    for (let i = 0; i < this.data.length; i++) yield this.data[i];
+  /** Yields [index, value] pairs front to back, like Array.prototype.entries(). */
+  *entries(): Generator<[number, number]> {
+    for (let i = 0; i < this.data.length; i++) yield [i, this.data[i]];
   }
 
   /** Returns true if the other deque has the same elements in the same order. */

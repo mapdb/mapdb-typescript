@@ -169,7 +169,7 @@ export class NumberArrayStack implements MapDbMutableStack<number> {
     return acc;
   }
 
-  /** Returns true if the stack contains the value. Alias for `contains`. */
+  /** Returns true if the stack contains the value. Alias for `has`. */
   includes(value: number): boolean {
     return this.has(value);
   }

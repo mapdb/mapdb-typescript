@@ -20,8 +20,9 @@ describe("BigIntTreeSet generated", () => {
   });
   it("duplicate", () => {
     const s = new BigIntTreeSet();
-    expect(s.add(1n)).toBe(true);
-    expect(s.add(1n)).toBe(false);
+    expect(s.add(1n)).toBe(s); // add returns the set for chaining
+    s.add(1n);
+    expect(s.size).toBe(1);
   });
   it("remove", () => {
     const s = new BigIntTreeSet();

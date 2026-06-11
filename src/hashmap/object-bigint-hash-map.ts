@@ -26,11 +26,10 @@ export class ObjectBigIntHashMap<K> implements MapDbMutableMap<K, bigint> {
     return m;
   }
 
-  /** Inserts or updates a key-value pair. Returns the previous value or undefined. */
-  set(key: K, value: bigint): bigint | undefined {
-    const old = this.map.get(key);
+  /** Inserts or updates a key-value pair. Returns the map for chaining, like JS Map.set. */
+  set(key: K, value: bigint): this {
     this.map.set(key, value);
-    return old;
+    return this;
   }
 
   /** Returns the value for the key, or undefined if not found. */

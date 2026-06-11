@@ -20,8 +20,7 @@ describe("Int32BigInt64HashMap (TypedArray-backed)", () => {
   it("overwrite", () => {
     const m = new Int32BigInt64HashMap();
     m.set(1, 100n);
-    const old = m.set(1, 200n);
-    expect(old).toBe(100n);
+    expect(m.set(1, 200n)).toBe(m); // set returns the map for chaining
     expect(m.get(1)).toBe(200n);
   });
 

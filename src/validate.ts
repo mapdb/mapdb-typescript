@@ -1135,7 +1135,7 @@ function renderI64Expected(expected: unknown): string {
 // ---------------------------------------------------------------------------
 
 interface I64Multimap {
-  set(key: bigint, value: number): void;
+  set(key: bigint, value: number): this;
   get(key: bigint): readonly number[];
   removeAll(key: bigint): number[];
   has(key: bigint): boolean;

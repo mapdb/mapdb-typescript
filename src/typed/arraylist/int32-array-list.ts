@@ -21,9 +21,10 @@ export class Int32ArrayList {
     this.data = new Int32Array(Math.max(initialCapacity, 1));
   }
 
-  add(value: number): void {
+  add(value: number): this {
     this.ensureCapacity(this._size + 1);
     this.data[this._size++] = value;
+    return this;
   }
 
   get(index: number): number {
@@ -151,9 +152,10 @@ export class Int32ArrayList {
     return m;
   }
 
-  *entries(): Generator<number> {
+  /** Yields [index, value] pairs, like Array.prototype.entries(). */
+  *entries(): Generator<[number, number]> {
     for (let i = 0; i < this._size; i++) {
-      yield this.data[i];
+      yield [i, this.data[i]];
     }
   }
 

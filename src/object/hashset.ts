@@ -23,10 +23,9 @@ export class HashSet<T> implements MapDbMutableSet<T> {
 
   // ── MapDbMutableSet ─────────────────────────────────────────────────
 
-  add(value: T): boolean {
-    if (this.data.has(value)) return false;
+  add(value: T): this {
     this.data.add(value);
-    return true;
+    return this;
   }
 
   clear(): void {

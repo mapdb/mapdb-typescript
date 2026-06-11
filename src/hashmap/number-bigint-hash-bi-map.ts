@@ -32,7 +32,7 @@ export class NumberBigIntHashBiMap {
    * If the key already existed, the old value mapping is removed.
    * If the value already existed, the old key mapping is removed.
    */
-  set(key: number, value: bigint): void {
+  set(key: number, value: bigint): this {
     // If this key already maps to an old value, remove old_value->key from inverse
     const oldValue = this._forward.get(key);
     if (oldValue !== undefined) {
@@ -47,6 +47,7 @@ export class NumberBigIntHashBiMap {
 
     this._forward.set(key, value);
     this._inverse.set(value, key);
+    return this;
   }
 
   /** Forward lookup: returns the value for the given key, or undefined. */

@@ -15,8 +15,9 @@ export class BigInt64HashBag {
   private counts: Map<bigint, number> = new Map();
   private _size = 0;
 
-  add(value: bigint): void {
+  add(value: bigint): this {
     this.addOccurrences(value, 1);
+    return this;
   }
 
   addOccurrences(value: bigint, occurrences: number): void {

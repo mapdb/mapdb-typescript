@@ -23,8 +23,9 @@ export class ArrayList<T> implements MapDbMutableList<T> {
 
   // ── MapDbMutableList ────────────────────────────────────────────────
 
-  add(value: T): void {
+  add(value: T): this {
     this.data.push(value);
+    return this;
   }
 
   set(index: number, value: T): T {

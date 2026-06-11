@@ -30,7 +30,7 @@ export class TreeMap<K, V> {
 
   // ── core ────────────────────────────────────────────────────────────
 
-  set(key: K, value: V): V | undefined {
+  set(key: K, value: V): this {
     if (this.root === null) {
       this.root = {
         key,
@@ -41,7 +41,7 @@ export class TreeMap<K, V> {
         red: false,
       };
       this._size++;
-      return undefined;
+      return this;
     }
     let n = this.root;
     for (;;) {
@@ -59,7 +59,7 @@ export class TreeMap<K, V> {
           n.left = node;
           this.fixAfterInsert(node);
           this._size++;
-          return undefined;
+          return this;
         }
         n = n.left;
       } else if (c > 0) {
@@ -75,13 +75,12 @@ export class TreeMap<K, V> {
           n.right = node;
           this.fixAfterInsert(node);
           this._size++;
-          return undefined;
+          return this;
         }
         n = n.right;
       } else {
-        const old = n.value;
         n.value = value;
-        return old;
+        return this;
       }
     }
   }

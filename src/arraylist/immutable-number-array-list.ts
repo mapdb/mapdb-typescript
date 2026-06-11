@@ -52,8 +52,8 @@ export class ImmutableNumberArrayList implements MapDbList<number> {
     return this.delegate.indexOf(value);
   }
 
-  /** Yields all elements in order. */
-  *entries(): Generator<number> {
+  /** Yields [index, value] pairs, like Array.prototype.entries(). */
+  *entries(): Generator<[number, number]> {
     yield* this.delegate.entries();
   }
 
@@ -92,7 +92,7 @@ export class ImmutableNumberArrayList implements MapDbList<number> {
     return this.delegate.reduce(f, initial);
   }
 
-  /** Returns true if the list contains the value. Alias for `contains`. */
+  /** Returns true if the list contains the value. Alias for `has`. */
   includes(value: number): boolean {
     return this.delegate.includes(value);
   }

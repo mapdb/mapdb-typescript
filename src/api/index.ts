@@ -56,7 +56,7 @@ export interface MapDbList<T> extends MapDbCollection<T> {
 /** Mutable ordered list. */
 export interface MapDbMutableList<T>
   extends MapDbList<T>, MapDbMutableCollection<T> {
-  add(value: T): void;
+  add(value: T): this;
   set(index: number, value: T): T;
 }
 
@@ -64,10 +64,10 @@ export interface MapDbMutableList<T>
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface MapDbSet<T> extends MapDbCollection<T> {}
 
-/** Mutable set. `add` returns true if the value was newly inserted. */
+/** Mutable set. `add` returns the set for chaining, like JS `Set.add`. */
 export interface MapDbMutableSet<T>
   extends MapDbSet<T>, MapDbMutableCollection<T> {
-  add(value: T): boolean;
+  add(value: T): this;
 }
 
 /** Read-only multiset (bag) with occurrence counts. */
@@ -76,10 +76,10 @@ export interface MapDbBag<T> extends MapDbCollection<T> {
   sizeDistinct(): number;
 }
 
-/** Mutable bag. `add` adds one occurrence of the value. */
+/** Mutable bag. `add` adds one occurrence of the value and returns the bag. */
 export interface MapDbMutableBag<T>
   extends MapDbBag<T>, MapDbMutableCollection<T> {
-  add(value: T): void;
+  add(value: T): this;
 }
 
 /** Read-only LIFO stack. `peek` returns the top element. */
@@ -104,9 +104,9 @@ export interface MapDbMap<K, V> {
   get(key: K): V | undefined;
 }
 
-/** Mutable map. */
+/** Mutable map. `set` inserts/updates and returns the map, like JS `Map.set`. */
 export interface MapDbMutableMap<K, V> extends MapDbMap<K, V> {
-  set(key: K, value: V): V | undefined;
+  set(key: K, value: V): this;
   remove(key: K): V | undefined;
   clear(): void;
 }

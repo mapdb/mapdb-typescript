@@ -10,9 +10,9 @@ import { Int32HashSet } from "./int32-hash-set.js";
 describe("Int32HashSet (TypedArray-backed)", () => {
   it("add and contains", () => {
     const s = new Int32HashSet();
-    expect(s.add(1)).toBe(true);
-    expect(s.add(2)).toBe(true);
-    expect(s.add(1)).toBe(false);
+    expect(s.add(1)).toBe(s); // add returns the set for chaining
+    s.add(2);
+    s.add(1);
     expect(s.has(1)).toBe(true);
     expect(s.has(99)).toBe(false);
     expect(s.size).toBe(2);

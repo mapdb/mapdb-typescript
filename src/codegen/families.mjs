@@ -133,9 +133,10 @@ export class ${cls} {
     this.data = new ${Arr}(Math.max(initialCapacity, 1));
   }
 
-  add(value: ${T}): void {
+  add(value: ${T}): this {
     this.ensureCapacity(this._size + 1);
     this.data[this._size++] = value;
+    return this;
   }
 
   get(index: number): ${T} {
@@ -259,9 +260,10 @@ ${sumBody}
     return m;
   }
 
-  *entries(): Generator<${T}> {
+  /** Yields [index, value] pairs, like Array.prototype.entries(). */
+  *entries(): Generator<[number, ${T}]> {
     for (let i = 0; i < this._size; i++) {
-      yield this.data[i];
+      yield [i, this.data[i]];
     }
   }
 
@@ -979,7 +981,7 @@ export class ${cls} {
     this.occupied = new Uint8Array(this.capacity);
   }
 
-  add(value: ${T}): boolean {
+  add(value: ${T}): this {
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -988,9 +990,9 @@ export class ${cls} {
         this.items[idx] = value;
         this.occupied[idx] = 1;
         this._size++;
-        return true;
+        return this;
       }
-      if (Object.is(this.items[idx], value)) return false;
+      if (Object.is(this.items[idx], value)) return this;
       idx = (idx + 1) & mask;
     }
   }
@@ -1494,9 +1496,9 @@ function floatElemEdgeCases(cls) {
     });
     it("NaN add duplicate does not grow", () => {
       const s = new ${cls}();
-      expect(s.add(NaN)).toBe(true);
-      expect(s.add(NaN)).toBe(false);
-      expect(s.add(NaN)).toBe(false);
+      expect(s.add(NaN)).toBe(s); // add returns the set for chaining
+      s.add(NaN);
+      s.add(NaN);
       expect(s.size).toBe(1);
     });
     it("NaN remove works", () => {
@@ -1545,8 +1547,8 @@ describe("${cls} generated", () => {
   });
   it("add duplicate", () => {
     const s = new ${cls}();
-    expect(s.add(${L(1)})).toBe(true);
-    expect(s.add(${L(1)})).toBe(false);
+    expect(s.add(${L(1)})).toBe(s); // add returns the set for chaining
+    s.add(${L(1)});
     expect(s.size).toBe(1);
   });
   it("remove", () => {
@@ -2412,7 +2414,7 @@ describe("${cls} generated", () => {
     expect(() => s.pop()).toThrow();
   });
 
-  it("contains", () => {
+  it("has", () => {
     const s = new ${cls}();
     s.push(${L(1)});
     s.push(${L(2)});
@@ -2850,8 +2852,9 @@ export class ${cls} {
   private counts: Map<${T}, number> = new Map();
   private _size = 0;
 
-  add(value: ${T}): void {
+  add(value: ${T}): this {
     this.addOccurrences(value, 1);
+    return this;
   }
 
   addOccurrences(value: ${T}, occurrences: number): void {

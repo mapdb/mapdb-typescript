@@ -20,7 +20,7 @@ describe("ImmutableNumberBigIntHashMap generated", () => {
     expect(im.get(1)).toBe(1n);
     expect(im.get(99)).toBeUndefined();
   });
-  it("containsKey", () => {
+  it("has", () => {
     const im = ImmutableNumberBigIntHashMap.of([[1, 1n]]);
     expect(im.has(1)).toBe(true);
     expect(im.has(99)).toBe(false);

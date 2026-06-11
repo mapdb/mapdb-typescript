@@ -29,8 +29,9 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
   }
 
   /** Adds a single occurrence of the value. */
-  add(value: bigint): void {
+  add(value: bigint): this {
     this.addOccurrences(value, 1);
+    return this;
   }
 
   /** Adds the specified number of occurrences of the value. */

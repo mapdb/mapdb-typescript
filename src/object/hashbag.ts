@@ -33,8 +33,9 @@ export class HashBag<T> implements MapDbMutableBag<T> {
 
   // ── MapDbMutableBag ─────────────────────────────────────────────────
 
-  add(value: T): void {
+  add(value: T): this {
     this.data.set(value, (this.data.get(value) ?? 0) + 1);
+    return this;
   }
 
   clear(): void {

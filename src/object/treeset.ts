@@ -20,10 +20,9 @@ export class TreeSet<T> {
 
   // ── core ────────────────────────────────────────────────────────────
 
-  add(value: T): boolean {
-    const before = this.tree.size;
+  add(value: T): this {
     this.tree.set(value, undefined);
-    return this.tree.size > before;
+    return this;
   }
 
   remove(value: T): boolean {

@@ -82,7 +82,7 @@ export class ImmutableBigIntHashSet implements MapDbSet<bigint> {
     return this.delegate.reduce(f, initial);
   }
 
-  /** Returns true if the set contains the value. Alias for `contains`. */
+  /** Returns true if the set contains the value. Alias for `has`. */
   includes(value: bigint): boolean {
     return this.delegate.includes(value);
   }

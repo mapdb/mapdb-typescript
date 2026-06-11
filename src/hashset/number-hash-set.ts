@@ -36,8 +36,8 @@ export class NumberHashSet implements MapDbMutableSet<number> {
     return set;
   }
 
-  /** Adds a value to the set. Returns true if the value was added (not already present). */
-  add(value: number): boolean {
+  /** Adds a value to the set. Returns the set for chaining, like JS Set.add. */
+  add(value: number): this {
     if (this.needsResize()) {
       this.resize();
     }
@@ -50,10 +50,10 @@ export class NumberHashSet implements MapDbMutableSet<number> {
         this.data[idx] = value;
         this.occupied[idx] = true;
         this._size++;
-        return true;
+        return this;
       }
       if (Object.is(this.data[idx], value)) {
-        return false;
+        return this;
       }
       idx = (idx + 1) & mask;
     }
@@ -227,7 +227,7 @@ export class NumberHashSet implements MapDbMutableSet<number> {
     return acc;
   }
 
-  /** Returns true if the set contains the value. Alias for `contains`. */
+  /** Returns true if the set contains the value. Alias for `has`. */
   includes(value: number): boolean {
     return this.has(value);
   }

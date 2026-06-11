@@ -44,7 +44,7 @@ describe("Float32ArrayStack generated", () => {
     expect(() => s.pop()).toThrow();
   });
 
-  it("contains", () => {
+  it("has", () => {
     const s = new Float32ArrayStack();
     s.push(1);
     s.push(2);

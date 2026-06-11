@@ -95,7 +95,7 @@ export class ImmutableNumberArrayStack implements MapDbStack<number> {
     return this.delegate.reduce(f, initial);
   }
 
-  /** Returns true if the stack contains the value. Alias for `contains`. */
+  /** Returns true if the stack contains the value. Alias for `has`. */
   includes(value: number): boolean {
     return this.delegate.includes(value);
   }

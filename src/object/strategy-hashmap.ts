@@ -52,7 +52,7 @@ export class HashMapWithStrategy<K, V> {
    * Puts a key-value pair. Returns the previous value if the key existed,
    * or undefined if it was a new insertion.
    */
-  set(key: K, value: V): V | undefined {
+  set(key: K, value: V): this {
     if (this.needsResize()) {
       this.resize();
     }
@@ -65,12 +65,11 @@ export class HashMapWithStrategy<K, V> {
         e.value = value;
         e.occupied = true;
         this._size++;
-        return undefined;
+        return this;
       }
       if (this.strategy.equals(e.key, key)) {
-        const old = e.value;
         e.value = value;
-        return old;
+        return this;
       }
       idx = (idx + 1) & mask;
     }

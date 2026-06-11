@@ -21,9 +21,10 @@ export class BigInt64ArrayList {
     this.data = new BigInt64Array(Math.max(initialCapacity, 1));
   }
 
-  add(value: bigint): void {
+  add(value: bigint): this {
     this.ensureCapacity(this._size + 1);
     this.data[this._size++] = value;
+    return this;
   }
 
   get(index: number): bigint {
@@ -151,9 +152,10 @@ export class BigInt64ArrayList {
     return m;
   }
 
-  *entries(): Generator<bigint> {
+  /** Yields [index, value] pairs, like Array.prototype.entries(). */
+  *entries(): Generator<[number, bigint]> {
     for (let i = 0; i < this._size; i++) {
-      yield this.data[i];
+      yield [i, this.data[i]];
     }
   }
 

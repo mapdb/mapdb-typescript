@@ -39,8 +39,8 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
     return m;
   }
 
-  /** Inserts or updates a key-value pair. Returns the previous value or undefined. */
-  set(key: number, value: bigint): bigint | undefined {
+  /** Inserts or updates a key-value pair. Returns the map for chaining, like JS Map.set. */
+  set(key: number, value: bigint): this {
     if (this.needsResize()) {
       this.resize();
     }
@@ -54,12 +54,11 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
         this.values[idx] = value;
         this.occupied[idx] = true;
         this._size++;
-        return undefined;
+        return this;
       }
       if (Object.is(this.keys[idx], key)) {
-        const old = this.values[idx];
         this.values[idx] = value;
-        return old;
+        return this;
       }
       idx = (idx + 1) & mask;
     }
@@ -268,7 +267,7 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
     return newVal;
   }
 
-  /** Fluent put. Returns this for chaining. */
+  /** Fluent set. Returns this for chaining. */
   withKeyValue(key: number, value: bigint): this {
     this.set(key, value);
     return this;

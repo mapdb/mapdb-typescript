@@ -31,7 +31,7 @@ export class NumberNumberHashBiMap {
    * If the key already existed, the old value mapping is removed.
    * If the value already existed, the old key mapping is removed.
    */
-  set(key: number, value: number): void {
+  set(key: number, value: number): this {
     // If this key already maps to an old value, remove old_value->key from inverse
     const oldValue = this._forward.get(key);
     if (oldValue !== undefined) {
@@ -46,6 +46,7 @@ export class NumberNumberHashBiMap {
 
     this._forward.set(key, value);
     this._inverse.set(value, key);
+    return this;
   }
 
   /** Forward lookup: returns the value for the given key, or undefined. */

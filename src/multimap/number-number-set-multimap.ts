@@ -11,7 +11,7 @@ type MapKey = number | typeof NEG_ZERO_KEY;
 
 /**
  * A multimap that maps number keys to sets of unique number values.
- * Backed by a JavaScript Map from key to array of values (duplicates on put are silently dropped).
+ * Backed by a JavaScript Map from key to array of values (duplicates on set are silently dropped).
  */
 export class NumberNumberSetMultimap {
   // keyed via mapKeyOf so -0 and +0 are distinct; tuple stores the
@@ -30,19 +30,20 @@ export class NumberNumberSetMultimap {
   }
 
   /** Adds a value under the given key. Idempotent: a duplicate value for the same key is silently dropped. */
-  set(key: number, value: number): void {
+  set(key: number, value: number): this {
     const mk = mapKeyOf(key);
     const entry = this._map.get(mk);
     if (entry !== undefined) {
       const list = entry[1];
       for (let i = 0; i < list.length; i++) {
-        if (Object.is(list[i], value)) return;
+        if (Object.is(list[i], value)) return this;
       }
       list.push(value);
     } else {
       this._map.set(mk, [key, [value]]);
     }
     this._totalSize++;
+    return this;
   }
 
   /** Returns a copy of the values for the key as a readonly array. Returns an empty array if the key is absent. */

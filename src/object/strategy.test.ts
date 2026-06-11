@@ -239,11 +239,11 @@ describe("TreeMap", () => {
     expect(keys).toEqual(["apple", "banana", "cherry"]);
   });
 
-  it("overwrite returns old value", () => {
+  it("overwrite returns the map and replaces the value", () => {
     const m = new TreeMap<number, string>(naturalComparator());
     m.set(1, "one");
-    const old = m.set(1, "ONE");
-    expect(old).toBe("one");
+    expect(m.set(1, "ONE")).toBe(m); // set returns the map for chaining
+    expect(m.get(1)).toBe("ONE");
     expect(m.size).toBe(1);
   });
 

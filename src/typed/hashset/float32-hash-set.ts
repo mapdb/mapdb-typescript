@@ -28,7 +28,7 @@ export class Float32HashSet {
     this.occupied = new Uint8Array(this.capacity);
   }
 
-  add(value: number): boolean {
+  add(value: number): this {
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -37,9 +37,9 @@ export class Float32HashSet {
         this.items[idx] = value;
         this.occupied[idx] = 1;
         this._size++;
-        return true;
+        return this;
       }
-      if (Object.is(this.items[idx], value)) return false;
+      if (Object.is(this.items[idx], value)) return this;
       idx = (idx + 1) & mask;
     }
   }

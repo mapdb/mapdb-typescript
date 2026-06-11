@@ -21,8 +21,7 @@ describe("NumberNumberHashMap", () => {
   it("put overwrite", () => {
     const m = new NumberNumberHashMap();
     m.set(1, 100);
-    const old = m.set(1, 200);
-    expect(old).toBe(100);
+    expect(m.set(1, 200)).toBe(m); // set returns the map for chaining
     expect(m.get(1)).toBe(200);
   });
 

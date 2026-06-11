@@ -122,9 +122,9 @@ describe("NumberBigIntTreeMap NaN key (Bug 1, number-keyed side)", () => {
 describe("NumberTreeSet NaN/±0 (Bug 2)", () => {
   it("NaN can be added to a non-empty set and is findable", () => {
     const s = new NumberTreeSet();
-    expect(s.add(5)).toBe(true);
-    // Before the fix: add(NaN) returned false (NaN swallowed).
-    expect(s.add(NaN)).toBe(true);
+    s.add(5);
+    // Before the fix: NaN was swallowed (not added to a non-empty set).
+    s.add(NaN);
     expect(s.size).toBe(2);
     expect(s.has(NaN)).toBe(true);
     expect(s.has(5)).toBe(true);
@@ -331,8 +331,8 @@ describe("NaN payload hash canonicalization (f64HashSeed)", () => {
     dv.setUint32(0, 0x7ff80001); dv.setUint32(4, 0); const nan1 = dv.getFloat64(0);
     dv.setUint32(0, 0x7ffabcde); dv.setUint32(4, 0); const nan2 = dv.getFloat64(0);
     const s = new NumberHashSet();
-    expect(s.add(nan1)).toBe(true);
-    expect(s.add(nan2)).toBe(false); // equal under Object.is -> no duplicate
+    s.add(nan1);
+    s.add(nan2); // equal under Object.is -> no duplicate
     expect(s.size).toBe(1);
     expect(s.has(NaN)).toBe(true); // canonical NaN finds it
   });

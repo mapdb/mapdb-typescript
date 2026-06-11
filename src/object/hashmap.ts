@@ -23,10 +23,9 @@ export class HashMap<K, V> implements MapDbMutableMap<K, V> {
 
   // ── MapDbMutableMap ─────────────────────────────────────────────────
 
-  set(key: K, value: V): V | undefined {
-    const old = this.data.get(key);
+  set(key: K, value: V): this {
     this.data.set(key, value);
-    return old;
+    return this;
   }
 
   remove(key: K): V | undefined {

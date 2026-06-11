@@ -21,8 +21,8 @@ describe("Int16HashSet generated", () => {
   });
   it("add duplicate", () => {
     const s = new Int16HashSet();
-    expect(s.add(1)).toBe(true);
-    expect(s.add(1)).toBe(false);
+    expect(s.add(1)).toBe(s); // add returns the set for chaining
+    s.add(1);
     expect(s.size).toBe(1);
   });
   it("remove", () => {

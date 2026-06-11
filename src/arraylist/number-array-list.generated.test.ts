@@ -101,7 +101,10 @@ describe("NumberArrayList generated", () => {
   it("entries generator", () => {
     const l = NumberArrayList.of([1, 2]);
     const values = [...l.entries()];
-    expect(values).toEqual([1, 2]);
+    expect(values).toEqual([
+      [0, 1],
+      [1, 2],
+    ]);
   });
 
   it("toArray", () => {

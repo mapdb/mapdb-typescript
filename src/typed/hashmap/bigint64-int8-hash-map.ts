@@ -30,7 +30,7 @@ export class BigInt64Int8HashMap {
     this.occupied = new Uint8Array(this.capacity);
   }
 
-  set(key: bigint, value: number): number | undefined {
+  set(key: bigint, value: number): this {
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
@@ -40,12 +40,11 @@ export class BigInt64Int8HashMap {
         this.values[idx] = value;
         this.occupied[idx] = 1;
         this._size++;
-        return undefined;
+        return this;
       }
       if (Object.is(this.keys[idx], key)) {
-        const old = this.values[idx];
         this.values[idx] = value;
-        return old;
+        return this;
       }
       idx = (idx + 1) & mask;
     }

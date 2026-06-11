@@ -82,7 +82,7 @@ export class ImmutableNumberHashSet implements MapDbSet<number> {
     return this.delegate.reduce(f, initial);
   }
 
-  /** Returns true if the set contains the value. Alias for `contains`. */
+  /** Returns true if the set contains the value. Alias for `has`. */
   includes(value: number): boolean {
     return this.delegate.includes(value);
   }

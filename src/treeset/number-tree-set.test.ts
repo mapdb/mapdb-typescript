@@ -18,10 +18,10 @@ describe("NumberTreeSet", () => {
     expect(s.has(99)).toBe(false);
   });
 
-  it("add duplicate returns false", () => {
+  it("add duplicate keeps size at 1", () => {
     const s = new NumberTreeSet();
-    expect(s.add(1)).toBe(true);
-    expect(s.add(1)).toBe(false);
+    expect(s.add(1)).toBe(s); // add returns the set for chaining
+    s.add(1);
     expect(s.size).toBe(1);
   });
 

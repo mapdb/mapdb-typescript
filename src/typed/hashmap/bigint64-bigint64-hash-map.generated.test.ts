@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { BigInt64BigInt64HashMap } from "./bigint64-bigint64-hash-map.js";
 
 describe("BigInt64BigInt64HashMap generated", () => {
-  it("put and get", () => {
+  it("set and get", () => {
     const m = new BigInt64BigInt64HashMap();
     m.set(1n, 1n);
     m.set(2n, 2n);
@@ -19,11 +19,10 @@ describe("BigInt64BigInt64HashMap generated", () => {
     expect(m.get(99n)).toBeUndefined();
     expect(m.size).toBe(3);
   });
-  it("put overwrite", () => {
+  it("set overwrite", () => {
     const m = new BigInt64BigInt64HashMap();
     m.set(1n, 1n);
-    const old = m.set(1n, 2n);
-    expect(old).toBe(1n);
+    expect(m.set(1n, 2n)).toBe(m); // set returns the map for chaining
     expect(m.get(1n)).toBe(2n);
   });
   it("remove", () => {

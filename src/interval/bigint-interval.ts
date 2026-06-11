@@ -162,7 +162,7 @@ export class BigIntInterval {
     return acc;
   }
 
-  /** Alias for `contains`. */
+  /** Alias for `has`. */
   includes(value: bigint): boolean {
     return this.has(value);
   }

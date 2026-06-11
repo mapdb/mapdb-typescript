@@ -15,8 +15,9 @@ export class Int8HashBag {
   private counts: Map<number, number> = new Map();
   private _size = 0;
 
-  add(value: number): void {
+  add(value: number): this {
     this.addOccurrences(value, 1);
+    return this;
   }
 
   addOccurrences(value: number, occurrences: number): void {

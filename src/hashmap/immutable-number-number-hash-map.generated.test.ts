@@ -20,7 +20,7 @@ describe("ImmutableNumberNumberHashMap generated", () => {
     expect(im.get(1)).toBe(1);
     expect(im.get(99)).toBeUndefined();
   });
-  it("containsKey", () => {
+  it("has", () => {
     const im = ImmutableNumberNumberHashMap.of([[1, 1]]);
     expect(im.has(1)).toBe(true);
     expect(im.has(99)).toBe(false);

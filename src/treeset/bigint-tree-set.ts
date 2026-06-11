@@ -28,7 +28,7 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
     return s;
   }
 
-  add(value: bigint): boolean {
+  add(value: bigint): this {
     if (this.root === null) {
       this.root = {
         key: value,
@@ -38,7 +38,7 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
         color: BLACK,
       };
       this._size++;
-      return true;
+      return this;
     }
     let node = this.root;
     while (true) {
@@ -53,7 +53,7 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
           };
           this.fixInsert(node.left);
           this._size++;
-          return true;
+          return this;
         }
         node = node.left;
       } else if (value > node.key) {
@@ -67,11 +67,11 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
           };
           this.fixInsert(node.right);
           this._size++;
-          return true;
+          return this;
         }
         node = node.right;
       } else {
-        return false;
+        return this;
       }
     }
   }
@@ -203,7 +203,7 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
     return acc;
   }
 
-  /** Returns true if the set contains the value. Alias for `contains`. */
+  /** Returns true if the set contains the value. Alias for `has`. */
   includes(value: bigint): boolean {
     return this.has(value);
   }

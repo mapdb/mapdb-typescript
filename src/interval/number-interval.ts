@@ -162,7 +162,7 @@ export class NumberInterval {
     return acc;
   }
 
-  /** Alias for `contains`. */
+  /** Alias for `has`. */
   includes(value: number): boolean {
     return this.has(value);
   }

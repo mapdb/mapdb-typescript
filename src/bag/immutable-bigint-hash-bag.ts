@@ -92,7 +92,7 @@ export class ImmutableBigIntHashBag implements MapDbBag<bigint> {
     return this.delegate.reduce(f, initial);
   }
 
-  /** Returns true if the bag contains the value. Alias for `contains`. */
+  /** Returns true if the bag contains the value. Alias for `has`. */
   includes(value: bigint): boolean {
     return this.delegate.includes(value);
   }

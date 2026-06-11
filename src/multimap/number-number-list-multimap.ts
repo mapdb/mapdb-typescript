@@ -30,7 +30,7 @@ export class NumberNumberListMultimap {
   }
 
   /** Adds a value under the given key. */
-  set(key: number, value: number): void {
+  set(key: number, value: number): this {
     const mk = mapKeyOf(key);
     const entry = this._map.get(mk);
     if (entry !== undefined) {
@@ -39,6 +39,7 @@ export class NumberNumberListMultimap {
       this._map.set(mk, [key, [value]]);
     }
     this._totalSize++;
+    return this;
   }
 
   /** Returns a copy of the values for the key as a readonly array. Returns an empty array if the key is absent. */

@@ -30,7 +30,7 @@ export class Float32Float64HashMap {
     this.occupied = new Uint8Array(this.capacity);
   }
 
-  set(key: number, value: number): number | undefined {
+  set(key: number, value: number): this {
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
@@ -40,12 +40,11 @@ export class Float32Float64HashMap {
         this.values[idx] = value;
         this.occupied[idx] = 1;
         this._size++;
-        return undefined;
+        return this;
       }
       if (Object.is(this.keys[idx], key)) {
-        const old = this.values[idx];
         this.values[idx] = value;
-        return old;
+        return this;
       }
       idx = (idx + 1) & mask;
     }

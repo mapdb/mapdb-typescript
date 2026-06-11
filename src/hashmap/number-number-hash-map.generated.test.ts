@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { NumberNumberHashMap } from "./number-number-hash-map.js";
 
 describe("NumberNumberHashMap generated", () => {
-  it("put and get", () => {
+  it("set and get", () => {
     const m = new NumberNumberHashMap();
     m.set(1, 1);
     m.set(2, 2);
@@ -19,11 +19,10 @@ describe("NumberNumberHashMap generated", () => {
     expect(m.get(99)).toBeUndefined();
     expect(m.size).toBe(3);
   });
-  it("put overwrite", () => {
+  it("set overwrite", () => {
     const m = new NumberNumberHashMap();
     m.set(1, 1);
-    const old = m.set(1, 2);
-    expect(old).toBe(1);
+    expect(m.set(1, 2)).toBe(m); // set returns the map for chaining
     expect(m.get(1)).toBe(2);
   });
   it("remove", () => {
@@ -35,7 +34,7 @@ describe("NumberNumberHashMap generated", () => {
     expect(m.size).toBe(1);
     expect(m.has(1)).toBe(false);
   });
-  it("containsKey", () => {
+  it("has", () => {
     const m = new NumberNumberHashMap();
     m.set(1, 1);
     expect(m.has(1)).toBe(true);

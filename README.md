@@ -74,7 +74,7 @@ const squares = range(1, 6).map(x => x * x).toArray();
 
 ## Stats
 
-- **223 source files**, **1,000 tests** passing
+- **166 source files**, **1,836 tests** passing
 - All 8 primitive types + generic object types
 - Zero runtime dependencies
 - Requires Node.js 18+ / TypeScript 5.0+

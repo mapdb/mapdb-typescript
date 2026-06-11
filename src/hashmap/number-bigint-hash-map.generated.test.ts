@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { NumberBigIntHashMap } from "./number-bigint-hash-map.js";
 
 describe("NumberBigIntHashMap generated", () => {
-  it("put and get", () => {
+  it("set and get", () => {
     const m = new NumberBigIntHashMap();
     m.set(1, 1n);
     m.set(2, 2n);
@@ -19,11 +19,10 @@ describe("NumberBigIntHashMap generated", () => {
     expect(m.get(99)).toBeUndefined();
     expect(m.size).toBe(3);
   });
-  it("put overwrite", () => {
+  it("set overwrite", () => {
     const m = new NumberBigIntHashMap();
     m.set(1, 1n);
-    const old = m.set(1, 2n);
-    expect(old).toBe(1n);
+    expect(m.set(1, 2n)).toBe(m); // set returns the map for chaining
     expect(m.get(1)).toBe(2n);
   });
   it("remove", () => {
@@ -35,7 +34,7 @@ describe("NumberBigIntHashMap generated", () => {
     expect(m.size).toBe(1);
     expect(m.has(1)).toBe(false);
   });
-  it("containsKey", () => {
+  it("has", () => {
     const m = new NumberBigIntHashMap();
     m.set(1, 1n);
     expect(m.has(1)).toBe(true);

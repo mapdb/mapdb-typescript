@@ -4,12 +4,12 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-// Phase 7b idiom pass (additive): every collection that lacked a
-// [Symbol.iterator] now has one with the idiomatic yield shape, and every map
-// type carries a `has(key)` alias for `containsKey` while every set type carries
-// a `has(value)` alias for `contains`. These tests pin the new behaviour on a
-// representative class from each family touched, proving the shape matches the
-// classes that already had an iterator.
+// v2 idiom pass (BREAKING): every collection has a [Symbol.iterator] with the
+// idiomatic yield shape, every map type exposes `has(key)` (replacing the old
+// `containsKey`) and every set type exposes `has(value)` (replacing the old
+// `contains`). These tests pin the new behaviour on a representative class from
+// each family touched, proving the shape matches the classes that already had
+// an iterator.
 
 import { describe, it, expect } from "vitest";
 
@@ -181,18 +181,16 @@ describe("idiom pass — sets/bags/lists are iterable (yield elements)", () => {
   });
 });
 
-describe("idiom pass — has() membership aliases (additive, non-breaking)", () => {
-  it("map has(key) mirrors containsKey(key) without removing it", () => {
+describe("idiom pass — has() is the membership method (replaced containsKey/contains)", () => {
+  it("map has(key) reports key membership", () => {
     const m = new Int8Int8HashMap();
     m.set(1, 10);
     expect(m.has(1)).toBe(true);
     expect(m.has(99)).toBe(false);
-    // original Java-style method is preserved
-    expect(m.has(1)).toBe(true);
     expect(m.has(1)).toBe(m.has(1));
   });
 
-  it("tree map has(key) mirrors containsKey(key)", () => {
+  it("tree map has(key) reports key membership", () => {
     const m = new NumberNumberTreeMap();
     m.set(7, 70);
     expect(m.has(7)).toBe(true);
@@ -200,7 +198,7 @@ describe("idiom pass — has() membership aliases (additive, non-breaking)", () 
     expect(m.has(7)).toBe(true);
   });
 
-  it("multimap has(key) mirrors containsKey(key)", () => {
+  it("multimap has(key) reports key membership", () => {
     const mm = new NumberNumberListMultimap();
     mm.set(1, 10);
     expect(mm.has(1)).toBe(true);
@@ -208,7 +206,7 @@ describe("idiom pass — has() membership aliases (additive, non-breaking)", () 
     expect(mm.has(1)).toBe(true);
   });
 
-  it("bi-map has(key) mirrors containsKey(key)", () => {
+  it("bi-map has(key) reports key membership", () => {
     const m = new NumberNumberHashBiMap();
     m.set(1, 100);
     expect(m.has(1)).toBe(true);
@@ -216,7 +214,7 @@ describe("idiom pass — has() membership aliases (additive, non-breaking)", () 
     expect(m.has(1)).toBe(true);
   });
 
-  it("set has(value) mirrors contains(value) without removing it", () => {
+  it("set has(value) reports value membership", () => {
     const s = new Int8HashSet();
     s.add(5);
     expect(s.has(5)).toBe(true);
@@ -225,7 +223,7 @@ describe("idiom pass — has() membership aliases (additive, non-breaking)", () 
     expect(s.has(5)).toBe(s.has(5));
   });
 
-  it("tree set has(value) mirrors contains(value)", () => {
+  it("tree set has(value) reports value membership", () => {
     const s = new NumberTreeSet();
     s.add(5);
     expect(s.has(5)).toBe(true);
@@ -233,7 +231,7 @@ describe("idiom pass — has() membership aliases (additive, non-breaking)", () 
     expect(s.has(5)).toBe(true);
   });
 
-  it("bag has(value) mirrors contains(value)", () => {
+  it("bag has(value) reports value membership", () => {
     const b = new Int8HashBag();
     b.add(5);
     expect(b.has(5)).toBe(true);

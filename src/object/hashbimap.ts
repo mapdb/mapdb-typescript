@@ -30,9 +30,9 @@ export class HashBiMap<K, V> {
    * Associates `key` with `value`, enforcing the bijection invariant.
    * If `key` already maps to a different value, the old value's inverse entry is removed.
    * If `value` already maps to a different key, the old key's forward entry is removed.
-   * Returns the previous value associated with `key`, or undefined.
+   * Returns the bi-map for chaining, like JS Map.set.
    */
-  set(key: K, value: V): V | undefined {
+  set(key: K, value: V): this {
     const oldValue = this.forward.get(key);
 
     // Remove old inverse entry for this key's previous value
@@ -49,7 +49,7 @@ export class HashBiMap<K, V> {
     this.forward.set(key, value);
     this.backward.set(value, key);
 
-    return oldValue;
+    return this;
   }
 
   /** Returns the value associated with `key`, or undefined. */

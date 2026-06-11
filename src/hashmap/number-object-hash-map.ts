@@ -33,12 +33,11 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
     return m;
   }
 
-  /** Inserts or updates a key-value pair. Returns the previous value or undefined. */
-  set(key: number, value: V): V | undefined {
+  /** Inserts or updates a key-value pair. Returns the map for chaining, like JS Map.set. */
+  set(key: number, value: V): this {
     const k = mapKeyOf(key);
-    const old = this.map.get(k);
     this.map.set(k, [key, value]);
-    return old ? old[1] : undefined;
+    return this;
   }
 
   /** Returns the value for the key, or undefined if not found. */

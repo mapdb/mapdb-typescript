@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { Float32Float64HashMap } from "./float32-float64-hash-map.js";
 
 describe("Float32Float64HashMap generated", () => {
-  it("put and get", () => {
+  it("set and get", () => {
     const m = new Float32Float64HashMap();
     m.set(1, 1);
     m.set(2, 2);
@@ -19,11 +19,10 @@ describe("Float32Float64HashMap generated", () => {
     expect(m.get(99)).toBeUndefined();
     expect(m.size).toBe(3);
   });
-  it("put overwrite", () => {
+  it("set overwrite", () => {
     const m = new Float32Float64HashMap();
     m.set(1, 1);
-    const old = m.set(1, 2);
-    expect(old).toBe(1);
+    expect(m.set(1, 2)).toBe(m); // set returns the map for chaining
     expect(m.get(1)).toBe(2);
   });
   it("remove", () => {

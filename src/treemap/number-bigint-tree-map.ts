@@ -27,8 +27,8 @@ export class NumberBigIntTreeMap implements MapDbMutableMap<number, bigint> {
   private root: NumberBigIntTreeMapNode | null = null;
   private _size = 0;
 
-  /** Inserts or updates. Returns previous value or undefined. */
-  set(key: number, value: bigint): bigint | undefined {
+  /** Inserts or updates. Returns the map for chaining, like JS Map.set. */
+  set(key: number, value: bigint): this {
     if (this.root === null) {
       this.root = {
         key,
@@ -39,7 +39,7 @@ export class NumberBigIntTreeMap implements MapDbMutableMap<number, bigint> {
         color: BLACK,
       };
       this._size++;
-      return undefined;
+      return this;
     }
     let node = this.root;
     while (true) {
@@ -56,7 +56,7 @@ export class NumberBigIntTreeMap implements MapDbMutableMap<number, bigint> {
           };
           this.fixAfterInsert(node.left);
           this._size++;
-          return undefined;
+          return this;
         }
         node = node.left;
       } else if (cmp > 0) {
@@ -71,13 +71,12 @@ export class NumberBigIntTreeMap implements MapDbMutableMap<number, bigint> {
           };
           this.fixAfterInsert(node.right);
           this._size++;
-          return undefined;
+          return this;
         }
         node = node.right;
       } else {
-        const old = node.value;
         node.value = value;
-        return old;
+        return this;
       }
     }
   }

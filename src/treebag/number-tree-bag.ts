@@ -31,7 +31,7 @@ export class NumberTreeBag {
   }
 
   /** Add one occurrence of the value. */
-  add(value: number): void {
+  add(value: number): this {
     if (this.root === null) {
       this.root = {
         key: value,
@@ -43,7 +43,7 @@ export class NumberTreeBag {
       };
       this._size++;
       this._distinctSize++;
-      return;
+      return this;
     }
     let node = this.root;
     while (true) {
@@ -61,7 +61,7 @@ export class NumberTreeBag {
           this.fixInsert(node.left);
           this._size++;
           this._distinctSize++;
-          return;
+          return this;
         }
         node = node.left;
       } else if (cmp > 0) {
@@ -77,13 +77,13 @@ export class NumberTreeBag {
           this.fixInsert(node.right);
           this._size++;
           this._distinctSize++;
-          return;
+          return this;
         }
         node = node.right;
       } else {
         node.count++;
         this._size++;
-        return;
+        return this;
       }
     }
   }

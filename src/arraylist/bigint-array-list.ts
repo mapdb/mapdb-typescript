@@ -30,10 +30,11 @@ export class BigIntArrayList implements MapDbMutableList<bigint> {
   }
 
   /** Appends a value to the end of the list. */
-  add(value: bigint): void {
+  add(value: bigint): this {
     this.ensureCapacity(this._size + 1);
     this.data[this._size] = value;
     this._size++;
+    return this;
   }
 
   /** Returns the value at the given index. Throws if out of bounds. */
@@ -241,7 +242,7 @@ export class BigIntArrayList implements MapDbMutableList<bigint> {
     return acc;
   }
 
-  /** Returns true if the list contains the value. Alias for `contains`. */
+  /** Returns true if the list contains the value. Alias for `has`. */
   includes(value: bigint): boolean {
     return this.has(value);
   }
@@ -253,10 +254,10 @@ export class BigIntArrayList implements MapDbMutableList<bigint> {
     }
   }
 
-  /** Yields all elements in order. */
-  *entries(): Generator<bigint> {
+  /** Yields [index, value] pairs, like Array.prototype.entries(). */
+  *entries(): Generator<[number, bigint]> {
     for (let i = 0; i < this._size; i++) {
-      yield this.data[i];
+      yield [i, this.data[i]];
     }
   }
 

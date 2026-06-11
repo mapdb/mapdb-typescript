@@ -52,8 +52,8 @@ export class ImmutableBigIntArrayList implements MapDbList<bigint> {
     return this.delegate.indexOf(value);
   }
 
-  /** Yields all elements in order. */
-  *entries(): Generator<bigint> {
+  /** Yields [index, value] pairs, like Array.prototype.entries(). */
+  *entries(): Generator<[number, bigint]> {
     yield* this.delegate.entries();
   }
 
@@ -92,7 +92,7 @@ export class ImmutableBigIntArrayList implements MapDbList<bigint> {
     return this.delegate.reduce(f, initial);
   }
 
-  /** Returns true if the list contains the value. Alias for `contains`. */
+  /** Returns true if the list contains the value. Alias for `has`. */
   includes(value: bigint): boolean {
     return this.delegate.includes(value);
   }

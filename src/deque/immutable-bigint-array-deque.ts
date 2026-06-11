@@ -17,7 +17,7 @@ export class ImmutableBigIntArrayDeque {
   constructor(source: BigIntArrayDeque) {
     // Copy all entries into a fresh mutable deque so the caller cannot mutate our data.
     this.delegate = new BigIntArrayDeque();
-    for (const v of source.entries()) {
+    for (const v of source) {
       this.delegate.addLast(v);
     }
   }
@@ -52,8 +52,8 @@ export class ImmutableBigIntArrayDeque {
     return this.delegate.has(value);
   }
 
-  /** Yields all elements in front-to-back order. */
-  *entries(): Generator<bigint> {
+  /** Yields [index, value] pairs front to back, like Array.prototype.entries(). */
+  *entries(): Generator<[number, bigint]> {
     yield* this.delegate.entries();
   }
 

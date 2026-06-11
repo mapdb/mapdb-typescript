@@ -35,8 +35,8 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
     return set;
   }
 
-  /** Adds a value to the set. Returns true if the value was added (not already present). */
-  add(value: bigint): boolean {
+  /** Adds a value to the set. Returns the set for chaining, like JS Set.add. */
+  add(value: bigint): this {
     if (this.needsResize()) {
       this.resize();
     }
@@ -49,10 +49,10 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
         this.data[idx] = value;
         this.occupied[idx] = true;
         this._size++;
-        return true;
+        return this;
       }
       if (Object.is(this.data[idx], value)) {
-        return false;
+        return this;
       }
       idx = (idx + 1) & mask;
     }
@@ -226,7 +226,7 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
     return acc;
   }
 
-  /** Returns true if the set contains the value. Alias for `contains`. */
+  /** Returns true if the set contains the value. Alias for `has`. */
   includes(value: bigint): boolean {
     return this.has(value);
   }

@@ -43,7 +43,7 @@ export class HashSetWithStrategy<T> {
 
   // ── core ────────────────────────────────────────────────────────────
 
-  add(value: T): boolean {
+  add(value: T): this {
     if (this.needsResize()) {
       this.resize();
     }
@@ -55,10 +55,10 @@ export class HashSetWithStrategy<T> {
         e.value = value;
         e.occupied = true;
         this._size++;
-        return true;
+        return this;
       }
       if (this.strategy.equals(e.value, value)) {
-        return false;
+        return this;
       }
       idx = (idx + 1) & mask;
     }

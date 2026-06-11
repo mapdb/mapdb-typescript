@@ -29,7 +29,7 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
     return s;
   }
 
-  add(value: number): boolean {
+  add(value: number): this {
     if (this.root === null) {
       this.root = {
         key: value,
@@ -39,7 +39,7 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
         color: BLACK,
       };
       this._size++;
-      return true;
+      return this;
     }
     let node = this.root;
     while (true) {
@@ -55,7 +55,7 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
           };
           this.fixInsert(node.left);
           this._size++;
-          return true;
+          return this;
         }
         node = node.left;
       } else if (cmp > 0) {
@@ -69,11 +69,11 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
           };
           this.fixInsert(node.right);
           this._size++;
-          return true;
+          return this;
         }
         node = node.right;
       } else {
-        return false;
+        return this;
       }
     }
   }
@@ -207,7 +207,7 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
     return acc;
   }
 
-  /** Returns true if the set contains the value. Alias for `contains`. */
+  /** Returns true if the set contains the value. Alias for `has`. */
   includes(value: number): boolean {
     return this.has(value);
   }

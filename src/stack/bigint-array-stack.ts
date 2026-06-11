@@ -169,7 +169,7 @@ export class BigIntArrayStack implements MapDbMutableStack<bigint> {
     return acc;
   }
 
-  /** Returns true if the stack contains the value. Alias for `contains`. */
+  /** Returns true if the stack contains the value. Alias for `has`. */
   includes(value: bigint): boolean {
     return this.has(value);
   }

@@ -16,7 +16,7 @@ import { NumberNumberListMultimap } from "./number-number-list-multimap.js";
 import { NumberNumberSetMultimap } from "./number-number-set-multimap.js";
 
 interface GeneratedMultimap<K, V> {
-  set(key: K, value: V): void;
+  set(key: K, value: V): this;
   get(key: K): readonly V[];
   forEachKey(fn: (key: K, values: readonly V[]) => void): void;
 }

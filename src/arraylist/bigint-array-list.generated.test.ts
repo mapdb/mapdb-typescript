@@ -101,7 +101,10 @@ describe("BigIntArrayList generated", () => {
   it("entries generator", () => {
     const l = BigIntArrayList.of([1n, 2n]);
     const values = [...l.entries()];
-    expect(values).toEqual([1n, 2n]);
+    expect(values).toEqual([
+      [0, 1n],
+      [1, 2n],
+    ]);
   });
 
   it("toArray", () => {

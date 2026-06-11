@@ -29,7 +29,7 @@ export class BigIntTreeBag {
   }
 
   /** Add one occurrence of the value. */
-  add(value: bigint): void {
+  add(value: bigint): this {
     if (this.root === null) {
       this.root = {
         key: value,
@@ -41,7 +41,7 @@ export class BigIntTreeBag {
       };
       this._size++;
       this._distinctSize++;
-      return;
+      return this;
     }
     let node = this.root;
     while (true) {
@@ -58,7 +58,7 @@ export class BigIntTreeBag {
           this.fixInsert(node.left);
           this._size++;
           this._distinctSize++;
-          return;
+          return this;
         }
         node = node.left;
       } else if (value > node.key) {
@@ -74,13 +74,13 @@ export class BigIntTreeBag {
           this.fixInsert(node.right);
           this._size++;
           this._distinctSize++;
-          return;
+          return this;
         }
         node = node.right;
       } else {
         node.count++;
         this._size++;
-        return;
+        return this;
       }
     }
   }

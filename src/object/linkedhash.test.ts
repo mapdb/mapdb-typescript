@@ -12,9 +12,9 @@ describe("LinkedHashMap", () => {
   it("basic put/get/remove", () => {
     const m = new LinkedHashMap<string, number>();
     expect(m.isEmpty()).toBe(true);
-    expect(m.set("a", 1)).toBeUndefined();
-    expect(m.set("b", 2)).toBeUndefined();
-    expect(m.set("a", 10)).toBe(1);
+    expect(m.set("a", 1)).toBe(m); // set returns the map for chaining
+    m.set("b", 2);
+    m.set("a", 10);
     expect(m.size).toBe(2);
     expect(m.get("a")).toBe(10);
     expect(m.remove("a")).toBe(10);
@@ -77,9 +77,9 @@ describe("LinkedHashSet", () => {
   it("basic add/contains/remove", () => {
     const s = new LinkedHashSet<number>();
     expect(s.isEmpty()).toBe(true);
-    expect(s.add(1)).toBe(true);
-    expect(s.add(2)).toBe(true);
-    expect(s.add(1)).toBe(false);
+    expect(s.add(1)).toBe(s); // add returns the set for chaining
+    s.add(2);
+    s.add(1);
     expect(s.size).toBe(2);
     expect(s.has(1)).toBe(true);
     expect(s.has(99)).toBe(false);

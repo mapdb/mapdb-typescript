@@ -44,7 +44,7 @@ describe("Int8ArrayStack generated", () => {
     expect(() => s.pop()).toThrow();
   });
 
-  it("contains", () => {
+  it("has", () => {
     const s = new Int8ArrayStack();
     s.push(1);
     s.push(2);

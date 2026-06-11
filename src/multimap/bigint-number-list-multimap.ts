@@ -24,7 +24,7 @@ export class BigIntNumberListMultimap {
   }
 
   /** Adds a value under the given key. */
-  set(key: bigint, value: number): void {
+  set(key: bigint, value: number): this {
     const list = this._map.get(key);
     if (list !== undefined) {
       list.push(value);
@@ -32,6 +32,7 @@ export class BigIntNumberListMultimap {
       this._map.set(key, [value]);
     }
     this._totalSize++;
+    return this;
   }
 
   /** Returns a copy of the values for the key as a readonly array. Returns an empty array if the key is absent. */

@@ -40,8 +40,9 @@ export class NumberHashBag implements MapDbMutableBag<number> {
   }
 
   /** Adds a single occurrence of the value. */
-  add(value: number): void {
+  add(value: number): this {
     this.addOccurrences(value, 1);
+    return this;
   }
 
   /** Adds the specified number of occurrences of the value. */

@@ -31,10 +31,11 @@ export class NumberArrayList implements MapDbMutableList<number> {
   }
 
   /** Appends a value to the end of the list. */
-  add(value: number): void {
+  add(value: number): this {
     this.ensureCapacity(this._size + 1);
     this.data[this._size] = value;
     this._size++;
+    return this;
   }
 
   /** Returns the value at the given index. Throws if out of bounds. */
@@ -242,7 +243,7 @@ export class NumberArrayList implements MapDbMutableList<number> {
     return acc;
   }
 
-  /** Returns true if the list contains the value. Alias for `contains`. */
+  /** Returns true if the list contains the value. Alias for `has`. */
   includes(value: number): boolean {
     return this.has(value);
   }
@@ -254,10 +255,10 @@ export class NumberArrayList implements MapDbMutableList<number> {
     }
   }
 
-  /** Yields all elements in order. */
-  *entries(): Generator<number> {
+  /** Yields [index, value] pairs, like Array.prototype.entries(). */
+  *entries(): Generator<[number, number]> {
     for (let i = 0; i < this._size; i++) {
-      yield this.data[i];
+      yield [i, this.data[i]];
     }
   }
 

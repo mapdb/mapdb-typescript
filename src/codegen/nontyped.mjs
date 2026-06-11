@@ -40,7 +40,7 @@
 //     follows kind: number values compare with `Object.is`, bigint values with
 //     `===`/`!==` (in `equals` it tracks VALUE kind; in `containsKeyValue` and
 //     the set-dedup it tracks KEY kind — both reproduced exactly).
-//   * list vs set multimap differ only in the `put()` body (set dedups) and the
+//   * list vs set multimap differ only in the `set()` body (set dedups) and the
 //     class / "list of"/"set of unique" doc wording.
 // ---------------------------------------------------------------------------
 
@@ -180,8 +180,8 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
     return m;
   }
 
-  /** Inserts or updates a key-value pair. Returns the previous value or undefined. */
-  set(key: ${K}, value: ${V}): ${V} | undefined {
+  /** Inserts or updates a key-value pair. Returns the map for chaining, like JS Map.set. */
+  set(key: ${K}, value: ${V}): this {
     if (this.needsResize()) {
       this.resize();
     }
@@ -195,12 +195,11 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
         this.values[idx] = value;
         this.occupied[idx] = true;
         this._size++;
-        return undefined;
+        return this;
       }
       if (Object.is(this.keys[idx], key)) {
-        const old = this.values[idx];
         this.values[idx] = value;
-        return old;
+        return this;
       }
       idx = (idx + 1) & mask;
     }
@@ -409,7 +408,7 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
     return newVal;
   }
 
-  /** Fluent put. Returns this for chaining. */
+  /** Fluent set. Returns this for chaining. */
   withKeyValue(key: ${K}, value: ${V}): this {
     this.set(key, value);
     return this;
@@ -590,7 +589,7 @@ import { describe, it, expect } from "vitest";
 import { ${cls} } from "./${file}";
 
 describe("${cls} generated", () => {
-  it("put and get", () => {
+  it("set and get", () => {
     const m = new ${cls}();
     m.set(${k1}, ${v1});
     m.set(${k2}, ${v2});
@@ -599,11 +598,10 @@ describe("${cls} generated", () => {
     expect(m.get(${k99})).toBeUndefined();
     expect(m.size).toBe(3);
   });
-  it("put overwrite", () => {
+  it("set overwrite", () => {
     const m = new ${cls}();
     m.set(${k1}, ${v1});
-    const old = m.set(${k1}, ${v2});
-    expect(old).toBe(${v1});
+    expect(m.set(${k1}, ${v2})).toBe(m); // set returns the map for chaining
     expect(m.get(${k1})).toBe(${v2});
   });
   it("remove", () => {
@@ -615,7 +613,7 @@ describe("${cls} generated", () => {
     expect(m.size).toBe(1);
     expect(m.has(${k1})).toBe(false);
   });
-  it("containsKey", () => {
+  it("has", () => {
     const m = new ${cls}();
     m.set(${k1}, ${v1});
     expect(m.has(${k1})).toBe(true);
@@ -736,7 +734,7 @@ export class ${cls} {
    * If the key already existed, the old value mapping is removed.
    * If the value already existed, the old key mapping is removed.
    */
-  set(key: ${K}, value: ${V}): void {
+  set(key: ${K}, value: ${V}): this {
     // If this key already maps to an old value, remove old_value->key from inverse
     const oldValue = this._forward.get(key);
     if (oldValue !== undefined) {
@@ -751,6 +749,7 @@ export class ${cls} {
 
     this._forward.set(key, value);
     this._inverse.set(value, key);
+    return this;
   }
 
   /** Forward lookup: returns the value for the given key, or undefined. */
@@ -1068,7 +1067,7 @@ describe("${cls} generated", () => {
     expect(im.get(${k1})).toBe(${v1});
     expect(im.get(${k99})).toBeUndefined();
   });
-  it("containsKey", () => {
+  it("has", () => {
     const im = ${cls}.of([[${k1}, ${v1}]]);
     expect(im.has(${k1})).toBe(true);
     expect(im.has(${k99})).toBe(false);
@@ -1102,7 +1101,7 @@ export function multimapClassName({ key, val }, variant) {
   return `${key.name}${val.name}${V}Multimap`;
 }
 
-// put() body — the ONLY structural difference between list (append) and set
+// set() body — the ONLY structural difference between list (append) and set
 // (dedup-then-append). The number-key branch carries the mapKeyOf tuple; the
 // bigint-key branch a direct Map. `eq` is the per-key-kind value comparator.
 function multimapPutBody(key, variant) {
@@ -1117,20 +1116,22 @@ function multimapPutBody(key, variant) {
     } else {
       this._map.set(mk, [key, [value]]);
     }
-    this._totalSize++;`;
+    this._totalSize++;
+    return this;`;
     }
     return `    const mk = mapKeyOf(key);
     const entry = this._map.get(mk);
     if (entry !== undefined) {
       const list = entry[1];
       for (let i = 0; i < list.length; i++) {
-        if (${eq}) return;
+        if (${eq}) return this;
       }
       list.push(value);
     } else {
       this._map.set(mk, [key, [value]]);
     }
-    this._totalSize++;`;
+    this._totalSize++;
+    return this;`;
   }
   // bigint key
   if (variant === "list") {
@@ -1140,18 +1141,20 @@ function multimapPutBody(key, variant) {
     } else {
       this._map.set(key, [value]);
     }
-    this._totalSize++;`;
+    this._totalSize++;
+    return this;`;
   }
   return `    const list = this._map.get(key);
     if (list !== undefined) {
       for (let i = 0; i < list.length; i++) {
-        if (${eq}) return;
+        if (${eq}) return this;
       }
       list.push(value);
     } else {
       this._map.set(key, [value]);
     }
-    this._totalSize++;`;
+    this._totalSize++;
+    return this;`;
 }
 
 // The number-key multimap stores `Map<MapKey, [key, values]>` tuples so -0/+0
@@ -1171,7 +1174,7 @@ function renderNumberKeyMultimap(pair, variant, command, cls, K, V) {
  */`
       : `/**
  * A multimap that maps ${K} keys to sets of unique ${V} values.
- * Backed by a JavaScript Map from key to array of values (duplicates on put are silently dropped).
+ * Backed by a JavaScript Map from key to array of values (duplicates on set are silently dropped).
  */`;
   const putDoc =
     variant === "list"
@@ -1201,7 +1204,7 @@ export class ${cls} {
   }
 
 ${putDoc}
-  set(key: ${K}, value: ${V}): void {
+  set(key: ${K}, value: ${V}): this {
 ${putBody}
   }
 
@@ -1395,7 +1398,7 @@ function renderBigIntKeyMultimap(pair, variant, command, cls, K, V) {
  */`
       : `/**
  * A multimap that maps ${K} keys to sets of unique ${V} values.
- * Backed by a JavaScript Map from key to array of values (duplicates on put are silently dropped).
+ * Backed by a JavaScript Map from key to array of values (duplicates on set are silently dropped).
  */`;
   const putDoc =
     variant === "list"
@@ -1419,7 +1422,7 @@ export class ${cls} {
   }
 
 ${putDoc}
-  set(key: ${K}, value: ${V}): void {
+  set(key: ${K}, value: ${V}): this {
 ${putBody}
   }
 

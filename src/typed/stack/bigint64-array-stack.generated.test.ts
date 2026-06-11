@@ -44,7 +44,7 @@ describe("BigInt64ArrayStack generated", () => {
     expect(() => s.pop()).toThrow();
   });
 
-  it("contains", () => {
+  it("has", () => {
     const s = new BigInt64ArrayStack();
     s.push(1n);
     s.push(2n);

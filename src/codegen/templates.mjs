@@ -105,7 +105,7 @@ export class ${cls} {
     this.occupied = new Uint8Array(this.capacity);
   }
 
-  set(key: ${K}, value: ${V}): ${V} | undefined {
+  set(key: ${K}, value: ${V}): this {
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
@@ -115,12 +115,11 @@ export class ${cls} {
         this.values[idx] = value;
         this.occupied[idx] = 1;
         this._size++;
-        return undefined;
+        return this;
       }
       if (Object.is(this.keys[idx], key)) {
-        const old = this.values[idx];
         this.values[idx] = value;
-        return old;
+        return this;
       }
       idx = (idx + 1) & mask;
     }
@@ -451,7 +450,7 @@ import { describe, it, expect } from "vitest";
 import { ${cls} } from "./${file}";
 
 describe("${cls} generated", () => {
-  it("put and get", () => {
+  it("set and get", () => {
     const m = new ${cls}();
     m.set(${k1}, ${v1});
     m.set(${k2}, ${v2});
@@ -460,11 +459,10 @@ describe("${cls} generated", () => {
     expect(m.get(${k99})).toBeUndefined();
     expect(m.size).toBe(3);
   });
-  it("put overwrite", () => {
+  it("set overwrite", () => {
     const m = new ${cls}();
     m.set(${k1}, ${v1});
-    const old = m.set(${k1}, ${v2});
-    expect(old).toBe(${v1});
+    expect(m.set(${k1}, ${v2})).toBe(m); // set returns the map for chaining
     expect(m.get(${k1})).toBe(${v2});
   });
   it("remove", () => {

@@ -20,8 +20,8 @@ describe("NumberHashSet generated", () => {
   });
   it("add duplicate", () => {
     const s = new NumberHashSet();
-    expect(s.add(1)).toBe(true);
-    expect(s.add(1)).toBe(false);
+    expect(s.add(1)).toBe(s); // add returns the set for chaining
+    s.add(1);
     expect(s.size).toBe(1);
   });
   it("of", () => {
@@ -81,9 +81,9 @@ describe("NumberHashSet generated", () => {
     });
     it("NaN add duplicate does not grow", () => {
       const s = new NumberHashSet();
-      expect(s.add(NaN)).toBe(true);
-      expect(s.add(NaN)).toBe(false);
-      expect(s.add(NaN)).toBe(false);
+      expect(s.add(NaN)).toBe(s); // add returns the set for chaining
+      s.add(NaN);
+      s.add(NaN);
       expect(s.size).toBe(1);
     });
     it("NaN remove works", () => {

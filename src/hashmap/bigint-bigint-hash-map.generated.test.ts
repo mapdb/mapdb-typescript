@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { BigIntBigIntHashMap } from "./bigint-bigint-hash-map.js";
 
 describe("BigIntBigIntHashMap generated", () => {
-  it("put and get", () => {
+  it("set and get", () => {
     const m = new BigIntBigIntHashMap();
     m.set(1n, 1n);
     m.set(2n, 2n);
@@ -19,11 +19,10 @@ describe("BigIntBigIntHashMap generated", () => {
     expect(m.get(99n)).toBeUndefined();
     expect(m.size).toBe(3);
   });
-  it("put overwrite", () => {
+  it("set overwrite", () => {
     const m = new BigIntBigIntHashMap();
     m.set(1n, 1n);
-    const old = m.set(1n, 2n);
-    expect(old).toBe(1n);
+    expect(m.set(1n, 2n)).toBe(m); // set returns the map for chaining
     expect(m.get(1n)).toBe(2n);
   });
   it("remove", () => {
@@ -35,7 +34,7 @@ describe("BigIntBigIntHashMap generated", () => {
     expect(m.size).toBe(1);
     expect(m.has(1n)).toBe(false);
   });
-  it("containsKey", () => {
+  it("has", () => {
     const m = new BigIntBigIntHashMap();
     m.set(1n, 1n);
     expect(m.has(1n)).toBe(true);

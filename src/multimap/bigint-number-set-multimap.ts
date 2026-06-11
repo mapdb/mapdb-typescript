@@ -7,7 +7,7 @@
 
 /**
  * A multimap that maps bigint keys to sets of unique number values.
- * Backed by a JavaScript Map from key to array of values (duplicates on put are silently dropped).
+ * Backed by a JavaScript Map from key to array of values (duplicates on set are silently dropped).
  */
 export class BigIntNumberSetMultimap {
   private _map: Map<bigint, number[]>;
@@ -24,17 +24,18 @@ export class BigIntNumberSetMultimap {
   }
 
   /** Adds a value under the given key. Idempotent: a duplicate value for the same key is silently dropped. */
-  set(key: bigint, value: number): void {
+  set(key: bigint, value: number): this {
     const list = this._map.get(key);
     if (list !== undefined) {
       for (let i = 0; i < list.length; i++) {
-        if (list[i] === value) return;
+        if (list[i] === value) return this;
       }
       list.push(value);
     } else {
       this._map.set(key, [value]);
     }
     this._totalSize++;
+    return this;
   }
 
   /** Returns a copy of the values for the key as a readonly array. Returns an empty array if the key is absent. */

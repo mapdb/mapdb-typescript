@@ -39,6 +39,10 @@ describe("NumberArrayList", () => {
   it("entries generator", () => {
     const l = NumberArrayList.of([10, 20, 30]);
     const values = [...l.entries()];
-    expect(values).toEqual([10, 20, 30]);
+    expect(values).toEqual([
+      [0, 10],
+      [1, 20],
+      [2, 30],
+    ]);
   });
 });

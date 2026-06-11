@@ -10,9 +10,9 @@ import { NumberHashSet } from "./number-hash-set.js";
 describe("NumberHashSet", () => {
   it("add and contains", () => {
     const s = new NumberHashSet();
-    expect(s.add(1)).toBe(true);
-    expect(s.add(2)).toBe(true);
-    expect(s.add(1)).toBe(false); // duplicate
+    expect(s.add(1)).toBe(s); // add returns the set for chaining
+    s.add(2);
+    s.add(1); // duplicate
     expect(s.has(1)).toBe(true);
     expect(s.has(99)).toBe(false);
     expect(s.size).toBe(2);

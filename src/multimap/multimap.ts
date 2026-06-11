@@ -14,8 +14,8 @@ export class Multimap<K, V> {
   private data = new Map<K, V[]>();
   private _size = 0;
 
-  /** Adds a value for the key. */
-  set(key: K, value: V): void {
+  /** Adds a value for the key. Returns the multimap for chaining, like JS Map.set. */
+  set(key: K, value: V): this {
     const vals = this.data.get(key);
     if (vals) {
       vals.push(value);
@@ -23,6 +23,7 @@ export class Multimap<K, V> {
       this.data.set(key, [value]);
     }
     this._size++;
+    return this;
   }
 
   /** Adds multiple values for the key. */
