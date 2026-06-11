@@ -12,9 +12,9 @@ describe("LinkedHashMap", () => {
   it("basic put/get/remove", () => {
     const m = new LinkedHashMap<string, number>();
     expect(m.isEmpty()).toBe(true);
-    expect(m.put("a", 1)).toBeUndefined();
-    expect(m.put("b", 2)).toBeUndefined();
-    expect(m.put("a", 10)).toBe(1);
+    expect(m.set("a", 1)).toBeUndefined();
+    expect(m.set("b", 2)).toBeUndefined();
+    expect(m.set("a", 10)).toBe(1);
     expect(m.size()).toBe(2);
     expect(m.get("a")).toBe(10);
     expect(m.remove("a")).toBe(10);
@@ -23,37 +23,37 @@ describe("LinkedHashMap", () => {
 
   it("preserves insertion order", () => {
     const m = new LinkedHashMap<string, number>();
-    m.put("c", 3);
-    m.put("a", 1);
-    m.put("b", 2);
+    m.set("c", 3);
+    m.set("a", 1);
+    m.set("b", 2);
     expect(m.keysToArray()).toEqual(["c", "a", "b"]);
     expect(m.valuesToArray()).toEqual([3, 1, 2]);
   });
 
   it("overwrite preserves position", () => {
     const m = new LinkedHashMap<string, number>();
-    m.put("a", 1);
-    m.put("b", 2);
-    m.put("c", 3);
-    m.put("b", 20);
+    m.set("a", 1);
+    m.set("b", 2);
+    m.set("c", 3);
+    m.set("b", 20);
     expect(m.keysToArray()).toEqual(["a", "b", "c"]);
     expect(m.get("b")).toBe(20);
   });
 
   it("remove preserves order", () => {
     const m = new LinkedHashMap<string, number>();
-    m.put("a", 1);
-    m.put("b", 2);
-    m.put("c", 3);
+    m.set("a", 1);
+    m.set("b", 2);
+    m.set("c", 3);
     m.remove("b");
     expect(m.keysToArray()).toEqual(["a", "c"]);
   });
 
   it("select preserves order", () => {
     const m = new LinkedHashMap<number, number>();
-    m.put(1, 10);
-    m.put(2, 20);
-    m.put(3, 30);
+    m.set(1, 10);
+    m.set(2, 20);
+    m.set(3, 30);
     const big = m.select((_k, v) => v > 15);
     expect(big.size()).toBe(2);
     expect(big.keysToArray()).toEqual([2, 3]);
@@ -67,7 +67,7 @@ describe("LinkedHashMap", () => {
 
   it("clear", () => {
     const m = new LinkedHashMap<number, number>();
-    m.put(1, 1);
+    m.set(1, 1);
     m.clear();
     expect(m.isEmpty()).toBe(true);
   });
@@ -81,8 +81,8 @@ describe("LinkedHashSet", () => {
     expect(s.add(2)).toBe(true);
     expect(s.add(1)).toBe(false);
     expect(s.size()).toBe(2);
-    expect(s.contains(1)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(1)).toBe(true);
+    expect(s.has(99)).toBe(false);
   });
 
   it("preserves insertion order", () => {
@@ -95,7 +95,7 @@ describe("LinkedHashSet", () => {
     s.add(1); // no-op
     expect(s.toArray()).toEqual([1, 2, 3, 4]);
     // remove middle
-    expect(s.contains(2)).toBe(true);
+    expect(s.has(2)).toBe(true);
     s.forEach(() => {}); // ensure iteration works pre-remove
     // We just test final state:
     const s2 = LinkedHashSet.of(10, 20, 30);

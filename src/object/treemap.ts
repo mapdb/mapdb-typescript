@@ -30,7 +30,7 @@ export class TreeMap<K, V> {
 
   // ── core ────────────────────────────────────────────────────────────
 
-  put(key: K, value: V): V | undefined {
+  set(key: K, value: V): V | undefined {
     if (this.root === null) {
       this.root = {
         key,
@@ -91,13 +91,8 @@ export class TreeMap<K, V> {
     return n !== null ? n.value : undefined;
   }
 
-  containsKey(key: K): boolean {
-    return this.findNode(key) !== null;
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: K): boolean {
-    return this.containsKey(key);
+    return this.findNode(key) !== null;
   }
 
   remove(key: K): V | undefined {
@@ -146,7 +141,7 @@ export class TreeMap<K, V> {
   select(predicate: (key: K, value: V) => boolean): TreeMap<K, V> {
     const result = new TreeMap<K, V>(this.cmp);
     this.forEach((k, v) => {
-      if (predicate(k, v)) result.put(k, v);
+      if (predicate(k, v)) result.set(k, v);
     });
     return result;
   }
@@ -154,7 +149,7 @@ export class TreeMap<K, V> {
   reject(predicate: (key: K, value: V) => boolean): TreeMap<K, V> {
     const result = new TreeMap<K, V>(this.cmp);
     this.forEach((k, v) => {
-      if (!predicate(k, v)) result.put(k, v);
+      if (!predicate(k, v)) result.set(k, v);
     });
     return result;
   }

@@ -21,7 +21,7 @@ export class HashBiMap<K, V> {
   static of<K, V>(...entries: [K, V][]): HashBiMap<K, V> {
     const bimap = new HashBiMap<K, V>();
     for (const [k, v] of entries) {
-      bimap.put(k, v);
+      bimap.set(k, v);
     }
     return bimap;
   }
@@ -32,7 +32,7 @@ export class HashBiMap<K, V> {
    * If `value` already maps to a different key, the old key's forward entry is removed.
    * Returns the previous value associated with `key`, or undefined.
    */
-  put(key: K, value: V): V | undefined {
+  set(key: K, value: V): V | undefined {
     const oldValue = this.forward.get(key);
 
     // Remove old inverse entry for this key's previous value
@@ -62,13 +62,8 @@ export class HashBiMap<K, V> {
     return this.backward.get(value);
   }
 
-  containsKey(key: K): boolean {
-    return this.forward.has(key);
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: K): boolean {
-    return this.containsKey(key);
+    return this.forward.has(key);
   }
 
   containsValue(value: V): boolean {

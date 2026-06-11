@@ -105,7 +105,7 @@ export class ${cls} {
     this.occupied = new Uint8Array(this.capacity);
   }
 
-  put(key: ${K}, value: ${V}): ${V} | undefined {
+  set(key: ${K}, value: ${V}): ${V} | undefined {
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
@@ -159,12 +159,8 @@ export class ${cls} {
     }
   }
 
-  containsKey(key: ${K}): boolean {
-    return this.get(key) !== undefined;
-  }
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: ${K}): boolean {
-    return this.containsKey(key);
+    return this.get(key) !== undefined;
   }
   size(): number {
     return this._size;
@@ -212,7 +208,7 @@ ${sig("select")}
     const result = new ${cls}();
     for (let i = 0; i < this.capacity; i++) {
       if (this.occupied[i] && predicate(this.keys[i], this.values[i])) {
-        result.put(this.keys[i], this.values[i]);
+        result.set(this.keys[i], this.values[i]);
       }
     }
     return result;
@@ -222,7 +218,7 @@ ${sig("reject")}
     const result = new ${cls}();
     for (let i = 0; i < this.capacity; i++) {
       if (this.occupied[i] && !predicate(this.keys[i], this.values[i])) {
-        result.put(this.keys[i], this.values[i]);
+        result.set(this.keys[i], this.values[i]);
       }
     }
     return result;
@@ -257,7 +253,7 @@ ${sig("reject")}
     const newVal = (
       existing !== undefined ? (((existing as any) + amount) as any) : amount
     ) as ${V};
-    this.put(key, newVal);
+    this.set(key, newVal);
     return newVal;
   }
 
@@ -296,7 +292,7 @@ ${sig("reject")}
     this.occupied = new Uint8Array(this.capacity);
     this._size = 0;
     for (let i = 0; i < oldCap; i++) {
-      if (oldOccupied[i]) this.put(oldKeys[i], oldValues[i]);
+      if (oldOccupied[i]) this.set(oldKeys[i], oldValues[i]);
     }
   }
 
@@ -348,8 +344,8 @@ function valLit(prim, n) {
 
 /**
  * The `resize` loop body depends on BOTH axes:
- *   number key:  `for (let i = 0; i < 100; i += 1) m.put(i, <valExpr>);`
- *   bigint key:  `for (let i = 0n; i < 100n; i += 1n) m.put(i, <valExpr>);`
+ *   number key:  `for (let i = 0; i < 100; i += 1) m.set(i, <valExpr>);`
+ *   bigint key:  `for (let i = 0n; i < 100n; i += 1n) m.set(i, <valExpr>);`
  * where <valExpr> is `i * 10` style, with `i` adapted to the value type:
  *   num key + num val:    i * 10
  *   bigint key + num val: Number(i) * 10
@@ -371,7 +367,7 @@ function resizeLoop(key, val) {
     iAsVal = "Number(i)"; // bigint key -> number value
   }
   const ten = valIsBig ? "10n" : "10";
-  return `    ${head} m.put(i, ${iAsVal} * ${ten});`;
+  return `    ${head} m.set(i, ${iAsVal} * ${ten});`;
 }
 
 /**
@@ -392,39 +388,39 @@ function floatKeyEdgeCases(cls, vLit) {
   describe("IEEE 754 edge cases", () => {
     it("NaN key is findable", () => {
       const m = new ${cls}();
-      m.put(NaN, ${v1});
-      expect(m.containsKey(NaN)).toBe(true);
+      m.set(NaN, ${v1});
+      expect(m.has(NaN)).toBe(true);
       expect(m.get(NaN)).toBe(${v1});
       expect(m.size()).toBe(1);
     });
     it("NaN key replaces, does not duplicate", () => {
       const m = new ${cls}();
-      m.put(NaN, ${v1});
-      m.put(NaN, ${v2});
-      m.put(NaN, ${v3});
+      m.set(NaN, ${v1});
+      m.set(NaN, ${v2});
+      m.set(NaN, ${v3});
       expect(m.size()).toBe(1);
       expect(m.get(NaN)).toBe(${v3});
     });
     it("NaN key remove works", () => {
       const m = new ${cls}();
-      m.put(NaN, ${v1});
+      m.set(NaN, ${v1});
       const removed = m.remove(NaN);
       expect(removed).toBe(${v1});
       expect(m.size()).toBe(0);
-      expect(m.containsKey(NaN)).toBe(false);
+      expect(m.has(NaN)).toBe(false);
     });
     it("-0.0 is distinct from +0.0", () => {
       const m = new ${cls}();
-      m.put(0.0, ${v1});
-      m.put(-0.0, ${v2});
+      m.set(0.0, ${v1});
+      m.set(-0.0, ${v2});
       expect(m.size()).toBe(2);
       expect(m.get(0.0)).toBe(${v1});
       expect(m.get(-0.0)).toBe(${v2});
     });
     it("+/-Infinity keys", () => {
       const m = new ${cls}();
-      m.put(Number.POSITIVE_INFINITY, ${v1});
-      m.put(Number.NEGATIVE_INFINITY, ${v2});
+      m.set(Number.POSITIVE_INFINITY, ${v1});
+      m.set(Number.NEGATIVE_INFINITY, ${v2});
       expect(m.size()).toBe(2);
       expect(m.get(Number.POSITIVE_INFINITY)).toBe(${v1});
       expect(m.get(Number.NEGATIVE_INFINITY)).toBe(${v2});
@@ -457,53 +453,53 @@ import { ${cls} } from "./${file}";
 describe("${cls} generated", () => {
   it("put and get", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
-    m.put(${k3}, ${v3});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
+    m.set(${k3}, ${v3});
     expect(m.get(${k1})).toBe(${v1});
     expect(m.get(${k99})).toBeUndefined();
     expect(m.size()).toBe(3);
   });
   it("put overwrite", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    const old = m.put(${k1}, ${v2});
+    m.set(${k1}, ${v1});
+    const old = m.set(${k1}, ${v2});
     expect(old).toBe(${v1});
     expect(m.get(${k1})).toBe(${v2});
   });
   it("remove", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
     expect(m.remove(${k1})).toBe(${v1});
     expect(m.size()).toBe(1);
-    expect(m.containsKey(${k1})).toBe(false);
+    expect(m.has(${k1})).toBe(false);
   });
   it("getOrDefault", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
+    m.set(${k1}, ${v1});
     expect(m.getOrDefault(${k1}, ${v3})).toBe(${v1});
     expect(m.getOrDefault(${k99}, ${v3})).toBe(${v3});
   });
   it("isEmpty and clear", () => {
     const m = new ${cls}();
     expect(m.isEmpty()).toBe(true);
-    m.put(${k1}, ${v1});
+    m.set(${k1}, ${v1});
     expect(m.isEmpty()).toBe(false);
     m.clear();
     expect(m.isEmpty()).toBe(true);
   });
   it("select", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
-    m.put(${k3}, ${v3});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
+    m.set(${k3}, ${v3});
     expect(m.select((_k, v) => v > ${v1}).size()).toBe(2);
   });
   it("anySatisfy / allSatisfy", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
     expect(m.anySatisfy((_k, v) => v === ${v2})).toBe(true);
     expect(m.allSatisfy((_k, v) => v > ${v0})).toBe(true);
   });
@@ -518,7 +514,7 @@ ${resizeLoop(key, val)}
   });
   it("toString", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
+    m.set(${k1}, ${v1});
     expect(m.toString()).not.toBe("");
   });${key.kind === "float" ? floatKeyEdgeCases(cls, (n) => valLit(val, n)) : ""}
 });

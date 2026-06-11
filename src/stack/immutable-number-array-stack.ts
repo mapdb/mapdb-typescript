@@ -51,8 +51,8 @@ export class ImmutableNumberArrayStack implements MapDbStack<number> {
   }
 
   /** Returns true if the stack contains the given value. */
-  contains(value: number): boolean {
-    return this.delegate.contains(value);
+  has(value: number): boolean {
+    return this.delegate.has(value);
   }
 
   /** Yields all values from top to bottom. */

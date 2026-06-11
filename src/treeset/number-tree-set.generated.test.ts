@@ -15,8 +15,8 @@ describe("NumberTreeSet generated", () => {
     s.add(1);
     s.add(2);
     expect(s.size()).toBe(3);
-    expect(s.contains(2)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(2)).toBe(true);
+    expect(s.has(99)).toBe(false);
   });
   it("duplicate", () => {
     const s = new NumberTreeSet();
@@ -28,7 +28,7 @@ describe("NumberTreeSet generated", () => {
     s.add(1);
     s.add(2);
     expect(s.remove(1)).toBe(true);
-    expect(s.contains(1)).toBe(false);
+    expect(s.has(1)).toBe(false);
   });
   it("min and max", () => {
     const s = new NumberTreeSet();

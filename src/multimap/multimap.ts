@@ -15,7 +15,7 @@ export class Multimap<K, V> {
   private _size = 0;
 
   /** Adds a value for the key. */
-  put(key: K, value: V): void {
+  set(key: K, value: V): void {
     const vals = this.data.get(key);
     if (vals) {
       vals.push(value);
@@ -27,7 +27,7 @@ export class Multimap<K, V> {
 
   /** Adds multiple values for the key. */
   putAll(key: K, ...values: V[]): void {
-    for (const v of values) this.put(key, v);
+    for (const v of values) this.set(key, v);
   }
 
   /** Returns a copy of all values for the key, or empty array. */
@@ -36,14 +36,9 @@ export class Multimap<K, V> {
   }
 
   /** Returns true if the key has at least one value. */
-  containsKey(key: K): boolean {
+  has(key: K): boolean {
     const vals = this.data.get(key);
     return vals !== undefined && vals.length > 0;
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
-  has(key: K): boolean {
-    return this.containsKey(key);
   }
 
   /** Removes all values for the key. Returns the removed values. */

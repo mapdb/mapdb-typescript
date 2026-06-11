@@ -33,13 +33,8 @@ export class ImmutableNumberHashBag implements MapDbBag<number> {
   }
 
   /** Returns true if the bag contains at least one occurrence of the value. */
-  contains(value: number): boolean {
-    return this.delegate.contains(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: number): boolean {
-    return this.contains(value);
+    return this.delegate.has(value);
   }
 
   /** Returns the total number of elements (including duplicates). */

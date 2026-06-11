@@ -167,9 +167,9 @@ describe("Pet Kata", () => {
     expect(catPeople.size()).toBe(3);
     const names = new HashSet<string>();
     catPeople.forEach((p) => names.add(p.firstName));
-    expect(names.contains("Mary")).toBe(true);
-    expect(names.contains("Barry")).toBe(true);
-    expect(names.contains("Terry")).toBe(true);
+    expect(names.has("Mary")).toBe(true);
+    expect(names.has("Barry")).toBe(true);
+    expect(names.has("Terry")).toBe(true);
   });
 
   // Exercise 6: Get the people who do NOT have cats.
@@ -202,8 +202,8 @@ describe("Pet Kata", () => {
     void people; // TODO: iterate people and their pets, add each pet name
 
     expect(petNames.size()).toBe(11);
-    expect(petNames.contains("Tabby")).toBe(true);
-    expect(petNames.contains("Tweety")).toBe(true);
+    expect(petNames.has("Tabby")).toBe(true);
+    expect(petNames.has("Tweety")).toBe(true);
   });
 
   // Exercise 9: Count pet types using a HashBag.
@@ -242,7 +242,7 @@ describe("Pet Kata", () => {
       PetType.BIRD,
       PetType.SNAKE,
     ]) {
-      expect(petTypes.contains(pt)).toBe(true);
+      expect(petTypes.has(pt)).toBe(true);
     }
   });
 

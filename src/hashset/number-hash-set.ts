@@ -80,7 +80,7 @@ export class NumberHashSet implements MapDbMutableSet<number> {
   }
 
   /** Returns true if the set contains the given value. */
-  contains(value: number): boolean {
+  has(value: number): boolean {
     const cap = this.data.length;
     if (cap === 0) return false;
     const mask = cap - 1;
@@ -91,11 +91,6 @@ export class NumberHashSet implements MapDbMutableSet<number> {
       if (Object.is(this.data[idx], value)) return true;
       idx = (idx + 1) & mask;
     }
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: number): boolean {
-    return this.contains(value);
   }
 
   /** Returns the number of elements. */
@@ -131,7 +126,7 @@ export class NumberHashSet implements MapDbMutableSet<number> {
   intersect(other: NumberHashSet): NumberHashSet {
     const result = new NumberHashSet();
     for (const v of this.values()) {
-      if (other.contains(v)) {
+      if (other.has(v)) {
         result.add(v);
       }
     }
@@ -142,7 +137,7 @@ export class NumberHashSet implements MapDbMutableSet<number> {
   difference(other: NumberHashSet): NumberHashSet {
     const result = new NumberHashSet();
     for (const v of this.values()) {
-      if (!other.contains(v)) {
+      if (!other.has(v)) {
         result.add(v);
       }
     }
@@ -234,7 +229,7 @@ export class NumberHashSet implements MapDbMutableSet<number> {
 
   /** Returns true if the set contains the value. Alias for `contains`. */
   includes(value: number): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Makes the set iterable with for-of loops. */

@@ -28,7 +28,7 @@ describe("Int32HashBag generated", () => {
     b.remove(1);
     expect(b.occurrencesOf(1)).toBe(2);
     b.removeAll(1);
-    expect(b.contains(1)).toBe(false);
+    expect(b.has(1)).toBe(false);
   });
   it("isEmpty and clear", () => {
     const b = new Int32HashBag();

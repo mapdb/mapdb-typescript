@@ -48,9 +48,9 @@ describe("ImmutableBigInt64ArrayList generated", () => {
 
   it("contains and includes", () => {
     const list = ImmutableBigInt64ArrayList.of([1n, 2n]);
-    expect(list.contains(1n)).toBe(true);
-    expect(list.contains(2n)).toBe(true);
-    expect(list.contains(99n)).toBe(false);
+    expect(list.has(1n)).toBe(true);
+    expect(list.has(2n)).toBe(true);
+    expect(list.has(99n)).toBe(false);
     expect(list.includes(1n)).toBe(true);
   });
 

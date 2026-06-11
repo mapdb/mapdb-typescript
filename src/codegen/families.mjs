@@ -161,7 +161,7 @@ export class ${cls} {
     return old;
   }
 
-  contains(value: ${T}): boolean {
+  has(value: ${T}): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
@@ -404,16 +404,16 @@ export class ${cls} {
   }
 
   /** Returns true if the list contains the given value. */
-  contains(value: ${T}): boolean {
+  has(value: ${T}): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }
 
-  /** Alias for contains. */
+  /** Alias for has. */
   includes(value: ${T}): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns the index of the first occurrence, or -1. */
@@ -637,8 +637,8 @@ describe("${cls} generated", () => {
     const l = new ${cls}();
     l.add(${L(1)});
     l.add(${L(2)});
-    expect(l.contains(${L(1)})).toBe(true);
-    expect(l.contains(${L(99)})).toBe(false);
+    expect(l.has(${L(1)})).toBe(true);
+    expect(l.has(${L(99)})).toBe(false);
     expect(l.indexOf(${L(2)})).toBe(1);
     expect(l.indexOf(${L(99)})).toBe(-1);
   });
@@ -777,9 +777,9 @@ describe("${cls} generated", () => {
 
   it("contains and includes", () => {
     const list = ${cls}.of(${arr(1, 2)});
-    expect(list.contains(${L(1)})).toBe(true);
-    expect(list.contains(${L(2)})).toBe(true);
-    expect(list.contains(${L(99)})).toBe(false);
+    expect(list.has(${L(1)})).toBe(true);
+    expect(list.has(${L(2)})).toBe(true);
+    expect(list.has(${L(99)})).toBe(false);
     expect(list.includes(${L(1)})).toBe(true);
   });
 
@@ -1011,7 +1011,7 @@ export class ${cls} {
     }
   }
 
-  contains(value: ${T}): boolean {
+  has(value: ${T}): boolean {
     if (this.capacity === 0) return false;
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -1020,11 +1020,6 @@ export class ${cls} {
       if (Object.is(this.items[idx], value)) return true;
       idx = (idx + 1) & mask;
     }
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: ${T}): boolean {
-    return this.contains(value);
   }
 
   size(): number {
@@ -1053,7 +1048,7 @@ export class ${cls} {
   intersect(other: ${cls}): ${cls} {
     const result = new ${cls}();
     for (let i = 0; i < this.capacity; i++) {
-      if (this.occupied[i] && other.contains(this.items[i])) {
+      if (this.occupied[i] && other.has(this.items[i])) {
         result.add(this.items[i]);
       }
     }
@@ -1063,7 +1058,7 @@ export class ${cls} {
   difference(other: ${cls}): ${cls} {
     const result = new ${cls}();
     for (let i = 0; i < this.capacity; i++) {
-      if (this.occupied[i] && !other.contains(this.items[i])) {
+      if (this.occupied[i] && !other.has(this.items[i])) {
         result.add(this.items[i]);
       }
     }
@@ -1299,7 +1294,7 @@ export class ${cls} {
   }
 
   /** Returns true if the set contains the given value. */
-  contains(value: ${T}): boolean {
+  has(value: ${T}): boolean {
     if (this.capacity === 0) return false;
     const mask = this.capacity - 1;
     let idx = hash(value, this.capacity);
@@ -1310,14 +1305,9 @@ export class ${cls} {
     }
   }
 
-  /** Alias for contains. */
+  /** Alias for has. */
   includes(value: ${T}): boolean {
-    return this.contains(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: ${T}): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns the number of elements. */
@@ -1499,7 +1489,7 @@ function floatElemEdgeCases(cls) {
     it("NaN is findable", () => {
       const s = new ${cls}();
       s.add(NaN);
-      expect(s.contains(NaN)).toBe(true);
+      expect(s.has(NaN)).toBe(true);
       expect(s.size()).toBe(1);
     });
     it("NaN add duplicate does not grow", () => {
@@ -1513,7 +1503,7 @@ function floatElemEdgeCases(cls) {
       const s = new ${cls}();
       s.add(NaN);
       expect(s.remove(NaN)).toBe(true);
-      expect(s.contains(NaN)).toBe(false);
+      expect(s.has(NaN)).toBe(false);
       expect(s.size()).toBe(0);
     });
     it("-0.0 is distinct from +0.0", () => {
@@ -1521,16 +1511,16 @@ function floatElemEdgeCases(cls) {
       s.add(0.0);
       s.add(-0.0);
       expect(s.size()).toBe(2);
-      expect(s.contains(0.0)).toBe(true);
-      expect(s.contains(-0.0)).toBe(true);
+      expect(s.has(0.0)).toBe(true);
+      expect(s.has(-0.0)).toBe(true);
     });
     it("+/-Infinity are distinct elements", () => {
       const s = new ${cls}();
       s.add(Number.POSITIVE_INFINITY);
       s.add(Number.NEGATIVE_INFINITY);
       expect(s.size()).toBe(2);
-      expect(s.contains(Number.POSITIVE_INFINITY)).toBe(true);
-      expect(s.contains(Number.NEGATIVE_INFINITY)).toBe(true);
+      expect(s.has(Number.POSITIVE_INFINITY)).toBe(true);
+      expect(s.has(Number.NEGATIVE_INFINITY)).toBe(true);
     });`;
 }
 
@@ -1550,8 +1540,8 @@ describe("${cls} generated", () => {
     s.add(${L(2)});
     s.add(${L(3)});
     expect(s.size()).toBe(3);
-    expect(s.contains(${L(2)})).toBe(true);
-    expect(s.contains(${L(99)})).toBe(false);
+    expect(s.has(${L(2)})).toBe(true);
+    expect(s.has(${L(99)})).toBe(false);
   });
   it("add duplicate", () => {
     const s = new ${cls}();
@@ -1564,7 +1554,7 @@ describe("${cls} generated", () => {
     s.add(${L(1)});
     s.add(${L(2)});
     expect(s.remove(${L(1)})).toBe(true);
-    expect(s.contains(${L(1)})).toBe(false);
+    expect(s.has(${L(1)})).toBe(false);
     expect(s.remove(${L(99)})).toBe(false);
   });
   it("isEmpty and clear", () => {
@@ -1638,8 +1628,8 @@ describe("${cls} generated", () => {
   it("static of creates immutable set", () => {
     const set = ${cls}.of(${arr(1, 2, 3)});
     expect(set.size()).toBe(3);
-    expect(set.contains(${L(1)})).toBe(true);
-    expect(set.contains(${L(3)})).toBe(true);
+    expect(set.has(${L(1)})).toBe(true);
+    expect(set.has(${L(3)})).toBe(true);
   });
 
   it("fromMutable creates defensive copy", () => {
@@ -1654,9 +1644,9 @@ describe("${cls} generated", () => {
 
   it("contains and includes", () => {
     const set = ${cls}.of(${arr(1, 2)});
-    expect(set.contains(${L(1)})).toBe(true);
-    expect(set.contains(${L(2)})).toBe(true);
-    expect(set.contains(${L(99)})).toBe(false);
+    expect(set.has(${L(1)})).toBe(true);
+    expect(set.has(${L(2)})).toBe(true);
+    expect(set.has(${L(99)})).toBe(false);
     expect(set.includes(${L(1)})).toBe(true);
   });
 
@@ -1776,8 +1766,8 @@ describe("${cls} generated", () => {
     const source = ${arr(1, 2, 3)};
     const set = ${cls}.of(source);
     source[0] = ${L(99)} as any;
-    expect(set.contains(${L(1)})).toBe(true);
-    expect(set.contains(${L(99)})).toBe(false);
+    expect(set.has(${L(1)})).toBe(true);
+    expect(set.has(${L(99)})).toBe(false);
   });
 
   // Verify mutators are not available
@@ -1905,16 +1895,16 @@ export class ${cls} {
   }
 
   /** Returns true if the stack contains the given value. */
-  contains(value: ${T}): boolean {
+  has(value: ${T}): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }
 
-  /** Returns true if the stack contains the value. Alias for \`contains\`. */
+  /** Returns true if the stack contains the value. Alias for \`has\`. */
   includes(value: ${T}): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns a new stack with elements satisfying the predicate (order preserved). */
@@ -2189,16 +2179,16 @@ export class ${cls} {
   }
 
   /** Returns true if the stack contains the given value. */
-  contains(value: ${T}): boolean {
+  has(value: ${T}): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }
 
-  /** Alias for contains. */
+  /** Alias for has. */
   includes(value: ${T}): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns a new MUTABLE stack with elements satisfying the predicate. */
@@ -2426,9 +2416,9 @@ describe("${cls} generated", () => {
     const s = new ${cls}();
     s.push(${L(1)});
     s.push(${L(2)});
-    expect(s.contains(${L(1)})).toBe(true);
-    expect(s.contains(${L(2)})).toBe(true);
-    expect(s.contains(${L(99)})).toBe(false);
+    expect(s.has(${L(1)})).toBe(true);
+    expect(s.has(${L(2)})).toBe(true);
+    expect(s.has(${L(99)})).toBe(false);
   });
 
   it("includes alias for contains", () => {
@@ -2690,9 +2680,9 @@ describe("${cls} generated", () => {
 
   it("contains and includes", () => {
     const stack = ${cls}.of(${arr(1, 2)});
-    expect(stack.contains(${L(1)})).toBe(true);
-    expect(stack.contains(${L(2)})).toBe(true);
-    expect(stack.contains(${L(99)})).toBe(false);
+    expect(stack.has(${L(1)})).toBe(true);
+    expect(stack.has(${L(2)})).toBe(true);
+    expect(stack.has(${L(99)})).toBe(false);
     expect(stack.includes(${L(1)})).toBe(true);
   });
 
@@ -2905,13 +2895,8 @@ export class ${cls} {
     return this.counts.get(value) ?? 0;
   }
 
-  contains(value: ${T}): boolean {
-    return this.counts.has(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: ${T}): boolean {
-    return this.contains(value);
+    return this.counts.has(value);
   }
 
   /** Total number of items including duplicates */
@@ -3039,7 +3024,7 @@ describe("${cls} generated", () => {
     b.remove(${L(1)});
     expect(b.occurrencesOf(${L(1)})).toBe(2);
     b.removeAll(${L(1)});
-    expect(b.contains(${L(1)})).toBe(false);
+    expect(b.has(${L(1)})).toBe(false);
   });
   it("isEmpty and clear", () => {
     const b = new ${cls}();

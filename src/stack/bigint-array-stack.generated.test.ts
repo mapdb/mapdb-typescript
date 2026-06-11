@@ -40,8 +40,8 @@ describe("BigIntArrayStack generated", () => {
     const s = new BigIntArrayStack();
     s.push(1n);
     s.push(2n);
-    expect(s.contains(1n)).toBe(true);
-    expect(s.contains(3n)).toBe(false);
+    expect(s.has(1n)).toBe(true);
+    expect(s.has(3n)).toBe(false);
   });
   it("values generator", () => {
     const s = new BigIntArrayStack();

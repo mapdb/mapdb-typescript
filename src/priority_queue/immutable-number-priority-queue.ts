@@ -43,8 +43,8 @@ export class ImmutableNumberPriorityQueue {
   }
 
   /** Returns true if the queue contains the given value. O(n). */
-  contains(value: number): boolean {
-    return this.delegate.contains(value);
+  has(value: number): boolean {
+    return this.delegate.has(value);
   }
 
   /** Returns a copy of the internal heap array (NOT sorted). */

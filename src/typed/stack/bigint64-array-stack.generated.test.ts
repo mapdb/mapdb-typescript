@@ -48,9 +48,9 @@ describe("BigInt64ArrayStack generated", () => {
     const s = new BigInt64ArrayStack();
     s.push(1n);
     s.push(2n);
-    expect(s.contains(1n)).toBe(true);
-    expect(s.contains(2n)).toBe(true);
-    expect(s.contains(99n)).toBe(false);
+    expect(s.has(1n)).toBe(true);
+    expect(s.has(2n)).toBe(true);
+    expect(s.has(99n)).toBe(false);
   });
 
   it("includes alias for contains", () => {

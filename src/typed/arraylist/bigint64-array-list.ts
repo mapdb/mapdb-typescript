@@ -49,7 +49,7 @@ export class BigInt64ArrayList {
     return old;
   }
 
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }

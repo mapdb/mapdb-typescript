@@ -38,7 +38,7 @@ describe("HashSetWithStrategy", () => {
     s.add("hello"); // duplicate
     s.add("HELLO"); // duplicate
     expect(s.size).toBe(1);
-    expect(s.contains("hElLo")).toBe(true);
+    expect(s.has("hElLo")).toBe(true);
     s.remove("HELLO");
     expect(s.size).toBe(0);
   });
@@ -50,8 +50,8 @@ describe("HashSetWithStrategy", () => {
     s.add("c");
     s.add("a"); // duplicate
     expect(s.size).toBe(3);
-    expect(s.contains("a")).toBe(true);
-    expect(s.contains("z")).toBe(false);
+    expect(s.has("a")).toBe(true);
+    expect(s.has("z")).toBe(false);
   });
 
   it("by-field hashing (Person by name)", () => {
@@ -61,7 +61,7 @@ describe("HashSetWithStrategy", () => {
     s.add({ name: "Alice", age: 25, city: "LA" }); // same name = duplicate
     s.add({ name: "Bob", age: 30, city: "NYC" });
     expect(s.size).toBe(2);
-    expect(s.contains({ name: "Alice", age: 99, city: "Mars" })).toBe(true);
+    expect(s.has({ name: "Alice", age: 99, city: "Mars" })).toBe(true);
   });
 
   it("select and reject", () => {
@@ -72,13 +72,13 @@ describe("HashSetWithStrategy", () => {
 
     const sel = s.select((v) => v !== "b");
     expect(sel.size).toBe(2);
-    expect(sel.contains("a")).toBe(true);
-    expect(sel.contains("c")).toBe(true);
+    expect(sel.has("a")).toBe(true);
+    expect(sel.has("c")).toBe(true);
 
     const rej = s.reject((v) => v === "a");
     expect(rej.size).toBe(2);
-    expect(rej.contains("b")).toBe(true);
-    expect(rej.contains("c")).toBe(true);
+    expect(rej.has("b")).toBe(true);
+    expect(rej.has("c")).toBe(true);
   });
 
   it("forEach and toArray", () => {
@@ -106,7 +106,7 @@ describe("HashSetWithStrategy", () => {
     }
     expect(s.size).toBe(1000);
     for (let i = 0; i < 1000; i++) {
-      expect(s.contains(`item-${i}`)).toBe(true);
+      expect(s.has(`item-${i}`)).toBe(true);
     }
   });
 
@@ -125,8 +125,8 @@ describe("HashMapWithStrategy", () => {
     const m = new HashMapWithStrategy<string, number>(
       caseInsensitiveHashingStrategy(),
     );
-    m.put("Content-Type", 1);
-    m.put("content-type", 2); // should overwrite
+    m.set("Content-Type", 1);
+    m.set("content-type", 2); // should overwrite
     expect(m.size).toBe(1);
     expect(m.get("CONTENT-TYPE")).toBe(2);
   });
@@ -134,26 +134,26 @@ describe("HashMapWithStrategy", () => {
   it("by-field hashing (Person by name)", () => {
     const strategy = byFieldHashingStrategy<Person>((p) => p.name);
     const m = new HashMapWithStrategy<Person, string>(strategy);
-    m.put({ name: "Alice", age: 30, city: "NYC" }, "first");
-    m.put({ name: "Alice", age: 25, city: "LA" }, "second"); // overwrites by name
+    m.set({ name: "Alice", age: 30, city: "NYC" }, "first");
+    m.set({ name: "Alice", age: 25, city: "LA" }, "second"); // overwrites by name
     expect(m.size).toBe(1);
     expect(m.get({ name: "Alice", age: 0, city: "" })).toBe("second");
   });
 
   it("remove", () => {
     const m = new HashMapWithStrategy<string, number>(stringHashingStrategy());
-    m.put("a", 1);
-    m.put("b", 2);
+    m.set("a", 1);
+    m.set("b", 2);
     expect(m.remove("a")).toBe(1);
     expect(m.size).toBe(1);
-    expect(m.containsKey("a")).toBe(false);
+    expect(m.has("a")).toBe(false);
   });
 
   it("select and reject", () => {
     const m = new HashMapWithStrategy<string, number>(stringHashingStrategy());
-    m.put("a", 1);
-    m.put("b", 2);
-    m.put("c", 3);
+    m.set("a", 1);
+    m.set("b", 2);
+    m.set("c", 3);
 
     const sel = m.select((_, v) => v > 1);
     expect(sel.size).toBe(2);
@@ -164,16 +164,16 @@ describe("HashMapWithStrategy", () => {
 
   it("keysToArray and valuesToArray", () => {
     const m = new HashMapWithStrategy<string, number>(stringHashingStrategy());
-    m.put("x", 10);
-    m.put("y", 20);
+    m.set("x", 10);
+    m.set("y", 20);
     expect(m.keysToArray().sort()).toEqual(["x", "y"]);
     expect(m.valuesToArray().sort()).toEqual([10, 20]);
   });
 
   it("Symbol.iterator", () => {
     const m = new HashMapWithStrategy<string, number>(stringHashingStrategy());
-    m.put("a", 1);
-    m.put("b", 2);
+    m.set("a", 1);
+    m.set("b", 2);
     const entries = [...m];
     expect(entries.sort()).toEqual([
       ["a", 1],
@@ -183,7 +183,7 @@ describe("HashMapWithStrategy", () => {
 
   it("clear", () => {
     const m = new HashMapWithStrategy<string, number>(stringHashingStrategy());
-    m.put("a", 1);
+    m.set("a", 1);
     m.clear();
     expect(m.isEmpty()).toBe(true);
   });
@@ -192,14 +192,14 @@ describe("HashMapWithStrategy", () => {
     const m = new HashMapWithStrategy<string, number | undefined>(
       stringHashingStrategy(),
     );
-    m.put("present", undefined);
+    m.set("present", undefined);
 
     // Key is present but mapped to undefined.
-    expect(m.containsKey("present")).toBe(true);
+    expect(m.has("present")).toBe(true);
     expect(m.has("present")).toBe(true);
 
     // Absent key.
-    expect(m.containsKey("absent")).toBe(false);
+    expect(m.has("absent")).toBe(false);
     expect(m.has("absent")).toBe(false);
 
     // get() must remain unchanged: undefined for both.
@@ -207,10 +207,10 @@ describe("HashMapWithStrategy", () => {
     expect(m.get("absent")).toBeUndefined();
 
     // After removing a real value, containsKey is false.
-    m.put("real", 42);
-    expect(m.containsKey("real")).toBe(true);
+    m.set("real", 42);
+    expect(m.has("real")).toBe(true);
     m.remove("real");
-    expect(m.containsKey("real")).toBe(false);
+    expect(m.has("real")).toBe(false);
   });
 });
 
@@ -219,20 +219,20 @@ describe("HashMapWithStrategy", () => {
 describe("TreeMap", () => {
   it("basic put/get with natural comparator", () => {
     const m = new TreeMap<string, number>(naturalComparator());
-    m.put("banana", 2);
-    m.put("apple", 1);
-    m.put("cherry", 3);
+    m.set("banana", 2);
+    m.set("apple", 1);
+    m.set("cherry", 3);
     expect(m.size).toBe(3);
     expect(m.get("apple")).toBe(1);
-    expect(m.containsKey("banana")).toBe(true);
-    expect(m.containsKey("dragonfruit")).toBe(false);
+    expect(m.has("banana")).toBe(true);
+    expect(m.has("dragonfruit")).toBe(false);
   });
 
   it("sorted iteration order", () => {
     const m = new TreeMap<string, number>(naturalComparator());
-    m.put("banana", 2);
-    m.put("apple", 1);
-    m.put("cherry", 3);
+    m.set("banana", 2);
+    m.set("apple", 1);
+    m.set("cherry", 3);
 
     const keys: string[] = [];
     m.forEach((k) => keys.push(k));
@@ -241,15 +241,15 @@ describe("TreeMap", () => {
 
   it("overwrite returns old value", () => {
     const m = new TreeMap<number, string>(naturalComparator());
-    m.put(1, "one");
-    const old = m.put(1, "ONE");
+    m.set(1, "one");
+    const old = m.set(1, "ONE");
     expect(old).toBe("one");
     expect(m.size).toBe(1);
   });
 
   it("remove many elements", () => {
     const m = new TreeMap<number, number>(naturalComparator());
-    for (let i = 0; i < 100; i++) m.put(i, i * 10);
+    for (let i = 0; i < 100; i++) m.set(i, i * 10);
     for (let i = 0; i < 100; i += 2) m.remove(i);
     expect(m.size).toBe(50);
     m.forEach((k) => {
@@ -259,18 +259,18 @@ describe("TreeMap", () => {
 
   it("min and max", () => {
     const m = new TreeMap<number, string>(naturalComparator());
-    m.put(5, "five");
-    m.put(1, "one");
-    m.put(9, "nine");
+    m.set(5, "five");
+    m.set(1, "one");
+    m.set(9, "nine");
     expect(m.min()).toEqual({ key: 1, value: "one" });
     expect(m.max()).toEqual({ key: 9, value: "nine" });
   });
 
   it("reverse comparator", () => {
     const m = new TreeMap<number, number>(reverseComparator());
-    m.put(1, 10);
-    m.put(3, 30);
-    m.put(2, 20);
+    m.set(1, 10);
+    m.set(3, 30);
+    m.set(2, 20);
 
     const keys: number[] = [];
     m.forEach((k) => keys.push(k));
@@ -281,9 +281,9 @@ describe("TreeMap", () => {
     const m = new TreeMap<Person, string>(
       comparatorByField((p: Person) => p.name),
     );
-    m.put({ name: "Charlie", age: 30, city: "NYC" }, "c");
-    m.put({ name: "Alice", age: 25, city: "LA" }, "a");
-    m.put({ name: "Bob", age: 35, city: "SF" }, "b");
+    m.set({ name: "Charlie", age: 30, city: "NYC" }, "c");
+    m.set({ name: "Alice", age: 25, city: "LA" }, "a");
+    m.set({ name: "Bob", age: 35, city: "SF" }, "b");
 
     const names: string[] = [];
     m.forEach((k) => names.push(k.name));
@@ -292,9 +292,9 @@ describe("TreeMap", () => {
 
   it("Symbol.iterator yields sorted pairs", () => {
     const m = new TreeMap<number, string>(naturalComparator());
-    m.put(3, "c");
-    m.put(1, "a");
-    m.put(2, "b");
+    m.set(3, "c");
+    m.set(1, "a");
+    m.set(2, "b");
     const entries = [...m];
     expect(entries).toEqual([
       [1, "a"],
@@ -305,8 +305,8 @@ describe("TreeMap", () => {
 
   it("clear", () => {
     const m = new TreeMap<number, number>(naturalComparator());
-    m.put(1, 1);
-    m.put(2, 2);
+    m.set(1, 1);
+    m.set(2, 2);
     m.clear();
     expect(m.isEmpty()).toBe(true);
     expect(m.size).toBe(0);
@@ -329,8 +329,8 @@ describe("TreeSet", () => {
     s.add(2);
     s.add(1); // duplicate
     expect(s.size).toBe(3);
-    expect(s.contains(1)).toBe(true);
-    expect(s.contains(4)).toBe(false);
+    expect(s.has(1)).toBe(true);
+    expect(s.has(4)).toBe(false);
   });
 
   it("sorted iteration", () => {
@@ -355,10 +355,10 @@ describe("TreeSet", () => {
     for (let i = 0; i < 50; i++) s.add(i);
     for (let i = 0; i < 50; i += 2) s.remove(i);
     expect(s.size).toBe(25);
-    expect(s.contains(0)).toBe(false);
-    expect(s.contains(2)).toBe(false);
-    expect(s.contains(1)).toBe(true);
-    expect(s.contains(3)).toBe(true);
+    expect(s.has(0)).toBe(false);
+    expect(s.has(2)).toBe(false);
+    expect(s.has(1)).toBe(true);
+    expect(s.has(3)).toBe(true);
   });
 
   it("select and reject", () => {

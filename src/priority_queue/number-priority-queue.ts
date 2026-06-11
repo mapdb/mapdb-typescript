@@ -63,7 +63,7 @@ export class NumberPriorityQueue {
   }
 
   /** Returns true if the heap contains the given value. O(n). */
-  contains(value: number): boolean {
+  has(value: number): boolean {
     for (let i = 0; i < this.data.length; i++) {
       if (Object.is(this.data[i], value)) return true;
     }

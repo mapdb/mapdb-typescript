@@ -68,8 +68,8 @@ describe("totalCmpNumber (IEEE 754 total order)", () => {
 describe("NumberNumberTreeMap NaN/±0 keys (Bug 1)", () => {
   it("a NaN key is a distinct insert, not an overwrite (the runtime repro)", () => {
     const m = new NumberNumberTreeMap();
-    m.put(1, 100);
-    m.put(NaN, 5);
+    m.set(1, 100);
+    m.set(NaN, 5);
     // Before the fix: get(1) === 5, size() === 1 (NaN overwrote key 1).
     expect(m.get(1)).toBe(100);
     expect(m.size()).toBe(2);
@@ -78,19 +78,19 @@ describe("NumberNumberTreeMap NaN/±0 keys (Bug 1)", () => {
 
   it("NaN is findable and does not corrupt unrelated negative keys", () => {
     const m = new NumberNumberTreeMap();
-    m.put(-1, 10);
-    m.put(-100, 20);
-    m.put(NaN, 30);
+    m.set(-1, 10);
+    m.set(-100, 20);
+    m.set(NaN, 30);
     expect(m.get(-1)).toBe(10);
     expect(m.get(-100)).toBe(20);
-    expect(m.containsKey(NaN)).toBe(true);
+    expect(m.has(NaN)).toBe(true);
     expect(m.size()).toBe(3);
   });
 
   it("-0 and +0 are distinct keys", () => {
     const m = new NumberNumberTreeMap();
-    m.put(0, 1);
-    m.put(-0, 2);
+    m.set(0, 1);
+    m.set(-0, 2);
     expect(m.size()).toBe(2);
     expect(m.get(0)).toBe(1);
     expect(m.get(-0)).toBe(2);
@@ -98,7 +98,7 @@ describe("NumberNumberTreeMap NaN/±0 keys (Bug 1)", () => {
 
   it("iterates keys in total order", () => {
     const m = new NumberNumberTreeMap();
-    for (const k of [3, -1, NaN, 0, -0, 2]) m.put(k, 0);
+    for (const k of [3, -1, NaN, 0, -0, 2]) m.set(k, 0);
     const keys = [...m.keys()].map((x) => (Object.is(x, -0) ? "-0" : x));
     expect(keys).toEqual([-1, "-0", 0, 2, 3, NaN]);
   });
@@ -107,8 +107,8 @@ describe("NumberNumberTreeMap NaN/±0 keys (Bug 1)", () => {
 describe("NumberBigIntTreeMap NaN key (Bug 1, number-keyed side)", () => {
   it("NaN key does not overwrite an existing number key", () => {
     const m = new NumberBigIntTreeMap();
-    m.put(1, 100n);
-    m.put(NaN, 5n);
+    m.set(1, 100n);
+    m.set(NaN, 5n);
     expect(m.get(1)).toBe(100n);
     expect(m.size()).toBe(2);
     expect(m.get(NaN)).toBe(5n);
@@ -126,15 +126,15 @@ describe("NumberTreeSet NaN/±0 (Bug 2)", () => {
     // Before the fix: add(NaN) returned false (NaN swallowed).
     expect(s.add(NaN)).toBe(true);
     expect(s.size()).toBe(2);
-    expect(s.contains(NaN)).toBe(true);
-    expect(s.contains(5)).toBe(true);
+    expect(s.has(NaN)).toBe(true);
+    expect(s.has(5)).toBe(true);
   });
 
   it("contains(NaN) is false on a set without NaN", () => {
     const s = new NumberTreeSet();
     s.add(1);
     s.add(2);
-    expect(s.contains(NaN)).toBe(false);
+    expect(s.has(NaN)).toBe(false);
   });
 
   it("-0 and +0 are distinct members", () => {
@@ -151,7 +151,7 @@ describe("NumberTreeBag NaN/±0 (Bug 2)", () => {
     b.add(5);
     b.add(NaN);
     b.add(NaN);
-    expect(b.contains(NaN)).toBe(true);
+    expect(b.has(NaN)).toBe(true);
     expect(b.occurrencesOf(NaN)).toBe(2);
   });
 
@@ -190,14 +190,14 @@ describe("NumberPriorityQueue NaN/±0 (Bug 3)", () => {
     const q = new NumberPriorityQueue();
     q.push(NaN);
     q.push(2);
-    expect(q.contains(NaN)).toBe(true);
+    expect(q.has(NaN)).toBe(true);
   });
 
   it("contains distinguishes -0 from +0", () => {
     const q = new NumberPriorityQueue();
     q.push(-0);
-    expect(q.contains(-0)).toBe(true);
-    expect(q.contains(0)).toBe(false);
+    expect(q.has(-0)).toBe(true);
+    expect(q.has(0)).toBe(false);
   });
 });
 
@@ -216,7 +216,7 @@ describe("bigint hash spread (Bug 4)", () => {
   it("BigIntBigIntHashMap stores/retrieves high-bit-only keys", () => {
     const m = new BigIntBigIntHashMap();
     const keys = keysHighBitsOnly(2000);
-    for (const k of keys) m.put(k, k + 1n);
+    for (const k of keys) m.set(k, k + 1n);
     expect(m.size()).toBe(2000);
     for (const k of keys) expect(m.get(k)).toBe(k + 1n);
   });
@@ -246,7 +246,7 @@ describe("NumberHashBag ±0 distinct (Bug 5)", () => {
   it("NaN is findable", () => {
     const b = new NumberHashBag();
     b.add(NaN);
-    expect(b.contains(NaN)).toBe(true);
+    expect(b.has(NaN)).toBe(true);
     expect(b.occurrencesOf(NaN)).toBe(1);
   });
 
@@ -262,8 +262,8 @@ describe("NumberHashBag ±0 distinct (Bug 5)", () => {
 describe("NumberObjectHashMap ±0 distinct (Bug 5)", () => {
   it("-0 and +0 are distinct keys with their own values", () => {
     const m = new NumberObjectHashMap<string>();
-    m.put(0, "pos");
-    m.put(-0, "neg");
+    m.set(0, "pos");
+    m.set(-0, "neg");
     expect(m.size()).toBe(2);
     expect(m.get(0)).toBe("pos");
     expect(m.get(-0)).toBe("neg");
@@ -271,14 +271,14 @@ describe("NumberObjectHashMap ±0 distinct (Bug 5)", () => {
 
   it("NaN key is findable", () => {
     const m = new NumberObjectHashMap<string>();
-    m.put(NaN, "nan");
+    m.set(NaN, "nan");
     expect(m.get(NaN)).toBe("nan");
-    expect(m.containsKey(NaN)).toBe(true);
+    expect(m.has(NaN)).toBe(true);
   });
 
   it("entries preserve the -0 sign", () => {
     const m = new NumberObjectHashMap<number>();
-    m.put(-0, 7);
+    m.set(-0, 7);
     const [[k]] = [...m.entries()];
     expect(Object.is(k, -0)).toBe(true);
   });
@@ -287,8 +287,8 @@ describe("NumberObjectHashMap ±0 distinct (Bug 5)", () => {
 describe("NumberNumberListMultimap ±0 key distinct (Bug 5)", () => {
   it("-0 and +0 are distinct keys", () => {
     const mm = new NumberNumberListMultimap();
-    mm.put(0, 1);
-    mm.put(-0, 2);
+    mm.set(0, 1);
+    mm.set(-0, 2);
     expect(mm.keysCount).toBe(2);
     expect(mm.get(0)).toEqual([1]);
     expect(mm.get(-0)).toEqual([2]);
@@ -296,14 +296,14 @@ describe("NumberNumberListMultimap ±0 key distinct (Bug 5)", () => {
 
   it("NaN key works", () => {
     const mm = new NumberNumberListMultimap();
-    mm.put(NaN, 9);
-    expect(mm.containsKey(NaN)).toBe(true);
+    mm.set(NaN, 9);
+    expect(mm.has(NaN)).toBe(true);
     expect(mm.get(NaN)).toEqual([9]);
   });
 
   it("iteration reproduces the original -0 key", () => {
     const mm = new NumberNumberListMultimap();
-    mm.put(-0, 1);
+    mm.set(-0, 1);
     const [[k]] = [...mm];
     expect(Object.is(k, -0)).toBe(true);
   });
@@ -318,7 +318,7 @@ describe("load factor strictly < 0.75 (Bug 6)", () => {
     // 12 / 16 === 0.75; the table must already have grown before storing the
     // 12th entry, so no occupied bucket sits exactly at the 0.75 ceiling.
     const m = new NumberNumberHashMap();
-    for (let i = 0; i < 12; i++) m.put(i, i);
+    for (let i = 0; i < 12; i++) m.set(i, i);
     expect(m.size()).toBe(12);
     for (let i = 0; i < 12; i++) expect(m.get(i)).toBe(i);
   });
@@ -334,6 +334,6 @@ describe("NaN payload hash canonicalization (f64HashSeed)", () => {
     expect(s.add(nan1)).toBe(true);
     expect(s.add(nan2)).toBe(false); // equal under Object.is -> no duplicate
     expect(s.size()).toBe(1);
-    expect(s.contains(NaN)).toBe(true); // canonical NaN finds it
+    expect(s.has(NaN)).toBe(true); // canonical NaN finds it
   });
 });

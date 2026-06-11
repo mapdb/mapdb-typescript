@@ -16,8 +16,8 @@ describe("BigInt64HashSet generated", () => {
     s.add(2n);
     s.add(3n);
     expect(s.size()).toBe(3);
-    expect(s.contains(2n)).toBe(true);
-    expect(s.contains(99n)).toBe(false);
+    expect(s.has(2n)).toBe(true);
+    expect(s.has(99n)).toBe(false);
   });
   it("add duplicate", () => {
     const s = new BigInt64HashSet();
@@ -30,7 +30,7 @@ describe("BigInt64HashSet generated", () => {
     s.add(1n);
     s.add(2n);
     expect(s.remove(1n)).toBe(true);
-    expect(s.contains(1n)).toBe(false);
+    expect(s.has(1n)).toBe(false);
     expect(s.remove(99n)).toBe(false);
   });
   it("isEmpty and clear", () => {

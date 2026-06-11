@@ -22,8 +22,8 @@ describe("ImmutableNumberNumberHashMap generated", () => {
   });
   it("containsKey", () => {
     const im = ImmutableNumberNumberHashMap.of([[1, 1]]);
-    expect(im.containsKey(1)).toBe(true);
-    expect(im.containsKey(99)).toBe(false);
+    expect(im.has(1)).toBe(true);
+    expect(im.has(99)).toBe(false);
   });
   it("select", () => {
     const im = ImmutableNumberNumberHashMap.of([
@@ -35,7 +35,7 @@ describe("ImmutableNumberNumberHashMap generated", () => {
   });
   it("toMutable does not affect immutable", () => {
     const im = ImmutableNumberNumberHashMap.of([[1, 1]]);
-    im.toMutable().put(2, 2);
+    im.toMutable().set(2, 2);
     expect(im.size()).toBe(1);
   });
 });

@@ -28,13 +28,8 @@ export class ImmutableNumberHashSet implements MapDbSet<number> {
   }
 
   /** Returns true if the set contains the given value. */
-  contains(value: number): boolean {
-    return this.delegate.contains(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: number): boolean {
-    return this.contains(value);
+    return this.delegate.has(value);
   }
 
   /** Returns the number of elements. */
@@ -120,7 +115,7 @@ export class ImmutableNumberHashSet implements MapDbSet<number> {
   intersect(other: ImmutableNumberHashSet): ImmutableNumberHashSet {
     const result = new NumberHashSet();
     for (const v of this.delegate.values()) {
-      if (other.contains(v)) {
+      if (other.has(v)) {
         result.add(v);
       }
     }
@@ -131,7 +126,7 @@ export class ImmutableNumberHashSet implements MapDbSet<number> {
   difference(other: ImmutableNumberHashSet): ImmutableNumberHashSet {
     const result = new NumberHashSet();
     for (const v of this.delegate.values()) {
-      if (!other.contains(v)) {
+      if (!other.has(v)) {
         result.add(v);
       }
     }

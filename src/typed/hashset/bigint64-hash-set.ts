@@ -60,7 +60,7 @@ export class BigInt64HashSet {
     }
   }
 
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     if (this.capacity === 0) return false;
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -69,11 +69,6 @@ export class BigInt64HashSet {
       if (Object.is(this.items[idx], value)) return true;
       idx = (idx + 1) & mask;
     }
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: bigint): boolean {
-    return this.contains(value);
   }
 
   size(): number {
@@ -102,7 +97,7 @@ export class BigInt64HashSet {
   intersect(other: BigInt64HashSet): BigInt64HashSet {
     const result = new BigInt64HashSet();
     for (let i = 0; i < this.capacity; i++) {
-      if (this.occupied[i] && other.contains(this.items[i])) {
+      if (this.occupied[i] && other.has(this.items[i])) {
         result.add(this.items[i]);
       }
     }
@@ -112,7 +107,7 @@ export class BigInt64HashSet {
   difference(other: BigInt64HashSet): BigInt64HashSet {
     const result = new BigInt64HashSet();
     for (let i = 0; i < this.capacity; i++) {
-      if (this.occupied[i] && !other.contains(this.items[i])) {
+      if (this.occupied[i] && !other.has(this.items[i])) {
         result.add(this.items[i]);
       }
     }

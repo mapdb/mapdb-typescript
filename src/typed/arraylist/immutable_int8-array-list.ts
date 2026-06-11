@@ -60,16 +60,16 @@ export class ImmutableInt8ArrayList {
   }
 
   /** Returns true if the list contains the given value. */
-  contains(value: number): boolean {
+  has(value: number): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }
 
-  /** Alias for contains. */
+  /** Alias for has. */
   includes(value: number): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns the index of the first occurrence, or -1. */

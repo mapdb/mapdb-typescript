@@ -51,8 +51,8 @@ describe("NumberPriorityQueue generated", () => {
 
   it("contains", () => {
     const q = NumberPriorityQueue.of([1, 2, 3]);
-    expect(q.contains(2)).toBe(true);
-    expect(q.contains(99)).toBe(false);
+    expect(q.has(2)).toBe(true);
+    expect(q.has(99)).toBe(false);
   });
 
   it("toArray returns heap order", () => {

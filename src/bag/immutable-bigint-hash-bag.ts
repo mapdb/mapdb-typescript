@@ -33,13 +33,8 @@ export class ImmutableBigIntHashBag implements MapDbBag<bigint> {
   }
 
   /** Returns true if the bag contains at least one occurrence of the value. */
-  contains(value: bigint): boolean {
-    return this.delegate.contains(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: bigint): boolean {
-    return this.contains(value);
+    return this.delegate.has(value);
   }
 
   /** Returns the total number of elements (including duplicates). */

@@ -15,8 +15,8 @@ describe("NumberHashSet generated", () => {
     s.add(2);
     s.add(3);
     expect(s.size()).toBe(3);
-    expect(s.contains(2)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(2)).toBe(true);
+    expect(s.has(99)).toBe(false);
   });
   it("add duplicate", () => {
     const s = new NumberHashSet();
@@ -31,7 +31,7 @@ describe("NumberHashSet generated", () => {
   it("remove", () => {
     const s = NumberHashSet.of([1, 2, 3]);
     expect(s.remove(2)).toBe(true);
-    expect(s.contains(2)).toBe(false);
+    expect(s.has(2)).toBe(false);
     expect(s.remove(99)).toBe(false);
   });
   it("clear and isEmpty", () => {
@@ -76,7 +76,7 @@ describe("NumberHashSet generated", () => {
     it("NaN is findable", () => {
       const s = new NumberHashSet();
       s.add(NaN);
-      expect(s.contains(NaN)).toBe(true);
+      expect(s.has(NaN)).toBe(true);
       expect(s.size()).toBe(1);
     });
     it("NaN add duplicate does not grow", () => {
@@ -90,7 +90,7 @@ describe("NumberHashSet generated", () => {
       const s = new NumberHashSet();
       s.add(NaN);
       expect(s.remove(NaN)).toBe(true);
-      expect(s.contains(NaN)).toBe(false);
+      expect(s.has(NaN)).toBe(false);
       expect(s.size()).toBe(0);
     });
     it("-0.0 is distinct from +0.0", () => {
@@ -98,16 +98,16 @@ describe("NumberHashSet generated", () => {
       s.add(0.0);
       s.add(-0.0);
       expect(s.size()).toBe(2);
-      expect(s.contains(0.0)).toBe(true);
-      expect(s.contains(-0.0)).toBe(true);
+      expect(s.has(0.0)).toBe(true);
+      expect(s.has(-0.0)).toBe(true);
     });
     it("+/-Infinity are distinct elements", () => {
       const s = new NumberHashSet();
       s.add(Number.POSITIVE_INFINITY);
       s.add(Number.NEGATIVE_INFINITY);
       expect(s.size()).toBe(2);
-      expect(s.contains(Number.POSITIVE_INFINITY)).toBe(true);
-      expect(s.contains(Number.NEGATIVE_INFINITY)).toBe(true);
+      expect(s.has(Number.POSITIVE_INFINITY)).toBe(true);
+      expect(s.has(Number.NEGATIVE_INFINITY)).toBe(true);
     });
   });
 });

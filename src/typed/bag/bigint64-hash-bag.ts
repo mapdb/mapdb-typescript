@@ -60,13 +60,8 @@ export class BigInt64HashBag {
     return this.counts.get(value) ?? 0;
   }
 
-  contains(value: bigint): boolean {
-    return this.counts.has(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: bigint): boolean {
-    return this.contains(value);
+    return this.counts.has(value);
   }
 
   /** Total number of items including duplicates */

@@ -60,16 +60,16 @@ export class ImmutableBigInt64ArrayList {
   }
 
   /** Returns true if the list contains the given value. */
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }
 
-  /** Alias for contains. */
+  /** Alias for has. */
   includes(value: bigint): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns the index of the first occurrence, or -1. */

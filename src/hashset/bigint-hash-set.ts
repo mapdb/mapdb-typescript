@@ -79,7 +79,7 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
   }
 
   /** Returns true if the set contains the given value. */
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     const cap = this.data.length;
     if (cap === 0) return false;
     const mask = cap - 1;
@@ -90,11 +90,6 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
       if (Object.is(this.data[idx], value)) return true;
       idx = (idx + 1) & mask;
     }
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: bigint): boolean {
-    return this.contains(value);
   }
 
   /** Returns the number of elements. */
@@ -130,7 +125,7 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
   intersect(other: BigIntHashSet): BigIntHashSet {
     const result = new BigIntHashSet();
     for (const v of this.values()) {
-      if (other.contains(v)) {
+      if (other.has(v)) {
         result.add(v);
       }
     }
@@ -141,7 +136,7 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
   difference(other: BigIntHashSet): BigIntHashSet {
     const result = new BigIntHashSet();
     for (const v of this.values()) {
-      if (!other.contains(v)) {
+      if (!other.has(v)) {
         result.add(v);
       }
     }
@@ -233,7 +228,7 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
 
   /** Returns true if the set contains the value. Alias for `contains`. */
   includes(value: bigint): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Makes the set iterable with for-of loops. */

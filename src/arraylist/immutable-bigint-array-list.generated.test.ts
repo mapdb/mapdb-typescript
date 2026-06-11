@@ -17,8 +17,8 @@ describe("ImmutableBigIntArrayList generated", () => {
   });
   it("contains", () => {
     const im = ImmutableBigIntArrayList.of([1n, 2n]);
-    expect(im.contains(1n)).toBe(true);
-    expect(im.contains(99n)).toBe(false);
+    expect(im.has(1n)).toBe(true);
+    expect(im.has(99n)).toBe(false);
   });
   it("select and reject", () => {
     const im = ImmutableBigIntArrayList.of([1n, 2n, 3n, 4n, 5n]);

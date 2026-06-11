@@ -61,9 +61,9 @@ describe("ImmutableFloat64ArrayStack generated", () => {
 
   it("contains and includes", () => {
     const stack = ImmutableFloat64ArrayStack.of([1, 2]);
-    expect(stack.contains(1)).toBe(true);
-    expect(stack.contains(2)).toBe(true);
-    expect(stack.contains(99)).toBe(false);
+    expect(stack.has(1)).toBe(true);
+    expect(stack.has(2)).toBe(true);
+    expect(stack.has(99)).toBe(false);
     expect(stack.includes(1)).toBe(true);
   });
 

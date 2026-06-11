@@ -51,8 +51,8 @@ describe("BigIntPriorityQueue generated", () => {
 
   it("contains", () => {
     const q = BigIntPriorityQueue.of([1n, 2n, 3n]);
-    expect(q.contains(2n)).toBe(true);
-    expect(q.contains(99n)).toBe(false);
+    expect(q.has(2n)).toBe(true);
+    expect(q.has(99n)).toBe(false);
   });
 
   it("toArray returns heap order", () => {

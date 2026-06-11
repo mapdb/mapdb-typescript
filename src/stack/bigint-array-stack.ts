@@ -82,7 +82,7 @@ export class BigIntArrayStack implements MapDbMutableStack<bigint> {
   }
 
   /** Returns true if the stack contains the given value. */
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
@@ -171,7 +171,7 @@ export class BigIntArrayStack implements MapDbMutableStack<bigint> {
 
   /** Returns true if the stack contains the value. Alias for `contains`. */
   includes(value: bigint): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Makes the stack iterable with for-of loops. Yields top to bottom. */

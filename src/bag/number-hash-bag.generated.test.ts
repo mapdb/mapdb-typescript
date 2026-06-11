@@ -31,7 +31,7 @@ describe("NumberHashBag generated", () => {
   it("removeAll", () => {
     const b = NumberHashBag.of([1, 1, 2]);
     b.removeAll(1);
-    expect(b.contains(1)).toBe(false);
+    expect(b.has(1)).toBe(false);
   });
   it("clear and isEmpty", () => {
     const b = NumberHashBag.of([1]);

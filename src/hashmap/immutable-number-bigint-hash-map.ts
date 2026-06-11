@@ -19,7 +19,7 @@ export class ImmutableNumberBigIntHashMap implements MapDbMap<number, bigint> {
     // Copy all entries into a fresh mutable map so the caller cannot mutate our data.
     this.delegate = new NumberBigIntHashMap();
     for (const [k, v] of source.entries()) {
-      this.delegate.put(k, v);
+      this.delegate.set(k, v);
     }
   }
 
@@ -27,7 +27,7 @@ export class ImmutableNumberBigIntHashMap implements MapDbMap<number, bigint> {
   static of(pairs: [number, bigint][]): ImmutableNumberBigIntHashMap {
     const m = new NumberBigIntHashMap(pairs.length * 2);
     for (const [k, v] of pairs) {
-      m.put(k, v);
+      m.set(k, v);
     }
     return new ImmutableNumberBigIntHashMap(m);
   }
@@ -43,13 +43,8 @@ export class ImmutableNumberBigIntHashMap implements MapDbMap<number, bigint> {
   }
 
   /** Returns true if the map contains the key. */
-  containsKey(key: number): boolean {
-    return this.delegate.containsKey(key);
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: number): boolean {
-    return this.containsKey(key);
+    return this.delegate.has(key);
   }
 
   /** Returns the number of entries. */
@@ -131,7 +126,7 @@ export class ImmutableNumberBigIntHashMap implements MapDbMap<number, bigint> {
   toMutable(): NumberBigIntHashMap {
     const m = new NumberBigIntHashMap();
     for (const [k, v] of this.delegate.entries()) {
-      m.put(k, v);
+      m.set(k, v);
     }
     return m;
   }

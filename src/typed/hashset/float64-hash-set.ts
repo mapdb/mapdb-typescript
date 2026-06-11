@@ -60,7 +60,7 @@ export class Float64HashSet {
     }
   }
 
-  contains(value: number): boolean {
+  has(value: number): boolean {
     if (this.capacity === 0) return false;
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -69,11 +69,6 @@ export class Float64HashSet {
       if (Object.is(this.items[idx], value)) return true;
       idx = (idx + 1) & mask;
     }
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: number): boolean {
-    return this.contains(value);
   }
 
   size(): number {
@@ -102,7 +97,7 @@ export class Float64HashSet {
   intersect(other: Float64HashSet): Float64HashSet {
     const result = new Float64HashSet();
     for (let i = 0; i < this.capacity; i++) {
-      if (this.occupied[i] && other.contains(this.items[i])) {
+      if (this.occupied[i] && other.has(this.items[i])) {
         result.add(this.items[i]);
       }
     }
@@ -112,7 +107,7 @@ export class Float64HashSet {
   difference(other: Float64HashSet): Float64HashSet {
     const result = new Float64HashSet();
     for (let i = 0; i < this.capacity; i++) {
-      if (this.occupied[i] && !other.contains(this.items[i])) {
+      if (this.occupied[i] && !other.has(this.items[i])) {
         result.add(this.items[i]);
       }
     }

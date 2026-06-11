@@ -12,59 +12,59 @@ import { Int16BigInt64HashMap } from "./int16-bigint64-hash-map.js";
 describe("Int16BigInt64HashMap generated", () => {
   it("put and get", () => {
     const m = new Int16BigInt64HashMap();
-    m.put(1, 1n);
-    m.put(2, 2n);
-    m.put(3, 3n);
+    m.set(1, 1n);
+    m.set(2, 2n);
+    m.set(3, 3n);
     expect(m.get(1)).toBe(1n);
     expect(m.get(99)).toBeUndefined();
     expect(m.size()).toBe(3);
   });
   it("put overwrite", () => {
     const m = new Int16BigInt64HashMap();
-    m.put(1, 1n);
-    const old = m.put(1, 2n);
+    m.set(1, 1n);
+    const old = m.set(1, 2n);
     expect(old).toBe(1n);
     expect(m.get(1)).toBe(2n);
   });
   it("remove", () => {
     const m = new Int16BigInt64HashMap();
-    m.put(1, 1n);
-    m.put(2, 2n);
+    m.set(1, 1n);
+    m.set(2, 2n);
     expect(m.remove(1)).toBe(1n);
     expect(m.size()).toBe(1);
-    expect(m.containsKey(1)).toBe(false);
+    expect(m.has(1)).toBe(false);
   });
   it("getOrDefault", () => {
     const m = new Int16BigInt64HashMap();
-    m.put(1, 1n);
+    m.set(1, 1n);
     expect(m.getOrDefault(1, 3n)).toBe(1n);
     expect(m.getOrDefault(99, 3n)).toBe(3n);
   });
   it("isEmpty and clear", () => {
     const m = new Int16BigInt64HashMap();
     expect(m.isEmpty()).toBe(true);
-    m.put(1, 1n);
+    m.set(1, 1n);
     expect(m.isEmpty()).toBe(false);
     m.clear();
     expect(m.isEmpty()).toBe(true);
   });
   it("select", () => {
     const m = new Int16BigInt64HashMap();
-    m.put(1, 1n);
-    m.put(2, 2n);
-    m.put(3, 3n);
+    m.set(1, 1n);
+    m.set(2, 2n);
+    m.set(3, 3n);
     expect(m.select((_k, v) => v > 1n).size()).toBe(2);
   });
   it("anySatisfy / allSatisfy", () => {
     const m = new Int16BigInt64HashMap();
-    m.put(1, 1n);
-    m.put(2, 2n);
+    m.set(1, 1n);
+    m.set(2, 2n);
     expect(m.anySatisfy((_k, v) => v === 2n)).toBe(true);
     expect(m.allSatisfy((_k, v) => v > 0n)).toBe(true);
   });
   it("resize", () => {
     const m = new Int16BigInt64HashMap();
-    for (let i = 0; i < 100; i += 1) m.put(i, BigInt(i) * 10n);
+    for (let i = 0; i < 100; i += 1) m.set(i, BigInt(i) * 10n);
     expect(m.size()).toBe(100);
   });
   it("memoryBytes", () => {
@@ -73,7 +73,7 @@ describe("Int16BigInt64HashMap generated", () => {
   });
   it("toString", () => {
     const m = new Int16BigInt64HashMap();
-    m.put(1, 1n);
+    m.set(1, 1n);
     expect(m.toString()).not.toBe("");
   });
 });

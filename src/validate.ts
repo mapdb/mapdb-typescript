@@ -231,7 +231,7 @@ function applyOperation(coll: Collection, op: Operation, f32Mode: boolean): void
         coll instanceof Int32Int32HashMap ||
         coll instanceof NumberNumberTreeMap
       ) {
-        coll.put(k(), v());
+        coll.set(k(), v());
       }
       break;
     case "add":
@@ -358,14 +358,14 @@ function evaluateF32Assertion(key: string, coll: Collection): unknown {
       coll instanceof NumberNumberHashMap ||
       coll instanceof NumberNumberTreeMap
     ) {
-      return coll.containsKey(probe);
+      return coll.has(probe);
     }
     if (
       coll instanceof NumberHashSet ||
       coll instanceof NumberTreeSet ||
       coll instanceof NumberArrayList
     ) {
-      return coll.contains(probe);
+      return coll.has(probe);
     }
   }
   // Output convention for f32 arrays mirrors validate.rs exactly: keys
@@ -547,7 +547,7 @@ function evaluateAssertion(
         coll instanceof Int32Int32HashMap ||
         coll instanceof NumberNumberTreeMap
       ) {
-        return coll.containsKey(n);
+        return coll.has(n);
       }
       if (
         coll instanceof NumberHashSet ||
@@ -556,7 +556,7 @@ function evaluateAssertion(
         coll instanceof NumberArrayList ||
         coll instanceof NumberArrayStack
       ) {
-        return coll.contains(n);
+        return coll.has(n);
       }
       throw new Error(
         `contains_N not supported for ${(coll as Collection).constructor.name}`,
@@ -1056,7 +1056,7 @@ function runI64HashMap(scenario: Scenario): void {
   for (const op of scenario.operations) {
     switch (op.op) {
       case "put":
-        m.put(parseI64Operand(op.key), op.value as number);
+        m.set(parseI64Operand(op.key), op.value as number);
         break;
       case "remove":
         m.remove(parseI64Operand(op.key));
@@ -1098,7 +1098,7 @@ function evalI64MapAssertion(key: string, m: BigIntNumberHashMap): string | unde
     return v !== undefined ? String(v) : "null";
   }
   if (key.startsWith("contains_")) {
-    return String(m.containsKey(i64FromString(key.slice(9))));
+    return String(m.has(i64FromString(key.slice(9))));
   }
   return undefined;
 }
@@ -1135,10 +1135,10 @@ function renderI64Expected(expected: unknown): string {
 // ---------------------------------------------------------------------------
 
 interface I64Multimap {
-  put(key: bigint, value: number): void;
+  set(key: bigint, value: number): void;
   get(key: bigint): readonly number[];
   removeAll(key: bigint): number[];
-  containsKey(key: bigint): boolean;
+  has(key: bigint): boolean;
   uniqueKeys(): bigint[];
   readonly keysCount: number;
 }
@@ -1147,7 +1147,7 @@ function runI64Multimap(scenario: Scenario, m: I64Multimap): void {
   for (const op of scenario.operations) {
     switch (op.op) {
       case "put":
-        m.put(parseI64Operand(op.key), op.value as number);
+        m.set(parseI64Operand(op.key), op.value as number);
         break;
       case "removeAll":
         m.removeAll(parseI64Operand(op.key));
@@ -1183,7 +1183,7 @@ function evalI64MultimapAssertion(key: string, m: I64Multimap): string | undefin
     return `[${vals.join(",")}]`;
   }
   if (key.startsWith("contains_key_")) {
-    return String(m.containsKey(i64FromString(key.slice(13))));
+    return String(m.has(i64FromString(key.slice(13))));
   }
   return undefined;
 }

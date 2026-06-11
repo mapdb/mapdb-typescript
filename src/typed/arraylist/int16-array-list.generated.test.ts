@@ -40,8 +40,8 @@ describe("Int16ArrayList generated", () => {
     const l = new Int16ArrayList();
     l.add(1);
     l.add(2);
-    expect(l.contains(1)).toBe(true);
-    expect(l.contains(99)).toBe(false);
+    expect(l.has(1)).toBe(true);
+    expect(l.has(99)).toBe(false);
     expect(l.indexOf(2)).toBe(1);
     expect(l.indexOf(99)).toBe(-1);
   });

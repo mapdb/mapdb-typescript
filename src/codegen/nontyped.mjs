@@ -175,13 +175,13 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
   static of(pairs: [${K}, ${V}][]): ${cls} {
     const m = new ${cls}(pairs.length * 2);
     for (const [k, v] of pairs) {
-      m.put(k, v);
+      m.set(k, v);
     }
     return m;
   }
 
   /** Inserts or updates a key-value pair. Returns the previous value or undefined. */
-  put(key: ${K}, value: ${V}): ${V} | undefined {
+  set(key: ${K}, value: ${V}): ${V} | undefined {
     if (this.needsResize()) {
       this.resize();
     }
@@ -249,13 +249,8 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
   }
 
   /** Returns true if the map contains the key. */
-  containsKey(key: ${K}): boolean {
-    return this.get(key) !== undefined;
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: ${K}): boolean {
-    return this.containsKey(key);
+    return this.get(key) !== undefined;
   }
 
   /** Returns the number of entries. */
@@ -325,7 +320,7 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
     const result = new ${cls}();
     for (let i = 0; i < this.occupied.length; i++) {
       if (this.occupied[i] && predicate(this.keys[i], this.values[i])) {
-        result.put(this.keys[i], this.values[i]);
+        result.set(this.keys[i], this.values[i]);
       }
     }
     return result;
@@ -338,7 +333,7 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
     const result = new ${cls}();
     for (let i = 0; i < this.occupied.length; i++) {
       if (this.occupied[i] && !predicate(this.keys[i], this.values[i])) {
-        result.put(this.keys[i], this.values[i]);
+        result.set(this.keys[i], this.values[i]);
       }
     }
     return result;
@@ -398,7 +393,7 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
     const existing = this.get(key);
     const newVal =
       existing !== undefined ? ((existing + amount) as ${V}) : amount;
-    this.put(key, newVal);
+    this.set(key, newVal);
     return newVal;
   }
 
@@ -410,13 +405,13 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
   ): ${V} {
     const existing = this.get(key);
     const newVal = f(existing !== undefined ? existing : initialValue);
-    this.put(key, newVal);
+    this.set(key, newVal);
     return newVal;
   }
 
   /** Fluent put. Returns this for chaining. */
   withKeyValue(key: ${K}, value: ${V}): this {
-    this.put(key, value);
+    this.set(key, value);
     return this;
   }
 
@@ -460,7 +455,7 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
     this._size = 0;
     for (let i = 0; i < oldOccupied.length; i++) {
       if (oldOccupied[i]) {
-        this.put(oldKeys[i], oldValues[i]);
+        this.set(oldKeys[i], oldValues[i]);
       }
     }
   }
@@ -517,39 +512,39 @@ function hashMapFloatEdge(cls, vLit) {
   describe("IEEE 754 edge cases", () => {
     it("NaN key is findable", () => {
       const m = new ${cls}();
-      m.put(NaN, ${v1});
-      expect(m.containsKey(NaN)).toBe(true);
+      m.set(NaN, ${v1});
+      expect(m.has(NaN)).toBe(true);
       expect(m.get(NaN)).toBe(${v1});
       expect(m.size()).toBe(1);
     });
     it("NaN key replaces, does not duplicate", () => {
       const m = new ${cls}();
-      m.put(NaN, ${v1});
-      m.put(NaN, ${v2});
-      m.put(NaN, ${v3});
+      m.set(NaN, ${v1});
+      m.set(NaN, ${v2});
+      m.set(NaN, ${v3});
       expect(m.size()).toBe(1);
       expect(m.get(NaN)).toBe(${v3});
     });
     it("NaN key remove works", () => {
       const m = new ${cls}();
-      m.put(NaN, ${v1});
+      m.set(NaN, ${v1});
       const removed = m.remove(NaN);
       expect(removed).toBe(${v1});
       expect(m.size()).toBe(0);
-      expect(m.containsKey(NaN)).toBe(false);
+      expect(m.has(NaN)).toBe(false);
     });
     it("-0.0 is distinct from +0.0", () => {
       const m = new ${cls}();
-      m.put(0.0, ${v1});
-      m.put(-0.0, ${v2});
+      m.set(0.0, ${v1});
+      m.set(-0.0, ${v2});
       expect(m.size()).toBe(2);
       expect(m.get(0.0)).toBe(${v1});
       expect(m.get(-0.0)).toBe(${v2});
     });
     it("+/-Infinity keys", () => {
       const m = new ${cls}();
-      m.put(Number.POSITIVE_INFINITY, ${v1});
-      m.put(Number.NEGATIVE_INFINITY, ${v2});
+      m.set(Number.POSITIVE_INFINITY, ${v1});
+      m.set(Number.NEGATIVE_INFINITY, ${v2});
       expect(m.size()).toBe(2);
       expect(m.get(Number.POSITIVE_INFINITY)).toBe(${v1});
       expect(m.get(Number.NEGATIVE_INFINITY)).toBe(${v2});
@@ -573,7 +568,7 @@ function hashMapResizeLoop(key, val) {
     iAsVal = "Number(i)";
   }
   const ten = valIsBig ? "10n" : "10";
-  return `    ${head} m.put(i, ${iAsVal} * ${ten});`;
+  return `    ${head} m.set(i, ${iAsVal} * ${ten});`;
 }
 
 export function renderHashMapTest(pair, command) {
@@ -597,73 +592,73 @@ import { ${cls} } from "./${file}";
 describe("${cls} generated", () => {
   it("put and get", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
-    m.put(${lit(key, 3)}, ${v3});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
+    m.set(${lit(key, 3)}, ${v3});
     expect(m.get(${k1})).toBe(${v1});
     expect(m.get(${k99})).toBeUndefined();
     expect(m.size()).toBe(3);
   });
   it("put overwrite", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    const old = m.put(${k1}, ${v2});
+    m.set(${k1}, ${v1});
+    const old = m.set(${k1}, ${v2});
     expect(old).toBe(${v1});
     expect(m.get(${k1})).toBe(${v2});
   });
   it("remove", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
     const old = m.remove(${k1});
     expect(old).toBe(${v1});
     expect(m.size()).toBe(1);
-    expect(m.containsKey(${k1})).toBe(false);
+    expect(m.has(${k1})).toBe(false);
   });
   it("containsKey", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    expect(m.containsKey(${k1})).toBe(true);
-    expect(m.containsKey(${k99})).toBe(false);
+    m.set(${k1}, ${v1});
+    expect(m.has(${k1})).toBe(true);
+    expect(m.has(${k99})).toBe(false);
   });
   it("getOrDefault", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
+    m.set(${k1}, ${v1});
     expect(m.getOrDefault(${k1}, ${v3})).toBe(${v1});
     expect(m.getOrDefault(${k99}, ${v3})).toBe(${v3});
   });
   it("clear and isEmpty", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
+    m.set(${k1}, ${v1});
     expect(m.isEmpty()).toBe(false);
     m.clear();
     expect(m.isEmpty()).toBe(true);
   });
   it("select and reject", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
-    m.put(${lit(key, 3)}, ${v3});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
+    m.set(${lit(key, 3)}, ${v3});
     expect(m.select((_k, v) => v > ${v1}).size()).toBe(2);
     expect(m.reject((_k, v) => v > ${v1}).size()).toBe(1);
   });
   it("entries generator", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
     expect([...m.entries()].length).toBe(2);
   });
   it("keysToArray and valuesToArray", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
     expect(m.keysToArray().length).toBe(2);
     expect(m.valuesToArray().length).toBe(2);
   });
   it("injectInto", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
-    m.put(${k2}, ${v2});
+    m.set(${k1}, ${v1});
+    m.set(${k2}, ${v2});
     const sum = m.injectInto(${lit(val, 0)}, (acc, _k, v) => acc + v);
     expect(sum).toBe(${v1} + ${v2});
   });
@@ -674,7 +669,7 @@ ${hashMapResizeLoop(key, val)}
   });
   it("toString", () => {
     const m = new ${cls}();
-    m.put(${k1}, ${v1});
+    m.set(${k1}, ${v1});
     expect(m.toString()).not.toBe("");
   });${edge}
 });
@@ -741,7 +736,7 @@ export class ${cls} {
    * If the key already existed, the old value mapping is removed.
    * If the value already existed, the old key mapping is removed.
    */
-  put(key: ${K}, value: ${V}): void {
+  set(key: ${K}, value: ${V}): void {
     // If this key already maps to an old value, remove old_value->key from inverse
     const oldValue = this._forward.get(key);
     if (oldValue !== undefined) {
@@ -769,13 +764,8 @@ export class ${cls} {
   }
 
   /** Returns true if the map contains the given key. */
-  containsKey(key: ${K}): boolean {
-    return this._forward.has(key);
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: ${K}): boolean {
-    return this.containsKey(key);
+    return this._forward.has(key);
   }
 
   /** Returns true if the map contains the given value. */
@@ -853,7 +843,7 @@ export class ${cls} {
   inverse(): ${inv} {
     const result = new ${inv}();
     this._forward.forEach((value, key) => {
-      result.put(value, key);
+      result.set(value, key);
     });
     return result;
   }
@@ -928,7 +918,7 @@ export class ${cls} implements MapDbMap<${K}, ${V}> {
     // Copy all entries into a fresh mutable map so the caller cannot mutate our data.
     this.delegate = new ${mut}();
     for (const [k, v] of source.entries()) {
-      this.delegate.put(k, v);
+      this.delegate.set(k, v);
     }
   }
 
@@ -936,7 +926,7 @@ export class ${cls} implements MapDbMap<${K}, ${V}> {
   static of(pairs: [${K}, ${V}][]): ${cls} {
     const m = new ${mut}(pairs.length * 2);
     for (const [k, v] of pairs) {
-      m.put(k, v);
+      m.set(k, v);
     }
     return new ${cls}(m);
   }
@@ -952,13 +942,8 @@ export class ${cls} implements MapDbMap<${K}, ${V}> {
   }
 
   /** Returns true if the map contains the key. */
-  containsKey(key: ${K}): boolean {
-    return this.delegate.containsKey(key);
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: ${K}): boolean {
-    return this.containsKey(key);
+    return this.delegate.has(key);
   }
 
   /** Returns the number of entries. */
@@ -1040,7 +1025,7 @@ export class ${cls} implements MapDbMap<${K}, ${V}> {
   toMutable(): ${mut} {
     const m = new ${mut}();
     for (const [k, v] of this.delegate.entries()) {
-      m.put(k, v);
+      m.set(k, v);
     }
     return m;
   }
@@ -1085,8 +1070,8 @@ describe("${cls} generated", () => {
   });
   it("containsKey", () => {
     const im = ${cls}.of([[${k1}, ${v1}]]);
-    expect(im.containsKey(${k1})).toBe(true);
-    expect(im.containsKey(${k99})).toBe(false);
+    expect(im.has(${k1})).toBe(true);
+    expect(im.has(${k99})).toBe(false);
   });
   it("select", () => {
     const im = ${cls}.of([
@@ -1098,7 +1083,7 @@ describe("${cls} generated", () => {
   });
   it("toMutable does not affect immutable", () => {
     const im = ${cls}.of([[${k1}, ${v1}]]);
-    im.toMutable().put(${k2}, ${v2});
+    im.toMutable().set(${k2}, ${v2});
     expect(im.size()).toBe(1);
   });
 });
@@ -1216,7 +1201,7 @@ export class ${cls} {
   }
 
 ${putDoc}
-  put(key: ${K}, value: ${V}): void {
+  set(key: ${K}, value: ${V}): void {
 ${putBody}
   }
 
@@ -1245,13 +1230,8 @@ ${putBody}
   }
 
   /** Returns true if the multimap contains the given key. */
-  containsKey(key: ${K}): boolean {
-    return this._map.has(mapKeyOf(key));
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: ${K}): boolean {
-    return this.containsKey(key);
+    return this._map.has(mapKeyOf(key));
   }
 
   /** Returns true if the multimap contains the given key-value pair. */
@@ -1310,7 +1290,7 @@ ${putBody}
     for (const [key, list] of this._map.values()) {
       for (let i = 0; i < list.length; i++) {
         if (predicate(key, list[i])) {
-          result.put(key, list[i]);
+          result.set(key, list[i]);
         }
       }
     }
@@ -1325,7 +1305,7 @@ ${putBody}
     for (const [key, list] of this._map.values()) {
       for (let i = 0; i < list.length; i++) {
         if (!predicate(key, list[i])) {
-          result.put(key, list[i]);
+          result.set(key, list[i]);
         }
       }
     }
@@ -1439,7 +1419,7 @@ export class ${cls} {
   }
 
 ${putDoc}
-  put(key: ${K}, value: ${V}): void {
+  set(key: ${K}, value: ${V}): void {
 ${putBody}
   }
 
@@ -1467,13 +1447,8 @@ ${putBody}
   }
 
   /** Returns true if the multimap contains the given key. */
-  containsKey(key: ${K}): boolean {
-    return this._map.has(key);
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: ${K}): boolean {
-    return this.containsKey(key);
+    return this._map.has(key);
   }
 
   /** Returns true if the multimap contains the given key-value pair. */
@@ -1531,7 +1506,7 @@ ${putBody}
     this._map.forEach((list, key) => {
       for (let i = 0; i < list.length; i++) {
         if (predicate(key, list[i])) {
-          result.put(key, list[i]);
+          result.set(key, list[i]);
         }
       }
     });
@@ -1546,7 +1521,7 @@ ${putBody}
     this._map.forEach((list, key) => {
       for (let i = 0; i < list.length; i++) {
         if (!predicate(key, list[i])) {
-          result.put(key, list[i]);
+          result.set(key, list[i]);
         }
       }
     });

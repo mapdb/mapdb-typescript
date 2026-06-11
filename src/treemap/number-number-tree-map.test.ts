@@ -10,9 +10,9 @@ import { NumberNumberTreeMap } from "./number-number-tree-map.js";
 describe("NumberNumberTreeMap", () => {
   it("put and get", () => {
     const m = new NumberNumberTreeMap();
-    m.put(3, 30);
-    m.put(1, 10);
-    m.put(2, 20);
+    m.set(3, 30);
+    m.set(1, 10);
+    m.set(2, 20);
     expect(m.get(2)).toBe(20);
     expect(m.get(99)).toBeUndefined();
     expect(m.size()).toBe(3);
@@ -20,11 +20,11 @@ describe("NumberNumberTreeMap", () => {
 
   it("sorted iteration", () => {
     const m = new NumberNumberTreeMap();
-    m.put(50, 500);
-    m.put(10, 100);
-    m.put(30, 300);
-    m.put(20, 200);
-    m.put(40, 400);
+    m.set(50, 500);
+    m.set(10, 100);
+    m.set(30, 300);
+    m.set(20, 200);
+    m.set(40, 400);
 
     const keys = [...m.keys()];
     expect(keys).toEqual([10, 20, 30, 40, 50]);
@@ -32,18 +32,18 @@ describe("NumberNumberTreeMap", () => {
 
   it("min and max", () => {
     const m = new NumberNumberTreeMap();
-    m.put(30, 300);
-    m.put(10, 100);
-    m.put(50, 500);
+    m.set(30, 300);
+    m.set(10, 100);
+    m.set(50, 500);
     expect(m.min()).toEqual([10, 100]);
     expect(m.max()).toEqual([50, 500]);
   });
 
   it("floor and ceiling", () => {
     const m = new NumberNumberTreeMap();
-    m.put(10, 100);
-    m.put(20, 200);
-    m.put(30, 300);
+    m.set(10, 100);
+    m.set(20, 200);
+    m.set(30, 300);
     expect(m.floor(25)).toEqual([20, 200]);
     expect(m.ceiling(25)).toEqual([30, 300]);
     expect(m.floor(10)).toEqual([10, 100]);
@@ -52,7 +52,7 @@ describe("NumberNumberTreeMap", () => {
 
   it("remove", () => {
     const m = new NumberNumberTreeMap();
-    for (let i = 1; i <= 20; i++) m.put(i, i * 10);
+    for (let i = 1; i <= 20; i++) m.set(i, i * 10);
     for (let i = 1; i <= 20; i += 2) m.remove(i);
     expect(m.size()).toBe(10);
     const keys = [...m.keys()];
@@ -67,14 +67,14 @@ describe("NumberNumberTreeMap", () => {
 
   it("rangeKeys", () => {
     const m = new NumberNumberTreeMap();
-    for (let i = 1; i <= 10; i++) m.put(i, i * 10);
+    for (let i = 1; i <= 10; i++) m.set(i, i * 10);
     const keys = [...m.rangeKeys(3, 7)].map(([k]) => k);
     expect(keys).toEqual([3, 4, 5, 6]);
   });
 
   it("large insert/delete", () => {
     const m = new NumberNumberTreeMap();
-    for (let i = 0; i < 1000; i++) m.put(i, i);
+    for (let i = 0; i < 1000; i++) m.set(i, i);
     expect(m.size()).toBe(1000);
     for (let i = 0; i < 500; i++) m.remove(i);
     expect(m.size()).toBe(500);
@@ -95,9 +95,9 @@ describe("NumberNumberTreeMap", () => {
 
   it("select", () => {
     const m = new NumberNumberTreeMap();
-    m.put(1, 10);
-    m.put(2, 20);
-    m.put(3, 30);
+    m.set(1, 10);
+    m.set(2, 20);
+    m.set(3, 30);
     const big = m.select((_k, v) => v > 15);
     expect(big.size()).toBe(2);
     // result should also be sorted

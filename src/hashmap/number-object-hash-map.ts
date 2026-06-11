@@ -28,13 +28,13 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
   static of<V>(pairs: [number, V][]): NumberObjectHashMap<V> {
     const m = new NumberObjectHashMap<V>();
     for (const [k, v] of pairs) {
-      m.put(k, v);
+      m.set(k, v);
     }
     return m;
   }
 
   /** Inserts or updates a key-value pair. Returns the previous value or undefined. */
-  put(key: number, value: V): V | undefined {
+  set(key: number, value: V): V | undefined {
     const k = mapKeyOf(key);
     const old = this.map.get(k);
     this.map.set(k, [key, value]);
@@ -62,13 +62,8 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
   }
 
   /** Returns true if the map contains the key. */
-  containsKey(key: number): boolean {
-    return this.map.has(mapKeyOf(key));
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: number): boolean {
-    return this.containsKey(key);
+    return this.map.has(mapKeyOf(key));
   }
 
   /** Returns the number of entries. */
@@ -113,7 +108,7 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
     const result = new NumberObjectHashMap<V>();
     for (const [k, v] of this.map.values()) {
       if (predicate(k, v)) {
-        result.put(k, v);
+        result.set(k, v);
       }
     }
     return result;
@@ -126,7 +121,7 @@ export class NumberObjectHashMap<V> implements MapDbMutableMap<number, V> {
     const result = new NumberObjectHashMap<V>();
     for (const [k, v] of this.map.values()) {
       if (!predicate(k, v)) {
-        result.put(k, v);
+        result.set(k, v);
       }
     }
     return result;

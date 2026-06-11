@@ -17,8 +17,8 @@ describe("ImmutableNumberArrayList generated", () => {
   });
   it("contains", () => {
     const im = ImmutableNumberArrayList.of([1, 2]);
-    expect(im.contains(1)).toBe(true);
-    expect(im.contains(99)).toBe(false);
+    expect(im.has(1)).toBe(true);
+    expect(im.has(99)).toBe(false);
   });
   it("select and reject", () => {
     const im = ImmutableNumberArrayList.of([1, 2, 3, 4, 5]);

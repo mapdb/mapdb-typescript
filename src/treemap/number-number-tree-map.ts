@@ -28,7 +28,7 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
   private _size = 0;
 
   /** Inserts or updates. Returns previous value or undefined. */
-  put(key: number, value: number): number | undefined {
+  set(key: number, value: number): number | undefined {
     if (this.root === null) {
       this.root = {
         key,
@@ -92,13 +92,8 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
     return v !== undefined ? v : defaultValue;
   }
 
-  containsKey(key: number): boolean {
-    return this.findNode(key) !== null;
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: number): boolean {
-    return this.containsKey(key);
+    return this.findNode(key) !== null;
   }
 
   remove(key: number): number | undefined {
@@ -207,7 +202,7 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
   ): NumberNumberTreeMap {
     const result = new NumberNumberTreeMap();
     for (const [k, v] of this.entries()) {
-      if (predicate(k, v)) result.put(k, v);
+      if (predicate(k, v)) result.set(k, v);
     }
     return result;
   }

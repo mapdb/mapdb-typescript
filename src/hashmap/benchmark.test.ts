@@ -48,7 +48,7 @@ describe("Memory layout analysis", () => {
 
     // Verify our current implementation works
     const m = new NumberNumberHashMap();
-    for (let i = 0; i < N; i++) m.put(i, i * 10);
+    for (let i = 0; i < N; i++) m.set(i, i * 10);
     console.log(`Our HashMap: ${m.size()} entries`);
     console.log(
       "Internal storage: number[] (regular array — V8 may or may not optimize)",

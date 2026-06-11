@@ -79,7 +79,7 @@ export class NumberInterval {
   }
 
   /** Returns true if the interval contains the given value. */
-  contains(value: number): boolean {
+  has(value: number): boolean {
     if (this._step > 0) {
       return (
         value >= this._from &&
@@ -164,7 +164,7 @@ export class NumberInterval {
 
   /** Alias for `contains`. */
   includes(value: number): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns all elements as an array. */

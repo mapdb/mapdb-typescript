@@ -15,8 +15,8 @@ describe("BigIntHashSet generated", () => {
     s.add(2n);
     s.add(3n);
     expect(s.size()).toBe(3);
-    expect(s.contains(2n)).toBe(true);
-    expect(s.contains(99n)).toBe(false);
+    expect(s.has(2n)).toBe(true);
+    expect(s.has(99n)).toBe(false);
   });
   it("add duplicate", () => {
     const s = new BigIntHashSet();
@@ -31,7 +31,7 @@ describe("BigIntHashSet generated", () => {
   it("remove", () => {
     const s = BigIntHashSet.of([1n, 2n, 3n]);
     expect(s.remove(2n)).toBe(true);
-    expect(s.contains(2n)).toBe(false);
+    expect(s.has(2n)).toBe(false);
     expect(s.remove(99n)).toBe(false);
   });
   it("clear and isEmpty", () => {

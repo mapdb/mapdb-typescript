@@ -15,8 +15,8 @@ describe("BigIntTreeSet generated", () => {
     s.add(1n);
     s.add(2n);
     expect(s.size()).toBe(3);
-    expect(s.contains(2n)).toBe(true);
-    expect(s.contains(99n)).toBe(false);
+    expect(s.has(2n)).toBe(true);
+    expect(s.has(99n)).toBe(false);
   });
   it("duplicate", () => {
     const s = new BigIntTreeSet();
@@ -28,7 +28,7 @@ describe("BigIntTreeSet generated", () => {
     s.add(1n);
     s.add(2n);
     expect(s.remove(1n)).toBe(true);
-    expect(s.contains(1n)).toBe(false);
+    expect(s.has(1n)).toBe(false);
   });
   it("min and max", () => {
     const s = new BigIntTreeSet();

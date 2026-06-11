@@ -28,7 +28,7 @@ describe("BigInt64HashBag generated", () => {
     b.remove(1n);
     expect(b.occurrencesOf(1n)).toBe(2);
     b.removeAll(1n);
-    expect(b.contains(1n)).toBe(false);
+    expect(b.has(1n)).toBe(false);
   });
   it("isEmpty and clear", () => {
     const b = new BigInt64HashBag();

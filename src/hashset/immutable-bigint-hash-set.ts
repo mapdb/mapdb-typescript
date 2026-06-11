@@ -28,13 +28,8 @@ export class ImmutableBigIntHashSet implements MapDbSet<bigint> {
   }
 
   /** Returns true if the set contains the given value. */
-  contains(value: bigint): boolean {
-    return this.delegate.contains(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: bigint): boolean {
-    return this.contains(value);
+    return this.delegate.has(value);
   }
 
   /** Returns the number of elements. */
@@ -120,7 +115,7 @@ export class ImmutableBigIntHashSet implements MapDbSet<bigint> {
   intersect(other: ImmutableBigIntHashSet): ImmutableBigIntHashSet {
     const result = new BigIntHashSet();
     for (const v of this.delegate.values()) {
-      if (other.contains(v)) {
+      if (other.has(v)) {
         result.add(v);
       }
     }
@@ -131,7 +126,7 @@ export class ImmutableBigIntHashSet implements MapDbSet<bigint> {
   difference(other: ImmutableBigIntHashSet): ImmutableBigIntHashSet {
     const result = new BigIntHashSet();
     for (const v of this.delegate.values()) {
-      if (!other.contains(v)) {
+      if (!other.has(v)) {
         result.add(v);
       }
     }

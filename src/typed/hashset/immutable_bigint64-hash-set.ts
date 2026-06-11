@@ -67,7 +67,7 @@ export class ImmutableBigInt64HashSet {
   }
 
   /** Returns true if the set contains the given value. */
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     if (this.capacity === 0) return false;
     const mask = this.capacity - 1;
     let idx = hash(value, this.capacity);
@@ -78,14 +78,9 @@ export class ImmutableBigInt64HashSet {
     }
   }
 
-  /** Alias for contains. */
+  /** Alias for has. */
   includes(value: bigint): boolean {
-    return this.contains(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: bigint): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns the number of elements. */

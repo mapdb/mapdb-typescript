@@ -79,7 +79,7 @@ export class BigIntInterval {
   }
 
   /** Returns true if the interval contains the given value. */
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     if (this._step > 0n) {
       return (
         value >= this._from &&
@@ -164,7 +164,7 @@ export class BigIntInterval {
 
   /** Alias for `contains`. */
   includes(value: bigint): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns all elements as an array. */

@@ -22,23 +22,18 @@ export class TreeSet<T> {
 
   add(value: T): boolean {
     const before = this.tree.size;
-    this.tree.put(value, undefined);
+    this.tree.set(value, undefined);
     return this.tree.size > before;
   }
 
   remove(value: T): boolean {
-    if (!this.tree.containsKey(value)) return false;
+    if (!this.tree.has(value)) return false;
     this.tree.remove(value);
     return true;
   }
 
-  contains(value: T): boolean {
-    return this.tree.containsKey(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: T): boolean {
-    return this.contains(value);
+    return this.tree.has(value);
   }
 
   get size(): number {

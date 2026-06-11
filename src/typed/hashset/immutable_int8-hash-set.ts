@@ -66,7 +66,7 @@ export class ImmutableInt8HashSet {
   }
 
   /** Returns true if the set contains the given value. */
-  contains(value: number): boolean {
+  has(value: number): boolean {
     if (this.capacity === 0) return false;
     const mask = this.capacity - 1;
     let idx = hash(value, this.capacity);
@@ -77,14 +77,9 @@ export class ImmutableInt8HashSet {
     }
   }
 
-  /** Alias for contains. */
+  /** Alias for has. */
   includes(value: number): boolean {
-    return this.contains(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: number): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns the number of elements. */

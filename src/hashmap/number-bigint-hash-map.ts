@@ -34,13 +34,13 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
   static of(pairs: [number, bigint][]): NumberBigIntHashMap {
     const m = new NumberBigIntHashMap(pairs.length * 2);
     for (const [k, v] of pairs) {
-      m.put(k, v);
+      m.set(k, v);
     }
     return m;
   }
 
   /** Inserts or updates a key-value pair. Returns the previous value or undefined. */
-  put(key: number, value: bigint): bigint | undefined {
+  set(key: number, value: bigint): bigint | undefined {
     if (this.needsResize()) {
       this.resize();
     }
@@ -108,13 +108,8 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
   }
 
   /** Returns true if the map contains the key. */
-  containsKey(key: number): boolean {
-    return this.get(key) !== undefined;
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: number): boolean {
-    return this.containsKey(key);
+    return this.get(key) !== undefined;
   }
 
   /** Returns the number of entries. */
@@ -184,7 +179,7 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
     const result = new NumberBigIntHashMap();
     for (let i = 0; i < this.occupied.length; i++) {
       if (this.occupied[i] && predicate(this.keys[i], this.values[i])) {
-        result.put(this.keys[i], this.values[i]);
+        result.set(this.keys[i], this.values[i]);
       }
     }
     return result;
@@ -197,7 +192,7 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
     const result = new NumberBigIntHashMap();
     for (let i = 0; i < this.occupied.length; i++) {
       if (this.occupied[i] && !predicate(this.keys[i], this.values[i])) {
-        result.put(this.keys[i], this.values[i]);
+        result.set(this.keys[i], this.values[i]);
       }
     }
     return result;
@@ -257,7 +252,7 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
     const existing = this.get(key);
     const newVal =
       existing !== undefined ? ((existing + amount) as bigint) : amount;
-    this.put(key, newVal);
+    this.set(key, newVal);
     return newVal;
   }
 
@@ -269,13 +264,13 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
   ): bigint {
     const existing = this.get(key);
     const newVal = f(existing !== undefined ? existing : initialValue);
-    this.put(key, newVal);
+    this.set(key, newVal);
     return newVal;
   }
 
   /** Fluent put. Returns this for chaining. */
   withKeyValue(key: number, value: bigint): this {
-    this.put(key, value);
+    this.set(key, value);
     return this;
   }
 
@@ -319,7 +314,7 @@ export class NumberBigIntHashMap implements MapDbMutableMap<number, bigint> {
     this._size = 0;
     for (let i = 0; i < oldOccupied.length; i++) {
       if (oldOccupied[i]) {
-        this.put(oldKeys[i], oldValues[i]);
+        this.set(oldKeys[i], oldValues[i]);
       }
     }
   }

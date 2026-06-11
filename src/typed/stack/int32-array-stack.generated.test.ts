@@ -48,9 +48,9 @@ describe("Int32ArrayStack generated", () => {
     const s = new Int32ArrayStack();
     s.push(1);
     s.push(2);
-    expect(s.contains(1)).toBe(true);
-    expect(s.contains(2)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(1)).toBe(true);
+    expect(s.has(2)).toBe(true);
+    expect(s.has(99)).toBe(false);
   });
 
   it("includes alias for contains", () => {

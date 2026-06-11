@@ -16,7 +16,7 @@ import { NumberNumberListMultimap } from "./number-number-list-multimap.js";
 import { NumberNumberSetMultimap } from "./number-number-set-multimap.js";
 
 interface GeneratedMultimap<K, V> {
-  put(key: K, value: V): void;
+  set(key: K, value: V): void;
   get(key: K): readonly V[];
   forEachKey(fn: (key: K, values: readonly V[]) => void): void;
 }
@@ -32,9 +32,9 @@ function expectGeneratedMultimapIsDefensive<K, V>(params: {
   appended: V;
 }): void {
   const m = params.create();
-  m.put(params.key, params.first);
-  m.put(params.key, params.second);
-  m.put(params.otherKey, params.other);
+  m.set(params.key, params.first);
+  m.set(params.key, params.second);
+  m.set(params.otherKey, params.other);
 
   const got = m.get(params.key) as V[];
   got[0] = params.replacement;

@@ -60,13 +60,8 @@ export class Int8HashBag {
     return this.counts.get(value) ?? 0;
   }
 
-  contains(value: number): boolean {
-    return this.counts.has(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: number): boolean {
-    return this.contains(value);
+    return this.counts.has(value);
   }
 
   /** Total number of items including duplicates */

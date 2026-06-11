@@ -28,8 +28,8 @@ describe("NumberArrayStack", () => {
 
   it("contains", () => {
     const s = NumberArrayStack.of([1, 2, 3]);
-    expect(s.contains(2)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(2)).toBe(true);
+    expect(s.has(99)).toBe(false);
   });
 
   it("values generator", () => {

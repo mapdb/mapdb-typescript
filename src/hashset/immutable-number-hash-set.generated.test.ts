@@ -13,7 +13,7 @@ describe("ImmutableNumberHashSet generated", () => {
   it("contains and size", () => {
     const im = ImmutableNumberHashSet.of([1, 2, 3]);
     expect(im.size()).toBe(3);
-    expect(im.contains(2)).toBe(true);
+    expect(im.has(2)).toBe(true);
   });
   it("union", () => {
     const a = ImmutableNumberHashSet.of([1, 2]);

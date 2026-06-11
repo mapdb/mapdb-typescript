@@ -61,9 +61,9 @@ describe("ImmutableBigInt64ArrayStack generated", () => {
 
   it("contains and includes", () => {
     const stack = ImmutableBigInt64ArrayStack.of([1n, 2n]);
-    expect(stack.contains(1n)).toBe(true);
-    expect(stack.contains(2n)).toBe(true);
-    expect(stack.contains(99n)).toBe(false);
+    expect(stack.has(1n)).toBe(true);
+    expect(stack.has(2n)).toBe(true);
+    expect(stack.has(99n)).toBe(false);
     expect(stack.includes(1n)).toBe(true);
   });
 

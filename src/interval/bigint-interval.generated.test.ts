@@ -34,9 +34,9 @@ describe("BigIntInterval generated", () => {
   });
   it("contains", () => {
     const iv = BigIntInterval.fromTo(1n, 5n);
-    expect(iv.contains(1n)).toBe(true);
-    expect(iv.contains(3n)).toBe(true);
-    expect(iv.contains(99n)).toBe(false);
+    expect(iv.has(1n)).toBe(true);
+    expect(iv.has(3n)).toBe(true);
+    expect(iv.has(99n)).toBe(false);
   });
   it("get", () => {
     const iv = BigIntInterval.fromTo(1n, 5n);

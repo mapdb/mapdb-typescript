@@ -59,8 +59,8 @@ describe("BigIntArrayDeque generated", () => {
 
   it("contains", () => {
     const d = BigIntArrayDeque.of([1n, 2n, 3n]);
-    expect(d.contains(2n)).toBe(true);
-    expect(d.contains(99n)).toBe(false);
+    expect(d.has(2n)).toBe(true);
+    expect(d.has(99n)).toBe(false);
   });
 
   it("anySatisfy and allSatisfy", () => {

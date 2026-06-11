@@ -46,7 +46,7 @@ describe("ImmutableNumberArrayDeque generated", () => {
 
   it("contains and isEmpty", () => {
     const im = ImmutableNumberArrayDeque.of([1]);
-    expect(im.contains(1)).toBe(true);
+    expect(im.has(1)).toBe(true);
     expect(im.isEmpty).toBe(false);
     expect(ImmutableNumberArrayDeque.of([]).isEmpty).toBe(true);
   });

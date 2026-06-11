@@ -62,7 +62,7 @@ export class BigIntPriorityQueue {
   }
 
   /** Returns true if the heap contains the given value. O(n). */
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     for (let i = 0; i < this.data.length; i++) {
       if (this.data[i] === value) return true;
     }

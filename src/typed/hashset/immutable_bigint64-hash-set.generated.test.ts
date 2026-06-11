@@ -14,8 +14,8 @@ describe("ImmutableBigInt64HashSet generated", () => {
   it("static of creates immutable set", () => {
     const set = ImmutableBigInt64HashSet.of([1n, 2n, 3n]);
     expect(set.size()).toBe(3);
-    expect(set.contains(1n)).toBe(true);
-    expect(set.contains(3n)).toBe(true);
+    expect(set.has(1n)).toBe(true);
+    expect(set.has(3n)).toBe(true);
   });
 
   it("fromMutable creates defensive copy", () => {
@@ -30,9 +30,9 @@ describe("ImmutableBigInt64HashSet generated", () => {
 
   it("contains and includes", () => {
     const set = ImmutableBigInt64HashSet.of([1n, 2n]);
-    expect(set.contains(1n)).toBe(true);
-    expect(set.contains(2n)).toBe(true);
-    expect(set.contains(99n)).toBe(false);
+    expect(set.has(1n)).toBe(true);
+    expect(set.has(2n)).toBe(true);
+    expect(set.has(99n)).toBe(false);
     expect(set.includes(1n)).toBe(true);
   });
 
@@ -152,8 +152,8 @@ describe("ImmutableBigInt64HashSet generated", () => {
     const source = [1n, 2n, 3n];
     const set = ImmutableBigInt64HashSet.of(source);
     source[0] = 99n as any;
-    expect(set.contains(1n)).toBe(true);
-    expect(set.contains(99n)).toBe(false);
+    expect(set.has(1n)).toBe(true);
+    expect(set.has(99n)).toBe(false);
   });
 
   // Verify mutators are not available

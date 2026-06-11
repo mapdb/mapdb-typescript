@@ -48,9 +48,9 @@ describe("ImmutableInt32ArrayList generated", () => {
 
   it("contains and includes", () => {
     const list = ImmutableInt32ArrayList.of([1, 2]);
-    expect(list.contains(1)).toBe(true);
-    expect(list.contains(2)).toBe(true);
-    expect(list.contains(99)).toBe(false);
+    expect(list.has(1)).toBe(true);
+    expect(list.has(2)).toBe(true);
+    expect(list.has(99)).toBe(false);
     expect(list.includes(1)).toBe(true);
   });
 

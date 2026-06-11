@@ -43,8 +43,8 @@ export class ImmutableBigIntArrayList implements MapDbList<bigint> {
   }
 
   /** Returns true if the list contains the given value. */
-  contains(value: bigint): boolean {
-    return this.delegate.contains(value);
+  has(value: bigint): boolean {
+    return this.delegate.has(value);
   }
 
   /** Returns the index of the first occurrence of the value, or -1 if not found. */

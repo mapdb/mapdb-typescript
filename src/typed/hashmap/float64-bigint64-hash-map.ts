@@ -30,7 +30,7 @@ export class Float64BigInt64HashMap {
     this.occupied = new Uint8Array(this.capacity);
   }
 
-  put(key: number, value: bigint): bigint | undefined {
+  set(key: number, value: bigint): bigint | undefined {
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
@@ -84,12 +84,8 @@ export class Float64BigInt64HashMap {
     }
   }
 
-  containsKey(key: number): boolean {
-    return this.get(key) !== undefined;
-  }
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: number): boolean {
-    return this.containsKey(key);
+    return this.get(key) !== undefined;
   }
   size(): number {
     return this._size;
@@ -139,7 +135,7 @@ export class Float64BigInt64HashMap {
     const result = new Float64BigInt64HashMap();
     for (let i = 0; i < this.capacity; i++) {
       if (this.occupied[i] && predicate(this.keys[i], this.values[i])) {
-        result.put(this.keys[i], this.values[i]);
+        result.set(this.keys[i], this.values[i]);
       }
     }
     return result;
@@ -151,7 +147,7 @@ export class Float64BigInt64HashMap {
     const result = new Float64BigInt64HashMap();
     for (let i = 0; i < this.capacity; i++) {
       if (this.occupied[i] && !predicate(this.keys[i], this.values[i])) {
-        result.put(this.keys[i], this.values[i]);
+        result.set(this.keys[i], this.values[i]);
       }
     }
     return result;
@@ -186,7 +182,7 @@ export class Float64BigInt64HashMap {
     const newVal = (
       existing !== undefined ? (((existing as any) + amount) as any) : amount
     ) as bigint;
-    this.put(key, newVal);
+    this.set(key, newVal);
     return newVal;
   }
 
@@ -225,7 +221,7 @@ export class Float64BigInt64HashMap {
     this.occupied = new Uint8Array(this.capacity);
     this._size = 0;
     for (let i = 0; i < oldCap; i++) {
-      if (oldOccupied[i]) this.put(oldKeys[i], oldValues[i]);
+      if (oldOccupied[i]) this.set(oldKeys[i], oldValues[i]);
     }
   }
 

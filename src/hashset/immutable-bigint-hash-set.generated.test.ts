@@ -13,7 +13,7 @@ describe("ImmutableBigIntHashSet generated", () => {
   it("contains and size", () => {
     const im = ImmutableBigIntHashSet.of([1n, 2n, 3n]);
     expect(im.size()).toBe(3);
-    expect(im.contains(2n)).toBe(true);
+    expect(im.has(2n)).toBe(true);
   });
   it("union", () => {
     const a = ImmutableBigIntHashSet.of([1n, 2n]);

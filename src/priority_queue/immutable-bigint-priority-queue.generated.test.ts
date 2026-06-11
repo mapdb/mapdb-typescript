@@ -38,7 +38,7 @@ describe("ImmutableBigIntPriorityQueue generated", () => {
 
   it("contains and isEmpty", () => {
     const im = ImmutableBigIntPriorityQueue.of([1n]);
-    expect(im.contains(1n)).toBe(true);
+    expect(im.has(1n)).toBe(true);
     expect(im.isEmpty).toBe(false);
     expect(ImmutableBigIntPriorityQueue.of([]).isEmpty).toBe(true);
   });

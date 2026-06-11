@@ -32,7 +32,7 @@ export class NumberBigIntHashBiMap {
    * If the key already existed, the old value mapping is removed.
    * If the value already existed, the old key mapping is removed.
    */
-  put(key: number, value: bigint): void {
+  set(key: number, value: bigint): void {
     // If this key already maps to an old value, remove old_value->key from inverse
     const oldValue = this._forward.get(key);
     if (oldValue !== undefined) {
@@ -60,13 +60,8 @@ export class NumberBigIntHashBiMap {
   }
 
   /** Returns true if the map contains the given key. */
-  containsKey(key: number): boolean {
-    return this._forward.has(key);
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: number): boolean {
-    return this.containsKey(key);
+    return this._forward.has(key);
   }
 
   /** Returns true if the map contains the given value. */
@@ -144,7 +139,7 @@ export class NumberBigIntHashBiMap {
   inverse(): BigIntNumberHashBiMap {
     const result = new BigIntNumberHashBiMap();
     this._forward.forEach((value, key) => {
-      result.put(value, key);
+      result.set(value, key);
     });
     return result;
   }

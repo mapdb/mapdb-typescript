@@ -41,13 +41,8 @@ export class LinkedHashSet<T> implements MapDbMutableSet<T> {
     return this.data.size === 0;
   }
 
-  contains(value: T): boolean {
-    return this.data.has(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: T): boolean {
-    return this.contains(value);
+    return this.data.has(value);
   }
 
   // ── Iteration / functional ──────────────────────────────────────────
@@ -102,7 +97,7 @@ export class LinkedHashSet<T> implements MapDbMutableSet<T> {
   }
 
   includes(value: T): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   toArray(): T[] {
@@ -150,7 +145,7 @@ export class LinkedHashSet<T> implements MapDbMutableSet<T> {
   intersect(other: LinkedHashSet<T>): LinkedHashSet<T> {
     const result = new LinkedHashSet<T>();
     for (const v of this.data) {
-      if (other.contains(v)) result.add(v);
+      if (other.has(v)) result.add(v);
     }
     return result;
   }
@@ -158,7 +153,7 @@ export class LinkedHashSet<T> implements MapDbMutableSet<T> {
   difference(other: LinkedHashSet<T>): LinkedHashSet<T> {
     const result = new LinkedHashSet<T>();
     for (const v of this.data) {
-      if (!other.contains(v)) result.add(v);
+      if (!other.has(v)) result.add(v);
     }
     return result;
   }
@@ -166,10 +161,10 @@ export class LinkedHashSet<T> implements MapDbMutableSet<T> {
   symmetricDifference(other: LinkedHashSet<T>): LinkedHashSet<T> {
     const result = new LinkedHashSet<T>();
     for (const v of this.data) {
-      if (!other.contains(v)) result.add(v);
+      if (!other.has(v)) result.add(v);
     }
     for (const v of other) {
-      if (!this.contains(v)) result.add(v);
+      if (!this.has(v)) result.add(v);
     }
     return result;
   }

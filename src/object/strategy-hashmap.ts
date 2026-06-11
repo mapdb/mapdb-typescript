@@ -52,7 +52,7 @@ export class HashMapWithStrategy<K, V> {
    * Puts a key-value pair. Returns the previous value if the key existed,
    * or undefined if it was a new insertion.
    */
-  put(key: K, value: V): V | undefined {
+  set(key: K, value: V): V | undefined {
     if (this.needsResize()) {
       this.resize();
     }
@@ -110,7 +110,7 @@ export class HashMapWithStrategy<K, V> {
     }
   }
 
-  containsKey(key: K): boolean {
+  has(key: K): boolean {
     if (this._size === 0) return false;
     const mask = this.entries.length - 1;
     let idx = this.strategy.hashCode(key) & mask;
@@ -120,11 +120,6 @@ export class HashMapWithStrategy<K, V> {
       if (this.strategy.equals(e.key, key)) return true;
       idx = (idx + 1) & mask;
     }
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
-  has(key: K): boolean {
-    return this.containsKey(key);
   }
 
   get size(): number {
@@ -159,7 +154,7 @@ export class HashMapWithStrategy<K, V> {
   select(predicate: (key: K, value: V) => boolean): HashMapWithStrategy<K, V> {
     const result = new HashMapWithStrategy<K, V>(this.strategy);
     this.forEach((k, v) => {
-      if (predicate(k, v)) result.put(k, v);
+      if (predicate(k, v)) result.set(k, v);
     });
     return result;
   }
@@ -167,7 +162,7 @@ export class HashMapWithStrategy<K, V> {
   reject(predicate: (key: K, value: V) => boolean): HashMapWithStrategy<K, V> {
     const result = new HashMapWithStrategy<K, V>(this.strategy);
     this.forEach((k, v) => {
-      if (!predicate(k, v)) result.put(k, v);
+      if (!predicate(k, v)) result.set(k, v);
     });
     return result;
   }
@@ -207,7 +202,7 @@ export class HashMapWithStrategy<K, V> {
     this._size = 0;
     for (let i = 0; i < old.length; i++) {
       if (old[i].occupied) {
-        this.put(old[i].key, old[i].value);
+        this.set(old[i].key, old[i].value);
       }
     }
   }

@@ -28,7 +28,7 @@ const I32_MIN = -2147483648;
 describe("Int32Int32HashMap addToValue i32 overflow contract (stored value)", () => {
   it("i32 MAX + 1 stores i32 MIN", () => {
     const m = new Int32Int32HashMap();
-    m.put(1, I32_MAX);
+    m.set(1, I32_MAX);
     m.addToValue(1, 1);
     // 06-overflow/i32_add_to_value_overflow.json asserts get_1 == i32 MIN.
     expect(m.get(1)).toBe(I32_MIN);
@@ -36,7 +36,7 @@ describe("Int32Int32HashMap addToValue i32 overflow contract (stored value)", ()
 
   it("i32 MIN - 1 stores i32 MAX", () => {
     const m = new Int32Int32HashMap();
-    m.put(1, I32_MIN);
+    m.set(1, I32_MIN);
     m.addToValue(1, -1);
     // 06-overflow/i32_add_to_value_underflow.json asserts get_1 == i32 MAX.
     expect(m.get(1)).toBe(I32_MAX);
@@ -51,7 +51,7 @@ describe("Int32Int32HashMap addToValue i32 overflow contract (stored value)", ()
 
   it("repeated addToValue keeps wrapping at i32 width", () => {
     const m = new Int32Int32HashMap();
-    m.put(7, I32_MAX);
+    m.set(7, I32_MAX);
     m.addToValue(7, 1); // store -> I32_MIN
     m.addToValue(7, 1); // store -> I32_MIN + 1
     expect(m.get(7)).toBe(I32_MIN + 1);

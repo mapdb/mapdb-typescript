@@ -54,7 +54,7 @@ export class ArrayList<T> implements MapDbMutableList<T> {
     return this.data.length === 0;
   }
 
-  contains(value: T): boolean {
+  has(value: T): boolean {
     return this.indexOf(value) !== -1;
   }
 
@@ -99,7 +99,7 @@ export class ArrayList<T> implements MapDbMutableList<T> {
   }
 
   includes(value: T): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   toArray(): T[] {

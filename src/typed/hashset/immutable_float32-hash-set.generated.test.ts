@@ -14,8 +14,8 @@ describe("ImmutableFloat32HashSet generated", () => {
   it("static of creates immutable set", () => {
     const set = ImmutableFloat32HashSet.of([1, 2, 3]);
     expect(set.size()).toBe(3);
-    expect(set.contains(1)).toBe(true);
-    expect(set.contains(3)).toBe(true);
+    expect(set.has(1)).toBe(true);
+    expect(set.has(3)).toBe(true);
   });
 
   it("fromMutable creates defensive copy", () => {
@@ -30,9 +30,9 @@ describe("ImmutableFloat32HashSet generated", () => {
 
   it("contains and includes", () => {
     const set = ImmutableFloat32HashSet.of([1, 2]);
-    expect(set.contains(1)).toBe(true);
-    expect(set.contains(2)).toBe(true);
-    expect(set.contains(99)).toBe(false);
+    expect(set.has(1)).toBe(true);
+    expect(set.has(2)).toBe(true);
+    expect(set.has(99)).toBe(false);
     expect(set.includes(1)).toBe(true);
   });
 
@@ -152,8 +152,8 @@ describe("ImmutableFloat32HashSet generated", () => {
     const source = [1, 2, 3];
     const set = ImmutableFloat32HashSet.of(source);
     source[0] = 99 as any;
-    expect(set.contains(1)).toBe(true);
-    expect(set.contains(99)).toBe(false);
+    expect(set.has(1)).toBe(true);
+    expect(set.has(99)).toBe(false);
   });
 
   // Verify mutators are not available

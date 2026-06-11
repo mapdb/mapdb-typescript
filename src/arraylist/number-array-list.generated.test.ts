@@ -41,8 +41,8 @@ describe("NumberArrayList generated", () => {
 
   it("contains", () => {
     const l = NumberArrayList.of([1, 2, 3]);
-    expect(l.contains(2)).toBe(true);
-    expect(l.contains(99)).toBe(false);
+    expect(l.has(2)).toBe(true);
+    expect(l.has(99)).toBe(false);
   });
 
   it("indexOf", () => {

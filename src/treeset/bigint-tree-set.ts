@@ -84,13 +84,8 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
     return true;
   }
 
-  contains(value: bigint): boolean {
-    return this.findNode(value) !== null;
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: bigint): boolean {
-    return this.contains(value);
+    return this.findNode(value) !== null;
   }
   size(): number {
     return this._size;
@@ -210,7 +205,7 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
 
   /** Returns true if the set contains the value. Alias for `contains`. */
   includes(value: bigint): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Makes the set iterable with for-of loops. Yields elements in ascending order. */
@@ -233,13 +228,13 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
 
   intersect(other: BigIntTreeSet): BigIntTreeSet {
     const r = new BigIntTreeSet();
-    for (const v of this.values()) if (other.contains(v)) r.add(v);
+    for (const v of this.values()) if (other.has(v)) r.add(v);
     return r;
   }
 
   difference(other: BigIntTreeSet): BigIntTreeSet {
     const r = new BigIntTreeSet();
-    for (const v of this.values()) if (!other.contains(v)) r.add(v);
+    for (const v of this.values()) if (!other.has(v)) r.add(v);
     return r;
   }
 

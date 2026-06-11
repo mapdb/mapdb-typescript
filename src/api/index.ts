@@ -10,7 +10,7 @@
 export interface MapDbCollection<T> {
   size(): number;
   isEmpty(): boolean;
-  contains(value: T): boolean;
+  has(value: T): boolean;
 
   // ── Array.prototype-style iteration / functional methods ──────────
   /** Calls `f` for each element in the collection. */
@@ -27,7 +27,7 @@ export interface MapDbCollection<T> {
   some(predicate: (value: T) => boolean): boolean;
   /** Reduces the collection to a single value using the accumulator function. */
   reduce<U>(f: (acc: U, value: T) => U, initial: U): U;
-  /** Returns true if the collection contains the value. Alias for `contains`. */
+  /** Returns true if the collection contains the value. Alias for `has`. */
   includes(value: T): boolean;
 
   // ── Conversion ────────────────────────────────────────────────────
@@ -100,13 +100,13 @@ export interface MapDbMutableStack<T>
 export interface MapDbMap<K, V> {
   size(): number;
   isEmpty(): boolean;
-  containsKey(key: K): boolean;
+  has(key: K): boolean;
   get(key: K): V | undefined;
 }
 
 /** Mutable map. */
 export interface MapDbMutableMap<K, V> extends MapDbMap<K, V> {
-  put(key: K, value: V): V | undefined;
+  set(key: K, value: V): V | undefined;
   remove(key: K): V | undefined;
   clear(): void;
 }

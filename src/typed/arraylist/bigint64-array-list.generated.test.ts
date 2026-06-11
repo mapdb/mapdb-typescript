@@ -40,8 +40,8 @@ describe("BigInt64ArrayList generated", () => {
     const l = new BigInt64ArrayList();
     l.add(1n);
     l.add(2n);
-    expect(l.contains(1n)).toBe(true);
-    expect(l.contains(99n)).toBe(false);
+    expect(l.has(1n)).toBe(true);
+    expect(l.has(99n)).toBe(false);
     expect(l.indexOf(2n)).toBe(1);
     expect(l.indexOf(99n)).toBe(-1);
   });

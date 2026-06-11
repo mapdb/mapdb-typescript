@@ -65,7 +65,7 @@ export class ArrayStack<T> implements MapDbMutableStack<T> {
     return this.data.length === 0;
   }
 
-  contains(value: T): boolean {
+  has(value: T): boolean {
     for (let i = 0; i < this.data.length; i++) {
       if (this.data[i] === value) return true;
     }
@@ -125,7 +125,7 @@ export class ArrayStack<T> implements MapDbMutableStack<T> {
   }
 
   includes(value: T): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns elements from top to bottom. */

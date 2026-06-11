@@ -40,8 +40,8 @@ describe("NumberArrayStack generated", () => {
     const s = new NumberArrayStack();
     s.push(1);
     s.push(2);
-    expect(s.contains(1)).toBe(true);
-    expect(s.contains(3)).toBe(false);
+    expect(s.has(1)).toBe(true);
+    expect(s.has(3)).toBe(false);
   });
   it("values generator", () => {
     const s = new NumberArrayStack();

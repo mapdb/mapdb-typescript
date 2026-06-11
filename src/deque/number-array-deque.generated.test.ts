@@ -59,8 +59,8 @@ describe("NumberArrayDeque generated", () => {
 
   it("contains", () => {
     const d = NumberArrayDeque.of([1, 2, 3]);
-    expect(d.contains(2)).toBe(true);
-    expect(d.contains(99)).toBe(false);
+    expect(d.has(2)).toBe(true);
+    expect(d.has(99)).toBe(false);
   });
 
   it("anySatisfy and allSatisfy", () => {

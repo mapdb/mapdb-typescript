@@ -24,7 +24,7 @@ export class BigIntNumberSetMultimap {
   }
 
   /** Adds a value under the given key. Idempotent: a duplicate value for the same key is silently dropped. */
-  put(key: bigint, value: number): void {
+  set(key: bigint, value: number): void {
     const list = this._map.get(key);
     if (list !== undefined) {
       for (let i = 0; i < list.length; i++) {
@@ -61,13 +61,8 @@ export class BigIntNumberSetMultimap {
   }
 
   /** Returns true if the multimap contains the given key. */
-  containsKey(key: bigint): boolean {
-    return this._map.has(key);
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: bigint): boolean {
-    return this.containsKey(key);
+    return this._map.has(key);
   }
 
   /** Returns true if the multimap contains the given key-value pair. */
@@ -125,7 +120,7 @@ export class BigIntNumberSetMultimap {
     this._map.forEach((list, key) => {
       for (let i = 0; i < list.length; i++) {
         if (predicate(key, list[i])) {
-          result.put(key, list[i]);
+          result.set(key, list[i]);
         }
       }
     });
@@ -140,7 +135,7 @@ export class BigIntNumberSetMultimap {
     this._map.forEach((list, key) => {
       for (let i = 0; i < list.length; i++) {
         if (!predicate(key, list[i])) {
-          result.put(key, list[i]);
+          result.set(key, list[i]);
         }
       }
     });

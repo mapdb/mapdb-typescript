@@ -13,8 +13,8 @@ describe("Int32HashSet (TypedArray-backed)", () => {
     expect(s.add(1)).toBe(true);
     expect(s.add(2)).toBe(true);
     expect(s.add(1)).toBe(false);
-    expect(s.contains(1)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(1)).toBe(true);
+    expect(s.has(99)).toBe(false);
     expect(s.size()).toBe(2);
   });
 
@@ -39,6 +39,6 @@ describe("Int32HashSet (TypedArray-backed)", () => {
     s.add(3);
     expect(s.remove(2)).toBe(true);
     expect(s.size()).toBe(2);
-    expect(s.contains(2)).toBe(false);
+    expect(s.has(2)).toBe(false);
   });
 });

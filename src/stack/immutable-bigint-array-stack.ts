@@ -51,8 +51,8 @@ export class ImmutableBigIntArrayStack implements MapDbStack<bigint> {
   }
 
   /** Returns true if the stack contains the given value. */
-  contains(value: bigint): boolean {
-    return this.delegate.contains(value);
+  has(value: bigint): boolean {
+    return this.delegate.has(value);
   }
 
   /** Yields all values from top to bottom. */

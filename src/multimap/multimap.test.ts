@@ -10,9 +10,9 @@ import { Multimap } from "./multimap.js";
 describe("Multimap", () => {
   it("put and get", () => {
     const m = new Multimap<string, number>();
-    m.put("a", 1);
-    m.put("a", 2);
-    m.put("b", 3);
+    m.set("a", 1);
+    m.set("a", 2);
+    m.set("b", 3);
     expect(m.size()).toBe(3);
     expect(m.sizeDistinct()).toBe(2);
     expect(m.get("a")).toEqual([1, 2]);
@@ -33,14 +33,14 @@ describe("Multimap", () => {
     const removed = m.removeAll("x");
     expect(removed).toEqual([1, 2, 3]);
     expect(m.size()).toBe(0);
-    expect(m.containsKey("x")).toBe(false);
+    expect(m.has("x")).toBe(false);
   });
 
   it("entries generator", () => {
     const m = new Multimap<number, string>();
-    m.put(1, "a");
-    m.put(1, "b");
-    m.put(2, "c");
+    m.set(1, "a");
+    m.set(1, "b");
+    m.set(2, "c");
     const entries = [...m.entries()];
     expect(entries.length).toBe(3);
   });

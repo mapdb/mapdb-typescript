@@ -43,8 +43,8 @@ export class ImmutableNumberArrayList implements MapDbList<number> {
   }
 
   /** Returns true if the list contains the given value. */
-  contains(value: number): boolean {
-    return this.delegate.contains(value);
+  has(value: number): boolean {
+    return this.delegate.has(value);
   }
 
   /** Returns the index of the first occurrence of the value, or -1 if not found. */

@@ -11,8 +11,8 @@ import { ImmutableNumberNumberHashMap } from "./immutable-number-number-hash-map
 describe("ImmutableNumberNumberHashMap", () => {
   it("get from immutable", () => {
     const m = new NumberNumberHashMap();
-    m.put(1, 100);
-    m.put(2, 200);
+    m.set(1, 100);
+    m.set(2, 200);
     const im = new ImmutableNumberNumberHashMap(m);
     expect(im.get(1)).toBe(100);
     expect(im.size()).toBe(2);
@@ -20,17 +20,17 @@ describe("ImmutableNumberNumberHashMap", () => {
 
   it("isolation from mutable", () => {
     const m = new NumberNumberHashMap();
-    m.put(1, 100);
+    m.set(1, 100);
     const im = new ImmutableNumberNumberHashMap(m);
-    m.put(2, 200);
+    m.set(2, 200);
     expect(im.size()).toBe(1); // immutable is independent
   });
 
   it("select returns immutable", () => {
     const m = new NumberNumberHashMap();
-    m.put(1, 10);
-    m.put(2, 20);
-    m.put(3, 30);
+    m.set(1, 10);
+    m.set(2, 20);
+    m.set(3, 30);
     const im = new ImmutableNumberNumberHashMap(m);
     const filtered = im.select((_k, v) => v > 15);
     expect(filtered.size()).toBe(2);
@@ -39,10 +39,10 @@ describe("ImmutableNumberNumberHashMap", () => {
 
   it("toMutable returns independent copy", () => {
     const m = new NumberNumberHashMap();
-    m.put(1, 100);
+    m.set(1, 100);
     const im = new ImmutableNumberNumberHashMap(m);
     const mut = im.toMutable();
-    mut.put(2, 200);
+    mut.set(2, 200);
     expect(mut.size()).toBe(2);
     expect(im.size()).toBe(1);
   });

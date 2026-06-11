@@ -89,16 +89,16 @@ export class Int16ArrayStack {
   }
 
   /** Returns true if the stack contains the given value. */
-  contains(value: number): boolean {
+  has(value: number): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }
 
-  /** Returns true if the stack contains the value. Alias for `contains`. */
+  /** Returns true if the stack contains the value. Alias for `has`. */
   includes(value: number): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns a new stack with elements satisfying the predicate (order preserved). */

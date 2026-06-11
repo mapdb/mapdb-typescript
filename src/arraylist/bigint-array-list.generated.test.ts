@@ -41,8 +41,8 @@ describe("BigIntArrayList generated", () => {
 
   it("contains", () => {
     const l = BigIntArrayList.of([1n, 2n, 3n]);
-    expect(l.contains(2n)).toBe(true);
-    expect(l.contains(99n)).toBe(false);
+    expect(l.has(2n)).toBe(true);
+    expect(l.has(99n)).toBe(false);
   });
 
   it("indexOf", () => {

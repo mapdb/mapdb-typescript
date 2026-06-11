@@ -22,8 +22,8 @@ describe("ImmutableNumberBigIntHashMap generated", () => {
   });
   it("containsKey", () => {
     const im = ImmutableNumberBigIntHashMap.of([[1, 1n]]);
-    expect(im.containsKey(1)).toBe(true);
-    expect(im.containsKey(99)).toBe(false);
+    expect(im.has(1)).toBe(true);
+    expect(im.has(99)).toBe(false);
   });
   it("select", () => {
     const im = ImmutableNumberBigIntHashMap.of([
@@ -35,7 +35,7 @@ describe("ImmutableNumberBigIntHashMap generated", () => {
   });
   it("toMutable does not affect immutable", () => {
     const im = ImmutableNumberBigIntHashMap.of([[1, 1n]]);
-    im.toMutable().put(2, 2n);
+    im.toMutable().set(2, 2n);
     expect(im.size()).toBe(1);
   });
 });

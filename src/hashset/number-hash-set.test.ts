@@ -13,8 +13,8 @@ describe("NumberHashSet", () => {
     expect(s.add(1)).toBe(true);
     expect(s.add(2)).toBe(true);
     expect(s.add(1)).toBe(false); // duplicate
-    expect(s.contains(1)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(1)).toBe(true);
+    expect(s.has(99)).toBe(false);
     expect(s.size()).toBe(2);
   });
 

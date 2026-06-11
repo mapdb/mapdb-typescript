@@ -53,11 +53,11 @@ describe("Property-based tests", () => {
         added.add(v);
       }
       for (const v of added) {
-        expect(set.contains(v)).toBe(true);
+        expect(set.has(v)).toBe(true);
       }
       for (let probe = 500; probe < 600; probe++) {
         if (!added.has(probe)) {
-          expect(set.contains(probe)).toBe(false);
+          expect(set.has(probe)).toBe(false);
         }
       }
     }
@@ -90,7 +90,7 @@ describe("Property-based tests", () => {
       for (let i = 0; i < n; i++) {
         const k = rng.next(100);
         const v = rng.next(10000);
-        map.put(k, v);
+        map.set(k, v);
         expected.set(k, v);
       }
       for (const [k, v] of expected) {
@@ -126,7 +126,7 @@ describe("Property-based tests", () => {
       for (let i = 0; i < n; i++) {
         const k = rng.next(200);
         const v = rng.next(200);
-        bm.put(k, v);
+        bm.set(k, v);
       }
       const seenValues = new Set<number>();
       bm.forEach((k, v) => {

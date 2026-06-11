@@ -14,8 +14,8 @@ describe("NumberTreeSet", () => {
     s.add(1);
     s.add(2);
     expect(s.size()).toBe(3);
-    expect(s.contains(2)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(2)).toBe(true);
+    expect(s.has(99)).toBe(false);
   });
 
   it("add duplicate returns false", () => {
@@ -54,7 +54,7 @@ describe("NumberTreeSet", () => {
     const s = NumberTreeSet.of([1, 2, 3, 4, 5]);
     s.remove(3);
     expect(s.size()).toBe(4);
-    expect(s.contains(3)).toBe(false);
+    expect(s.has(3)).toBe(false);
     const values = [...s.values()];
     for (let i = 1; i < values.length; i++) {
       expect(values[i]).toBeGreaterThan(values[i - 1]);

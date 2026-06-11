@@ -89,13 +89,8 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
   }
 
   /** Returns true if the bag contains at least one occurrence of the value. */
-  contains(value: bigint): boolean {
-    return this.counts.has(value);
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: bigint): boolean {
-    return this.contains(value);
+    return this.counts.has(value);
   }
 
   /** Returns the total number of elements (including duplicates). */
@@ -203,9 +198,9 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
     return acc;
   }
 
-  /** Returns true if the bag contains the value. Alias for `contains`. */
+  /** Returns true if the bag contains the value. Alias for `has`. */
   includes(value: bigint): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Makes the bag iterable with for-of loops. Yields all elements including duplicates. */

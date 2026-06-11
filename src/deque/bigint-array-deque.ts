@@ -70,7 +70,7 @@ export class BigIntArrayDeque {
   }
 
   /** Returns true if the deque contains the given value. */
-  contains(value: bigint): boolean {
+  has(value: bigint): boolean {
     for (let i = 0; i < this.data.length; i++) {
       if (this.data[i] === value) return true;
     }

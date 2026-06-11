@@ -31,8 +31,8 @@ import { ImmutableBitSet } from "./bitset/immutable-bit-set.js";
 describe("idiom pass — maps yield [key, value] pairs like a JS Map", () => {
   it("typed hash map: spread + for-of yield [k, v]", () => {
     const m = new Int8Int8HashMap();
-    m.put(1, 10);
-    m.put(2, 20);
+    m.set(1, 10);
+    m.set(2, 20);
     const pairs = [...m].sort((a, b) => a[0] - b[0]);
     expect(pairs).toEqual([
       [1, 10],
@@ -52,8 +52,8 @@ describe("idiom pass — maps yield [key, value] pairs like a JS Map", () => {
 
   it("nontyped number hash map iterator matches entries()", () => {
     const m = new NumberNumberHashMap();
-    m.put(5, 50);
-    m.put(6, 60);
+    m.set(5, 50);
+    m.set(6, 60);
     expect([...m].sort((a, b) => a[0] - b[0])).toEqual(
       [...m.entries()].sort((a, b) => a[0] - b[0]),
     );
@@ -61,8 +61,8 @@ describe("idiom pass — maps yield [key, value] pairs like a JS Map", () => {
 
   it("object-keyed hash map iterator matches entries()", () => {
     const m = new NumberObjectHashMap<string>();
-    m.put(1, "a");
-    m.put(2, "b");
+    m.set(1, "a");
+    m.set(2, "b");
     expect(new Map([...m])).toEqual(
       new Map([
         [1, "a"],
@@ -73,15 +73,15 @@ describe("idiom pass — maps yield [key, value] pairs like a JS Map", () => {
 
   it("immutable nontyped map iterator matches entries()", () => {
     const base = new NumberNumberHashMap();
-    base.put(7, 70);
+    base.set(7, 70);
     const im = new ImmutableNumberNumberHashMap(base);
     expect([...im]).toEqual([...im.entries()]);
   });
 
   it("bi-map already iterated [k, v] — still does (consistency anchor)", () => {
     const m = new NumberNumberHashBiMap();
-    m.put(1, 100);
-    m.put(2, 200);
+    m.set(1, 100);
+    m.set(2, 200);
     expect([...m].sort((a, b) => a[0] - b[0])).toEqual([
       [1, 100],
       [2, 200],
@@ -90,9 +90,9 @@ describe("idiom pass — maps yield [key, value] pairs like a JS Map", () => {
 
   it("tree map: iterator yields [k, v] in ascending key order, == entries()", () => {
     const m = new NumberNumberTreeMap();
-    m.put(3, 30);
-    m.put(1, 10);
-    m.put(2, 20);
+    m.set(3, 30);
+    m.set(1, 10);
+    m.set(2, 20);
     expect([...m]).toEqual([
       [1, 10],
       [2, 20],
@@ -105,9 +105,9 @@ describe("idiom pass — maps yield [key, value] pairs like a JS Map", () => {
 describe("idiom pass — multimaps yield one [key, value] tuple per value", () => {
   it("generated list multimap iterator matches existing entries() shape", () => {
     const mm = new NumberNumberListMultimap();
-    mm.put(1, 10);
-    mm.put(1, 11);
-    mm.put(2, 20);
+    mm.set(1, 10);
+    mm.set(1, 11);
+    mm.set(2, 20);
     const sort = (a: [number, number], b: [number, number]) =>
       a[0] - b[0] || a[1] - b[1];
     expect([...mm].sort(sort)).toEqual([...mm.entries()].sort(sort));
@@ -120,9 +120,9 @@ describe("idiom pass — multimaps yield one [key, value] tuple per value", () =
 
   it("hand-written Multimap aggregator gained an iterator (== entries())", () => {
     const mm = new Multimap<number, number>();
-    mm.put(1, 10);
-    mm.put(1, 11);
-    mm.put(2, 20);
+    mm.set(1, 10);
+    mm.set(1, 11);
+    mm.set(2, 20);
     const sort = (a: [number, number], b: [number, number]) =>
       a[0] - b[0] || a[1] - b[1];
     expect([...mm].sort(sort)).toEqual([...mm.entries()].sort(sort));
@@ -184,36 +184,36 @@ describe("idiom pass — sets/bags/lists are iterable (yield elements)", () => {
 describe("idiom pass — has() membership aliases (additive, non-breaking)", () => {
   it("map has(key) mirrors containsKey(key) without removing it", () => {
     const m = new Int8Int8HashMap();
-    m.put(1, 10);
+    m.set(1, 10);
     expect(m.has(1)).toBe(true);
     expect(m.has(99)).toBe(false);
     // original Java-style method is preserved
-    expect(m.containsKey(1)).toBe(true);
-    expect(m.has(1)).toBe(m.containsKey(1));
+    expect(m.has(1)).toBe(true);
+    expect(m.has(1)).toBe(m.has(1));
   });
 
   it("tree map has(key) mirrors containsKey(key)", () => {
     const m = new NumberNumberTreeMap();
-    m.put(7, 70);
+    m.set(7, 70);
     expect(m.has(7)).toBe(true);
     expect(m.has(8)).toBe(false);
-    expect(m.containsKey(7)).toBe(true);
+    expect(m.has(7)).toBe(true);
   });
 
   it("multimap has(key) mirrors containsKey(key)", () => {
     const mm = new NumberNumberListMultimap();
-    mm.put(1, 10);
+    mm.set(1, 10);
     expect(mm.has(1)).toBe(true);
     expect(mm.has(2)).toBe(false);
-    expect(mm.containsKey(1)).toBe(true);
+    expect(mm.has(1)).toBe(true);
   });
 
   it("bi-map has(key) mirrors containsKey(key)", () => {
     const m = new NumberNumberHashBiMap();
-    m.put(1, 100);
+    m.set(1, 100);
     expect(m.has(1)).toBe(true);
     expect(m.has(2)).toBe(false);
-    expect(m.containsKey(1)).toBe(true);
+    expect(m.has(1)).toBe(true);
   });
 
   it("set has(value) mirrors contains(value) without removing it", () => {
@@ -221,8 +221,8 @@ describe("idiom pass — has() membership aliases (additive, non-breaking)", () 
     s.add(5);
     expect(s.has(5)).toBe(true);
     expect(s.has(6)).toBe(false);
-    expect(s.contains(5)).toBe(true);
-    expect(s.has(5)).toBe(s.contains(5));
+    expect(s.has(5)).toBe(true);
+    expect(s.has(5)).toBe(s.has(5));
   });
 
   it("tree set has(value) mirrors contains(value)", () => {
@@ -230,7 +230,7 @@ describe("idiom pass — has() membership aliases (additive, non-breaking)", () 
     s.add(5);
     expect(s.has(5)).toBe(true);
     expect(s.has(6)).toBe(false);
-    expect(s.contains(5)).toBe(true);
+    expect(s.has(5)).toBe(true);
   });
 
   it("bag has(value) mirrors contains(value)", () => {
@@ -238,6 +238,6 @@ describe("idiom pass — has() membership aliases (additive, non-breaking)", () 
     b.add(5);
     expect(b.has(5)).toBe(true);
     expect(b.has(6)).toBe(false);
-    expect(b.contains(5)).toBe(true);
+    expect(b.has(5)).toBe(true);
   });
 });

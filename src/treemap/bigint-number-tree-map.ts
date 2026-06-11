@@ -27,7 +27,7 @@ export class BigIntNumberTreeMap implements MapDbMutableMap<bigint, number> {
   private _size = 0;
 
   /** Inserts or updates. Returns previous value or undefined. */
-  put(key: bigint, value: number): number | undefined {
+  set(key: bigint, value: number): number | undefined {
     if (this.root === null) {
       this.root = {
         key,
@@ -90,13 +90,8 @@ export class BigIntNumberTreeMap implements MapDbMutableMap<bigint, number> {
     return v !== undefined ? v : defaultValue;
   }
 
-  containsKey(key: bigint): boolean {
-    return this.findNode(key) !== null;
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: bigint): boolean {
-    return this.containsKey(key);
+    return this.findNode(key) !== null;
   }
 
   remove(key: bigint): number | undefined {
@@ -203,7 +198,7 @@ export class BigIntNumberTreeMap implements MapDbMutableMap<bigint, number> {
   ): BigIntNumberTreeMap {
     const result = new BigIntNumberTreeMap();
     for (const [k, v] of this.entries()) {
-      if (predicate(k, v)) result.put(k, v);
+      if (predicate(k, v)) result.set(k, v);
     }
     return result;
   }

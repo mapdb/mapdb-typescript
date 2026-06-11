@@ -30,9 +30,9 @@ describe("NumberInterval generated", () => {
   });
   it("contains", () => {
     const iv = NumberInterval.fromTo(1, 5);
-    expect(iv.contains(1)).toBe(true);
-    expect(iv.contains(3)).toBe(true);
-    expect(iv.contains(99)).toBe(false);
+    expect(iv.has(1)).toBe(true);
+    expect(iv.has(3)).toBe(true);
+    expect(iv.has(99)).toBe(false);
   });
   it("get", () => {
     const iv = NumberInterval.fromTo(1, 5);

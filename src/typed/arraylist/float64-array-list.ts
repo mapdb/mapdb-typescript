@@ -49,7 +49,7 @@ export class Float64ArrayList {
     return old;
   }
 
-  contains(value: number): boolean {
+  has(value: number): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }

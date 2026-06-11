@@ -59,7 +59,7 @@ export class Int32HashSet {
     }
   }
 
-  contains(value: number): boolean {
+  has(value: number): boolean {
     if (this.capacity === 0) return false;
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -68,11 +68,6 @@ export class Int32HashSet {
       if (Object.is(this.items[idx], value)) return true;
       idx = (idx + 1) & mask;
     }
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: number): boolean {
-    return this.contains(value);
   }
 
   size(): number {
@@ -101,7 +96,7 @@ export class Int32HashSet {
   intersect(other: Int32HashSet): Int32HashSet {
     const result = new Int32HashSet();
     for (let i = 0; i < this.capacity; i++) {
-      if (this.occupied[i] && other.contains(this.items[i])) {
+      if (this.occupied[i] && other.has(this.items[i])) {
         result.add(this.items[i]);
       }
     }
@@ -111,7 +106,7 @@ export class Int32HashSet {
   difference(other: Int32HashSet): Int32HashSet {
     const result = new Int32HashSet();
     for (let i = 0; i < this.capacity; i++) {
-      if (this.occupied[i] && !other.contains(this.items[i])) {
+      if (this.occupied[i] && !other.has(this.items[i])) {
         result.add(this.items[i]);
       }
     }

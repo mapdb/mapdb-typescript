@@ -48,8 +48,8 @@ export class ImmutableNumberArrayDeque {
   }
 
   /** Returns true if the deque contains the given value. */
-  contains(value: number): boolean {
-    return this.delegate.contains(value);
+  has(value: number): boolean {
+    return this.delegate.has(value);
   }
 
   /** Yields all elements in front-to-back order. */

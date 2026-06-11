@@ -119,13 +119,8 @@ export class NumberTreeBag {
     return node ? node.count : 0;
   }
 
-  contains(value: number): boolean {
-    return this.findNode(value) !== null;
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: number): boolean {
-    return this.contains(value);
+    return this.findNode(value) !== null;
   }
 
   /** Total count including duplicates. */
@@ -259,9 +254,9 @@ export class NumberTreeBag {
     return acc;
   }
 
-  /** Returns true if the bag contains the value. Alias for `contains`. */
+  /** Returns true if the bag contains the value. Alias for `has`. */
   includes(value: number): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Returns a new array with the results of calling `fn` on each element (in sorted order, with duplicates). */

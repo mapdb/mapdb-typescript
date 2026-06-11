@@ -12,59 +12,59 @@ import { Float64BigInt64HashMap } from "./float64-bigint64-hash-map.js";
 describe("Float64BigInt64HashMap generated", () => {
   it("put and get", () => {
     const m = new Float64BigInt64HashMap();
-    m.put(1, 1n);
-    m.put(2, 2n);
-    m.put(3, 3n);
+    m.set(1, 1n);
+    m.set(2, 2n);
+    m.set(3, 3n);
     expect(m.get(1)).toBe(1n);
     expect(m.get(99)).toBeUndefined();
     expect(m.size()).toBe(3);
   });
   it("put overwrite", () => {
     const m = new Float64BigInt64HashMap();
-    m.put(1, 1n);
-    const old = m.put(1, 2n);
+    m.set(1, 1n);
+    const old = m.set(1, 2n);
     expect(old).toBe(1n);
     expect(m.get(1)).toBe(2n);
   });
   it("remove", () => {
     const m = new Float64BigInt64HashMap();
-    m.put(1, 1n);
-    m.put(2, 2n);
+    m.set(1, 1n);
+    m.set(2, 2n);
     expect(m.remove(1)).toBe(1n);
     expect(m.size()).toBe(1);
-    expect(m.containsKey(1)).toBe(false);
+    expect(m.has(1)).toBe(false);
   });
   it("getOrDefault", () => {
     const m = new Float64BigInt64HashMap();
-    m.put(1, 1n);
+    m.set(1, 1n);
     expect(m.getOrDefault(1, 3n)).toBe(1n);
     expect(m.getOrDefault(99, 3n)).toBe(3n);
   });
   it("isEmpty and clear", () => {
     const m = new Float64BigInt64HashMap();
     expect(m.isEmpty()).toBe(true);
-    m.put(1, 1n);
+    m.set(1, 1n);
     expect(m.isEmpty()).toBe(false);
     m.clear();
     expect(m.isEmpty()).toBe(true);
   });
   it("select", () => {
     const m = new Float64BigInt64HashMap();
-    m.put(1, 1n);
-    m.put(2, 2n);
-    m.put(3, 3n);
+    m.set(1, 1n);
+    m.set(2, 2n);
+    m.set(3, 3n);
     expect(m.select((_k, v) => v > 1n).size()).toBe(2);
   });
   it("anySatisfy / allSatisfy", () => {
     const m = new Float64BigInt64HashMap();
-    m.put(1, 1n);
-    m.put(2, 2n);
+    m.set(1, 1n);
+    m.set(2, 2n);
     expect(m.anySatisfy((_k, v) => v === 2n)).toBe(true);
     expect(m.allSatisfy((_k, v) => v > 0n)).toBe(true);
   });
   it("resize", () => {
     const m = new Float64BigInt64HashMap();
-    for (let i = 0; i < 100; i += 1) m.put(i, BigInt(i) * 10n);
+    for (let i = 0; i < 100; i += 1) m.set(i, BigInt(i) * 10n);
     expect(m.size()).toBe(100);
   });
   it("memoryBytes", () => {
@@ -73,46 +73,46 @@ describe("Float64BigInt64HashMap generated", () => {
   });
   it("toString", () => {
     const m = new Float64BigInt64HashMap();
-    m.put(1, 1n);
+    m.set(1, 1n);
     expect(m.toString()).not.toBe("");
   });
 
   describe("IEEE 754 edge cases", () => {
     it("NaN key is findable", () => {
       const m = new Float64BigInt64HashMap();
-      m.put(NaN, 1n);
-      expect(m.containsKey(NaN)).toBe(true);
+      m.set(NaN, 1n);
+      expect(m.has(NaN)).toBe(true);
       expect(m.get(NaN)).toBe(1n);
       expect(m.size()).toBe(1);
     });
     it("NaN key replaces, does not duplicate", () => {
       const m = new Float64BigInt64HashMap();
-      m.put(NaN, 1n);
-      m.put(NaN, 2n);
-      m.put(NaN, 3n);
+      m.set(NaN, 1n);
+      m.set(NaN, 2n);
+      m.set(NaN, 3n);
       expect(m.size()).toBe(1);
       expect(m.get(NaN)).toBe(3n);
     });
     it("NaN key remove works", () => {
       const m = new Float64BigInt64HashMap();
-      m.put(NaN, 1n);
+      m.set(NaN, 1n);
       const removed = m.remove(NaN);
       expect(removed).toBe(1n);
       expect(m.size()).toBe(0);
-      expect(m.containsKey(NaN)).toBe(false);
+      expect(m.has(NaN)).toBe(false);
     });
     it("-0.0 is distinct from +0.0", () => {
       const m = new Float64BigInt64HashMap();
-      m.put(0.0, 1n);
-      m.put(-0.0, 2n);
+      m.set(0.0, 1n);
+      m.set(-0.0, 2n);
       expect(m.size()).toBe(2);
       expect(m.get(0.0)).toBe(1n);
       expect(m.get(-0.0)).toBe(2n);
     });
     it("+/-Infinity keys", () => {
       const m = new Float64BigInt64HashMap();
-      m.put(Number.POSITIVE_INFINITY, 1n);
-      m.put(Number.NEGATIVE_INFINITY, 2n);
+      m.set(Number.POSITIVE_INFINITY, 1n);
+      m.set(Number.NEGATIVE_INFINITY, 2n);
       expect(m.size()).toBe(2);
       expect(m.get(Number.POSITIVE_INFINITY)).toBe(1n);
       expect(m.get(Number.NEGATIVE_INFINITY)).toBe(2n);

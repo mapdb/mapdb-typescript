@@ -84,7 +84,7 @@ export class HashSetWithStrategy<T> {
     }
   }
 
-  contains(value: T): boolean {
+  has(value: T): boolean {
     if (this._size === 0) return false;
     const mask = this.entries.length - 1;
     let idx = this.strategy.hashCode(value) & mask;
@@ -94,11 +94,6 @@ export class HashSetWithStrategy<T> {
       if (this.strategy.equals(e.value, value)) return true;
       idx = (idx + 1) & mask;
     }
-  }
-
-  /** Set-shaped alias for {@link contains}. */
-  has(value: T): boolean {
-    return this.contains(value);
   }
 
   get size(): number {

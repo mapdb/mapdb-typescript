@@ -33,16 +33,16 @@ describe("Example: HTTPHeaders", () => {
       caseInsensitiveHashingStrategy(),
     );
 
-    headers.put("Content-Type", "application/json");
-    headers.put("Content-Length", "42");
-    headers.put("Authorization", "Bearer xyz");
+    headers.set("Content-Type", "application/json");
+    headers.set("Content-Length", "42");
+    headers.set("Authorization", "Bearer xyz");
 
     // Case-insensitive lookup
     expect(headers.get("content-type")).toBe("application/json");
     expect(headers.get("AUTHORIZATION")).toBe("Bearer xyz");
 
     // Overwriting with different case
-    headers.put("content-TYPE", "text/html");
+    headers.set("content-TYPE", "text/html");
     expect(headers.size).toBe(3);
     expect(headers.get("Content-Type")).toBe("text/html");
   });
@@ -158,10 +158,10 @@ describe("Example: Leaderboard", () => {
     // Higher scores first → reverse comparator.
     const board = new TreeMap<number, string>(reverseComparator<number>());
 
-    board.put(100, "Alice");
-    board.put(250, "Bob");
-    board.put(175, "Charlie");
-    board.put(50, "Dave");
+    board.set(100, "Alice");
+    board.set(250, "Bob");
+    board.set(175, "Charlie");
+    board.set(50, "Dave");
 
     // Top player — Min under reverse = highest score
     const top = board.min();
@@ -198,10 +198,10 @@ describe("Example: NormalizedGrouping", () => {
     };
 
     const m = new HashMapWithStrategy<string, number>(normStrategy);
-    m.put("New York", 1);
-    m.put("new york", 2); // merges with above
-    m.put("NEW  YORK", 3); // merges with above
-    m.put("Boston", 10);
+    m.set("New York", 1);
+    m.set("new york", 2); // merges with above
+    m.set("NEW  YORK", 3); // merges with above
+    m.set("Boston", 10);
 
     expect(m.size).toBe(2);
   });

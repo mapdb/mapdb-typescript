@@ -23,7 +23,7 @@ export class HashMap<K, V> implements MapDbMutableMap<K, V> {
 
   // ── MapDbMutableMap ─────────────────────────────────────────────────
 
-  put(key: K, value: V): V | undefined {
+  set(key: K, value: V): V | undefined {
     const old = this.data.get(key);
     this.data.set(key, value);
     return old;
@@ -47,13 +47,8 @@ export class HashMap<K, V> implements MapDbMutableMap<K, V> {
     return this.data.size === 0;
   }
 
-  containsKey(key: K): boolean {
-    return this.data.has(key);
-  }
-
-  /** Map-shaped alias for {@link containsKey}. */
   has(key: K): boolean {
-    return this.containsKey(key);
+    return this.data.has(key);
   }
 
   get(key: K): V | undefined {
@@ -78,7 +73,7 @@ export class HashMap<K, V> implements MapDbMutableMap<K, V> {
   select(predicate: (key: K, value: V) => boolean): HashMap<K, V> {
     const result = new HashMap<K, V>();
     this.data.forEach((v, k) => {
-      if (predicate(k, v)) result.put(k, v);
+      if (predicate(k, v)) result.set(k, v);
     });
     return result;
   }
@@ -87,7 +82,7 @@ export class HashMap<K, V> implements MapDbMutableMap<K, V> {
   reject(predicate: (key: K, value: V) => boolean): HashMap<K, V> {
     const result = new HashMap<K, V>();
     this.data.forEach((v, k) => {
-      if (!predicate(k, v)) result.put(k, v);
+      if (!predicate(k, v)) result.set(k, v);
     });
     return result;
   }

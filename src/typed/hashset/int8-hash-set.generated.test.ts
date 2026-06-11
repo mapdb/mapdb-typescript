@@ -16,8 +16,8 @@ describe("Int8HashSet generated", () => {
     s.add(2);
     s.add(3);
     expect(s.size()).toBe(3);
-    expect(s.contains(2)).toBe(true);
-    expect(s.contains(99)).toBe(false);
+    expect(s.has(2)).toBe(true);
+    expect(s.has(99)).toBe(false);
   });
   it("add duplicate", () => {
     const s = new Int8HashSet();
@@ -30,7 +30,7 @@ describe("Int8HashSet generated", () => {
     s.add(1);
     s.add(2);
     expect(s.remove(1)).toBe(true);
-    expect(s.contains(1)).toBe(false);
+    expect(s.has(1)).toBe(false);
     expect(s.remove(99)).toBe(false);
   });
   it("isEmpty and clear", () => {

@@ -28,20 +28,20 @@ function main(): void {
 
 function probeMapNaN(): void {
   const m = new NumberNumberHashMap();
-  m.put(NaN, 1);
+  m.set(NaN, 1);
   console.log(`map_nan_size_after_put1: ${m.size()}`);
 
-  m.put(NaN, 2);
+  m.set(NaN, 2);
   console.log(`map_nan_size_after_put2: ${m.size()}`);
 
-  m.put(NaN, 3);
+  m.set(NaN, 3);
   console.log(`map_nan_size_after_put3: ${m.size()}`);
 
   const v = m.get(NaN);
   console.log(`map_nan_get_found: ${v !== undefined}`);
   console.log(`map_nan_get_value: ${v !== undefined ? v : 0}`);
 
-  console.log(`map_nan_contains_key: ${m.containsKey(NaN)}`);
+  console.log(`map_nan_contains_key: ${m.has(NaN)}`);
 
   const removed = m.remove(NaN);
   console.log(`map_nan_remove_found: ${removed !== undefined}`);
@@ -50,8 +50,8 @@ function probeMapNaN(): void {
 
 function probeMapNegZero(): void {
   const m = new NumberNumberHashMap();
-  m.put(0.0, 100);
-  m.put(-0.0, 200);
+  m.set(0.0, 100);
+  m.set(-0.0, 200);
 
   console.log(`map_zero_size: ${m.size()}`);
 
@@ -77,8 +77,8 @@ function probeMapNegZero(): void {
 
 function probeMapInfinity(): void {
   const m = new NumberNumberHashMap();
-  m.put(Number.POSITIVE_INFINITY, 111);
-  m.put(Number.NEGATIVE_INFINITY, 222);
+  m.set(Number.POSITIVE_INFINITY, 111);
+  m.set(Number.NEGATIVE_INFINITY, 222);
 
   console.log(`map_inf_size: ${m.size()}`);
 
@@ -87,8 +87,8 @@ function probeMapInfinity(): void {
   console.log(`map_pinf_get: ${v1 !== undefined ? v1 : 0}`);
   console.log(`map_ninf_get: ${v2 !== undefined ? v2 : 0}`);
 
-  console.log(`map_pinf_contains: ${m.containsKey(Number.POSITIVE_INFINITY)}`);
-  console.log(`map_ninf_contains: ${m.containsKey(Number.NEGATIVE_INFINITY)}`);
+  console.log(`map_pinf_contains: ${m.has(Number.POSITIVE_INFINITY)}`);
+  console.log(`map_ninf_contains: ${m.has(Number.NEGATIVE_INFINITY)}`);
 }
 
 function probeSetNaN(): void {
@@ -97,7 +97,7 @@ function probeSetNaN(): void {
   s.add(NaN);
   s.add(NaN);
   console.log(`set_nan_size: ${s.size()}`);
-  console.log(`set_nan_contains: ${s.contains(NaN)}`);
+  console.log(`set_nan_contains: ${s.has(NaN)}`);
 }
 
 function probeSetNegZero(): void {
@@ -105,8 +105,8 @@ function probeSetNegZero(): void {
   s.add(0.0);
   s.add(-0.0);
   console.log(`set_zero_size: ${s.size()}`);
-  console.log(`set_pos_zero_contains: ${s.contains(0.0)}`);
-  console.log(`set_neg_zero_contains: ${s.contains(-0.0)}`);
+  console.log(`set_pos_zero_contains: ${s.has(0.0)}`);
+  console.log(`set_neg_zero_contains: ${s.has(-0.0)}`);
 }
 
 function probeSetMixed(): void {

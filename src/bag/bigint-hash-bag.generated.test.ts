@@ -31,7 +31,7 @@ describe("BigIntHashBag generated", () => {
   it("removeAll", () => {
     const b = BigIntHashBag.of([1n, 1n, 2n]);
     b.removeAll(1n);
-    expect(b.contains(1n)).toBe(false);
+    expect(b.has(1n)).toBe(false);
   });
   it("clear and isEmpty", () => {
     const b = BigIntHashBag.of([1n]);

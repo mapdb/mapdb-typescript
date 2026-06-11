@@ -43,8 +43,8 @@ export class ImmutableBigIntPriorityQueue {
   }
 
   /** Returns true if the queue contains the given value. O(n). */
-  contains(value: bigint): boolean {
-    return this.delegate.contains(value);
+  has(value: bigint): boolean {
+    return this.delegate.has(value);
   }
 
   /** Returns a copy of the internal heap array (NOT sorted). */

@@ -82,7 +82,7 @@ export class NumberArrayStack implements MapDbMutableStack<number> {
   }
 
   /** Returns true if the stack contains the given value. */
-  contains(value: number): boolean {
+  has(value: number): boolean {
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
@@ -171,7 +171,7 @@ export class NumberArrayStack implements MapDbMutableStack<number> {
 
   /** Returns true if the stack contains the value. Alias for `contains`. */
   includes(value: number): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Makes the stack iterable with for-of loops. Yields top to bottom. */

@@ -86,13 +86,8 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
     return true;
   }
 
-  contains(value: number): boolean {
-    return this.findNode(value) !== null;
-  }
-
-  /** Set-shaped alias for {@link contains}. */
   has(value: number): boolean {
-    return this.contains(value);
+    return this.findNode(value) !== null;
   }
   size(): number {
     return this._size;
@@ -214,7 +209,7 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
 
   /** Returns true if the set contains the value. Alias for `contains`. */
   includes(value: number): boolean {
-    return this.contains(value);
+    return this.has(value);
   }
 
   /** Makes the set iterable with for-of loops. Yields elements in ascending order. */
@@ -237,13 +232,13 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
 
   intersect(other: NumberTreeSet): NumberTreeSet {
     const r = new NumberTreeSet();
-    for (const v of this.values()) if (other.contains(v)) r.add(v);
+    for (const v of this.values()) if (other.has(v)) r.add(v);
     return r;
   }
 
   difference(other: NumberTreeSet): NumberTreeSet {
     const r = new NumberTreeSet();
-    for (const v of this.values()) if (!other.contains(v)) r.add(v);
+    for (const v of this.values()) if (!other.has(v)) r.add(v);
     return r;
   }
 
