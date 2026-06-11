@@ -17,6 +17,8 @@ import * as path from "node:path";
 import { NumberNumberHashMap } from "./hashmap/number-number-hash-map.js";
 import { Int32Int32HashMap } from "./typed/hashmap/int32-int32-hash-map.js";
 import { BigIntNumberHashMap } from "./hashmap/bigint-number-hash-map.js";
+import { BigIntNumberListMultimap } from "./multimap/bigint-number-list-multimap.js";
+import { BigIntNumberSetMultimap } from "./multimap/bigint-number-set-multimap.js";
 import { NumberArrayList } from "./arraylist/number-array-list.js";
 import { Float32ArrayList } from "./typed/arraylist/float32-array-list.js";
 import { NumberHashSet } from "./hashset/number-hash-set.js";
@@ -1114,6 +1116,94 @@ function renderI64Expected(expected: unknown): string {
   return String(expected);
 }
 
+// ---------------------------------------------------------------------------
+// {List,Set}Multimap<i64, i32> runner — routes through the PRODUCTION
+// BigIntNumber{List,Set}Multimap (bigint key, number value). i64 keys are
+// decimal strings (they exceed 2^53), parsed straight to bigint via BigInt(...)
+// like the i64 HashMap path. The multimaps back onto a JS `Map<bigint, ...>`
+// (the stdlib hash map), NOT the production OpenHashMap high-bit fold — so this
+// verifies full-range i64 keys keep their identity (stay distinct and
+// retrievable) through the JS Map. It checks key identity, not
+// bucket-distribution quality. List keeps duplicate values; Set dedups.
+//
+// Assertions (identical to the other ports):
+//   distinct_key_count -> uniqueKeys().length (integer string)
+//   sorted_keys        -> DISTINCT keys, ascending i64, quoted decimal strings
+//   get_<k>            -> values for the key, ascending-sorted number array
+//                         (sort a COPY); absent/removed => []
+//   contains_key_<k>   -> bool
+// ---------------------------------------------------------------------------
+
+interface I64Multimap {
+  put(key: bigint, value: number): void;
+  get(key: bigint): readonly number[];
+  removeAll(key: bigint): number[];
+  containsKey(key: bigint): boolean;
+  uniqueKeys(): bigint[];
+  readonly keysCount: number;
+}
+
+function runI64Multimap(scenario: Scenario, m: I64Multimap): void {
+  for (const op of scenario.operations) {
+    switch (op.op) {
+      case "put":
+        m.put(parseI64Operand(op.key), op.value as number);
+        break;
+      case "removeAll":
+        m.removeAll(parseI64Operand(op.key));
+        break;
+      default:
+        throw new Error(`unknown i64-multimap op: ${op.op}`);
+    }
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalI64MultimapAssertion(key, m);
+    if (computed === undefined) continue; // unknown key -> skip
+    console.log(`${key}: ${computed}`);
+    const want = renderI64MultimapExpected(key, scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(`FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`);
+      anyFail = true;
+    }
+  }
+}
+
+function evalI64MultimapAssertion(key: string, m: I64Multimap): string | undefined {
+  if (key === "distinct_key_count") return String(m.keysCount);
+  if (key === "sorted_keys") {
+    const keys = m.uniqueKeys().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    return `[${keys.map((k) => `"${k.toString()}"`).join(",")}]`;
+  }
+  if (key.startsWith("get_")) {
+    const vals = [...m.get(i64FromString(key.slice(4)))].sort((a, b) => a - b);
+    return `[${vals.join(",")}]`;
+  }
+  if (key.startsWith("contains_key_")) {
+    return String(m.containsKey(i64FromString(key.slice(13))));
+  }
+  return undefined;
+}
+
+// Render an expected i64-multimap assertion value into the runner's canonical
+// string. `sorted_keys` is a decimal-string array (quoted); `get_<k>` is a
+// plain number array (UNQUOTED); scalars are numbers/booleans.
+function renderI64MultimapExpected(key: string, expected: unknown): string {
+  if (typeof expected === "boolean") return expected ? "true" : "false";
+  if (typeof expected === "number") return String(expected);
+  if (Array.isArray(expected)) {
+    if (key === "sorted_keys") {
+      return `[${expected.map((e) => `"${String(e)}"`).join(",")}]`;
+    }
+    // get_<k> value array: plain numbers, unquoted.
+    return `[${expected.map((e) => String(e)).join(",")}]`;
+  }
+  return String(expected);
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -1132,6 +1222,21 @@ function main(): void {
   // §"Wide-integer (i64) operand encoding".
   if (scenario.collection === "HashMap<i64, i32>") {
     runI64HashMap(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // ListMultimap/SetMultimap<i64, i32> take the same separate bigint-keyed
+  // dispatch path: production BigIntNumber{List,Set}Multimap, not in the
+  // number-keyed Collection union. See README §"Wide-integer (i64) operand
+  // encoding".
+  if (scenario.collection === "ListMultimap<i64, i32>") {
+    runI64Multimap(scenario, new BigIntNumberListMultimap());
+    if (anyFail) process.exit(1);
+    return;
+  }
+  if (scenario.collection === "SetMultimap<i64, i32>") {
+    runI64Multimap(scenario, new BigIntNumberSetMultimap());
     if (anyFail) process.exit(1);
     return;
   }
