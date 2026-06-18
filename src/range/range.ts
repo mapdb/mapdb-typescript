@@ -84,6 +84,19 @@ export type Cut<T> =
 const BELOW_ALL: Cut<never> = { kind: CutKind.BelowAll };
 const ABOVE_ALL: Cut<never> = { kind: CutKind.AboveAll };
 
+/**
+ * The `-∞` lower-cut sentinel, exported for the cut-region structures
+ * ({@link RangeSet} complement) that build ranges directly from cuts. Only ever
+ * a lower cut.
+ */
+export const BELOW_ALL_CUT: Cut<never> = BELOW_ALL;
+
+/**
+ * The `+∞` upper-cut sentinel, exported for the cut-region structures
+ * ({@link RangeSet} complement). Only ever an upper cut.
+ */
+export const ABOVE_ALL_CUT: Cut<never> = ABOVE_ALL;
+
 function below<T>(value: T): Cut<T> {
   return { kind: CutKind.Below, value };
 }
@@ -261,6 +274,42 @@ export class Range<T> {
   static singleton(v: number): Range<number> {
     const e = i32Endpoint(v);
     return Range.fromCuts(below(e), above(e));
+  }
+
+  /**
+   * Construct a `Range` directly from two already-valid cuts (`lower <= upper`),
+   * **bypassing endpoint re-validation**. This is the cut-algebra constructor the
+   * {@link RangeSet} / {@link RangeMap} split / complement / clip paths use: the
+   * cuts they pass are derived from *existing* (already-validated) ranges via
+   * {@link lowerCut} / {@link upperCut} and {@link Cut} comparisons, never from
+   * `±1` endpoint arithmetic — so the `i32Endpoint` factory check is neither
+   * needed nor desired (it would reject the `BelowAll`/`AboveAll` sentinels that
+   * have no numeric endpoint). The `lower <= upper` invariant is still asserted.
+   *
+   * Mirrors the Rust reference's `Range::from_cuts_internal`. Not part of the
+   * public Guava-parity factory surface; it exists for the cut-region structures
+   * that own this file's cut model.
+   */
+  static fromCutsInternal<T>(lower: Cut<T>, upper: Cut<T>): Range<T> {
+    // The structures only ever pass i32 cuts (cmpNumber), and the cuts come
+    // from existing valid ranges, so the comparator is the numeric one.
+    if (compareCuts(lower, upper, cmpNumber as (a: T, b: T) => number) > 0) {
+      throw new RangeError("Range: lower cut must not exceed upper cut");
+    }
+    return new Range<T>(lower, upper, cmpNumber as (a: T, b: T) => number);
+  }
+
+  /**
+   * Total order on two cuts under the v1 `number`/i32 comparator — the single
+   * cut comparator the {@link RangeSet}/{@link RangeMap} cut algebra needs
+   * (coalescing position, complement gaps, clip boundaries). Returns
+   * negative / zero / positive. Exposed here so those structures reuse this
+   * file's one cut-order definition rather than re-deriving it (and never emit a
+   * bare `a < b`). For the float widening this routes through the IEEE-754
+   * total-order comparator, exactly as the factories will.
+   */
+  static compareCutsNumeric<T>(a: Cut<T>, b: Cut<T>): number {
+    return compareCuts(a, b, cmpNumber as (x: T, y: T) => number);
   }
 
   // ---- queries ------------------------------------------------------------
