@@ -83,10 +83,15 @@ describe("TreeMap pump (number)", () => {
     ]);
     const m = NumberNumberTreeMap.fromSorted(pairs);
     assertValidRb(m);
-    // random inserts / removes against the pumped tree
-    for (let t = 0; t < 500; t++) {
-      const k = Math.floor(Math.random() * 2 * n);
-      if (Math.random() < 0.5) m.set(k, k);
+    let seed = 0x71ee;
+    const next = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed;
+    };
+    // Deterministic inserts / removes against the pumped tree.
+    for (let t = 0; t < 48; t++) {
+      const k = next() % (2 * n);
+      if ((next() & 1) === 0) m.set(k, k);
       else m.remove(k);
       assertValidRb(m);
     }

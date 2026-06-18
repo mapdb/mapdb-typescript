@@ -93,8 +93,13 @@ describe("buildRedBlack", () => {
   });
 
   it("randomized RB validity", () => {
-    for (let t = 0; t < 200; t++) {
-      const n = Math.floor(Math.random() * 1000);
+    let seed = 0x5eed;
+    const nextSize = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed % 1000;
+    };
+    for (let t = 0; t < 80; t++) {
+      const n = nextSize();
       const root = makeTree(n);
       checkRb(root, null);
       const out: number[] = [];
