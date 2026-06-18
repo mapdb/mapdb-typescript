@@ -35,6 +35,10 @@ export { BigIntBigIntPair } from "./tuple/bigint-bigint-pair.js";
 export { NumberInterval } from "./interval/number-interval.js";
 export { Range, BoundType, CutKind } from "./range/range.js";
 export type { Cut } from "./range/range.js";
+export {
+  ImmutableSortedMap,
+  ImmutableSortedSet,
+} from "./immutable_sorted/immutable-sorted-map.js";
 
 // Full typed primitive collection surface (mutable + immutable; all six
 // element types and 36 key×value hash-map pairs). See src/typed/index.ts.

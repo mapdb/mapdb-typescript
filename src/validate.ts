@@ -28,6 +28,10 @@ import { NumberNumberTreeMap } from "./treemap/number-number-tree-map.js";
 import { NumberArrayStack } from "./stack/number-array-stack.js";
 import { totalCmpNumber } from "./internal/float-order.js";
 import { Range, BoundType } from "./range/range.js";
+import {
+  ImmutableSortedMap,
+  ImmutableSortedSet,
+} from "./immutable_sorted/immutable-sorted-map.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,6 +53,11 @@ interface Operation {
   // NavigableMap/Set `remove_range` op carries an inline range-builder object
   // (same shape as the top-level `query` / the 10-range builder ops).
   range?: RangeOp;
+  // ImmutableSortedMap/Set `from_sorted` construction op carries parallel
+  // ascending arrays (`keys`/`values` for a map, `elements` for a set).
+  keys?: number[];
+  values?: number[];
+  elements?: number[];
 }
 
 // A range-builder object: one of the 10-range constructor ops. Used by the
@@ -1594,6 +1603,200 @@ function renderRangeExpected(expected: unknown): string {
   return String(expected); // bound-type strings ("open"/"closed")
 }
 
+// ---------------------------------------------------------------------------
+// ImmutableSortedMap / ImmutableSortedSet (sorted-table-map)
+// ---------------------------------------------------------------------------
+
+// A sorted-table collection is built by a SINGLE `from_sorted` bulk op (it has
+// no incremental mutators). Per spec/features/sorted-table-map.md §"Authoring
+// rules", a scenario with zero or multiple `from_sorted` ops is malformed and
+// the runner SKIPs it (returns false = not-applied) rather than failing or
+// silently applying the first. Returns the built collection, or null to SKIP.
+function buildSortedTable(
+  scenario: Scenario,
+  isMap: boolean,
+): ImmutableSortedMap | ImmutableSortedSet | null {
+  const ops = scenario.operations.filter((o) => o.op === "from_sorted");
+  if (ops.length !== 1 || scenario.operations.length !== 1) {
+    return null; // zero/multiple/unknown ops -> malformed -> SKIP
+  }
+  const op = ops[0];
+  if (isMap) {
+    if (!Array.isArray(op.keys) || !Array.isArray(op.values)) return null;
+    return ImmutableSortedMap.fromSorted(op.keys, op.values);
+  }
+  if (!Array.isArray(op.elements)) return null;
+  return ImmutableSortedSet.fromSorted(op.elements);
+}
+
+// Evaluate one assertion key against the built sorted-table collection. Returns
+// `undefined` for an unknown key (forward-compat SKIP). The key vocabulary is
+// the UNION of the structural/lookup keys, the navigable-map nav/range keys,
+// and the rank-select order-statistic keys — all already in the harness.
+function evalSortedTableAssertion(
+  key: string,
+  coll: ImmutableSortedMap | ImmutableSortedSet,
+  query: Range<number> | null,
+): unknown {
+  const isMap = coll instanceof ImmutableSortedMap;
+  const map = isMap ? (coll as ImmutableSortedMap) : null;
+  const set = isMap ? null : (coll as ImmutableSortedSet);
+
+  // structural
+  if (key === "size") return coll.size;
+  if (key === "is_empty") return coll.isEmpty();
+
+  // get_<k> (map only)
+  {
+    const m = key.match(/^get_(-?\d+)$/);
+    if (m) {
+      if (map === null) return undefined;
+      const v = map.get(parseInt(m[1], 10));
+      return v !== undefined ? v : null;
+    }
+  }
+  // contains_<k>
+  {
+    const m = key.match(/^contains_(-?\d+)$/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      return map !== null ? map.containsKey(n) : set!.contains(n);
+    }
+  }
+  // sorted_keys / sorted_values (map projection); to_sorted_array (set)
+  if (key === "sorted_keys") {
+    if (map === null) return undefined;
+    return map.keys();
+  }
+  if (key === "sorted_values") {
+    if (map === null) return undefined;
+    // Per the harness README, sorted_values is "all values sorted ascending"
+    // (the value multiset sorted) — NOT the key-ordered values() iterator
+    // (that pairing is a native-test obligation). Sort the value snapshot.
+    return map.values().sort((a, b) => a - b);
+  }
+  if (key === "to_sorted_array") {
+    if (set === null) return undefined;
+    return set.elements();
+  }
+
+  // first/last + min/max
+  if (key === "first_key" && map !== null) return map.firstKey() ?? null;
+  if (key === "last_key" && map !== null) return map.lastKey() ?? null;
+  if (key === "first" && set !== null) return set.first() ?? null;
+  if (key === "last" && set !== null) return set.last() ?? null;
+  if (key === "min")
+    return map !== null ? (map.firstKey() ?? null) : (set!.first() ?? null);
+  if (key === "max")
+    return map !== null ? (map.lastKey() ?? null) : (set!.last() ?? null);
+
+  // point-nav: floor/ceiling/lower/higher
+  {
+    const nav = key.match(/^(floor|ceiling|lower|higher)_(-?\d+)$/);
+    if (nav) {
+      const n = parseInt(nav[2], 10);
+      let r: number | undefined;
+      if (map !== null) {
+        r =
+          nav[1] === "floor"
+            ? map.floorKey(n)
+            : nav[1] === "ceiling"
+              ? map.ceilingKey(n)
+              : nav[1] === "lower"
+                ? map.lowerKey(n)
+                : map.higherKey(n);
+      } else {
+        r =
+          nav[1] === "floor"
+            ? set!.floor(n)
+            : nav[1] === "ceiling"
+              ? set!.ceiling(n)
+              : nav[1] === "lower"
+                ? set!.lower(n)
+                : set!.higher(n);
+      }
+      return r === undefined ? null : r;
+    }
+  }
+
+  // descending iteration (required, not optional)
+  if (key === "descending_keys" && map !== null) return map.descendingKeys();
+  if (key === "descending_elements" && set !== null)
+    return set.descendingElements();
+
+  // range_* assertions reference the scenario-level `query`. With no query the
+  // key is unknown for this scenario -> SKIP (forward-compat).
+  if (
+    key === "range_keys" ||
+    key === "range_elements" ||
+    key === "range_keys_desc" ||
+    key === "range_elements_desc" ||
+    key === "range_size"
+  ) {
+    if (query === null) return undefined;
+    if (key === "range_keys" && map !== null) return map.rangeKeys(query);
+    if (key === "range_elements" && set !== null)
+      return set.rangeElements(query);
+    if (key === "range_keys_desc" && map !== null)
+      return map.descendingRangeKeys(query);
+    if (key === "range_elements_desc" && set !== null)
+      return set.descendingRangeElements(query);
+    if (key === "range_size") {
+      return map !== null
+        ? map.rangeKeys(query).length
+        : set!.rangeElements(query).length;
+    }
+    return undefined;
+  }
+
+  // order statistics: rank_<k> (signed) / select_<i> (non-negative)
+  {
+    const m = key.match(/^rank_(-?\d+)$/);
+    if (m) {
+      const k = parseInt(m[1], 10);
+      return map !== null ? map.rank(k) : set!.rank(k);
+    }
+  }
+  {
+    const m = key.match(/^select_(\d+)$/);
+    if (m) {
+      const i = parseInt(m[1], 10);
+      const r = map !== null ? map.selectKey(i) : set!.select(i);
+      return r === undefined ? null : r;
+    }
+  }
+
+  return undefined; // unknown assertion key -> SKIP (forward-compat)
+}
+
+function runSortedTable(scenario: Scenario, isMap: boolean): void {
+  const coll = buildSortedTable(scenario, isMap);
+  if (coll === null) {
+    // Malformed (zero/multiple from_sorted ops or missing arrays) -> SKIP.
+    console.error(
+      `skip: malformed sorted-table scenario (need exactly one from_sorted op): ${scenario.name}`,
+    );
+    return;
+  }
+  const query: Range<number> | null = scenario.query
+    ? buildRangeObj(scenario.query)
+    : null;
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalSortedTableAssertion(key, coll, query);
+    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
+    emit(
+      scenario.name,
+      key,
+      formatValue(computed),
+      scenario.assertions[key],
+      false,
+    );
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -1636,6 +1839,22 @@ function main(): void {
   // value type, not in the number-keyed Collection union).
   if (scenario.collection === "Range<i32>") {
     runRange(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // ImmutableSortedMap<i32, i32> / ImmutableSortedSet<i32> — the compact
+  // sorted-table-map types, built by a single `from_sorted` op and probed by
+  // the union of structural / navigable-map / rank-select assertion keys.
+  // Separate dispatch (the `from_sorted` op is a bulk construction, not in the
+  // mutate-an-existing-collection applyOperation model).
+  if (scenario.collection === "ImmutableSortedMap<i32, i32>") {
+    runSortedTable(scenario, true);
+    if (anyFail) process.exit(1);
+    return;
+  }
+  if (scenario.collection === "ImmutableSortedSet<i32>") {
+    runSortedTable(scenario, false);
     if (anyFail) process.exit(1);
     return;
   }

@@ -351,6 +351,85 @@ export class Range<T> {
     );
   }
 
+  /**
+   * The lower {@link Cut} of this range (the cut sitting at the lower
+   * endpoint); `BelowAll` when unbounded below. Exposed so a packed
+   * sorted-array collection (`ImmutableSortedMap`/`ImmutableSortedSet`) can
+   * bracket a contiguous in-range slice directly from the cut semantics
+   * (`Below(v)`/`Above(v)`/`BelowAll`), never from `±1` endpoint arithmetic —
+   * the overflow trap at `INT_MIN`/`INT_MAX` the `sorted-table-map` spec guards
+   * against.
+   */
+  lowerCut(): Cut<T> {
+    return this._lower;
+  }
+
+  /** The upper {@link Cut} of this range; `AboveAll` when unbounded above. See {@link lowerCut}. */
+  upperCut(): Cut<T> {
+    return this._upper;
+  }
+
+  /**
+   * Bracket the contiguous `[start, end)` index window of a **strictly
+   * ascending** slice whose elements fall inside this range. Membership over a
+   * sorted slice is contiguous (the range is convex), so two binary searches
+   * suffice: `start` is the lower bound of the in-range window and `end` is one
+   * past the last in-range element.
+   *
+   * The brackets are derived purely from the cut comparison — `Below(v)` vs
+   * `Above(v)` vs the unbounded sentinels — so open/closed bounds at
+   * `INT_MIN`/`INT_MAX` never compute a predecessor/successor (`v ± 1`) and
+   * never overflow. `start === end` is an empty (possibly cut-empty or
+   * discrete-empty, e.g. `open(1, 2)` over `i32`) result, never an error.
+   */
+  bracket(sorted: readonly T[]): [number, number] {
+    const cmp = this._cmp;
+    const n = sorted.length;
+    // start: lower bound of the in-range window.
+    const lo = this._lower;
+    let start: number;
+    switch (lo.kind) {
+      case CutKind.BelowAll:
+        start = 0;
+        break;
+      case CutKind.Below:
+        // Closed lower `[v`: include v -> first key >= v.
+        start = partitionPoint(sorted, (k) => cmp(k, lo.value) < 0);
+        break;
+      case CutKind.Above:
+        // Open lower `(v`: exclude v -> first key > v.
+        start = partitionPoint(sorted, (k) => cmp(k, lo.value) <= 0);
+        break;
+      case CutKind.AboveAll:
+        // A lower cut is never AboveAll (factory invariant); treat as empty.
+        start = n;
+        break;
+    }
+    // end: one past the last in-range key.
+    const hi = this._upper;
+    let end: number;
+    switch (hi.kind) {
+      case CutKind.AboveAll:
+        end = n;
+        break;
+      case CutKind.Below:
+        // Open upper `v)`: exclude v -> first key >= v.
+        end = partitionPoint(sorted, (k) => cmp(k, hi.value) < 0);
+        break;
+      case CutKind.Above:
+        // Closed upper `v]`: include v -> first key > v.
+        end = partitionPoint(sorted, (k) => cmp(k, hi.value) <= 0);
+        break;
+      case CutKind.BelowAll:
+        // An upper cut is never BelowAll (factory invariant); empty.
+        end = 0;
+        break;
+    }
+    // Clamp: a fully-disjoint range can yield start > end; normalise to an
+    // empty window so callers can slice safely.
+    return start > end ? [end, end] : [start, end];
+  }
+
   // ---- algebra (all via cut comparison) -----------------------------------
 
   /**
@@ -437,6 +516,31 @@ export class Range<T> {
             : "-∞)";
     return `${left}, ${right}`;
   }
+}
+
+/**
+ * First index `i` in `[0, len]` for which `pred(sorted[i])` is false, given a
+ * `pred` that partitions the slice (all true then all false). The midpoint is
+ * `lo + ((hi - lo) >> 1)`, never `(lo + hi) / 2`, so the search is
+ * overflow-safe — relevant when ports compute indices from i32 keys at the
+ * signed extremes (the brackets here index into the slice, not into the key
+ * domain, but the overflow-safe midpoint is kept as the shared convention).
+ */
+function partitionPoint<T>(
+  sorted: readonly T[],
+  pred: (x: T) => boolean,
+): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = lo + ((hi - lo) >> 1);
+    if (pred(sorted[mid])) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
 }
 
 function cutEquals<T>(a: Cut<T>, b: Cut<T>): boolean {
