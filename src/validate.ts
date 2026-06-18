@@ -32,6 +32,16 @@ import {
   ImmutableSortedMap,
   ImmutableSortedSet,
 } from "./immutable_sorted/immutable-sorted-map.js";
+import {
+  type U64,
+  hash32,
+  hash64,
+  hash32I32,
+  hash64I32,
+  hash32Bytes,
+  hash64Bytes,
+  positions as hashPositions,
+} from "./hash/hash.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1797,6 +1807,240 @@ function runSortedTable(scenario: Scenario, isMap: boolean): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// HashPipeline (spec/features/hash-pipeline.md)
+//
+// A stateless probe (not a stored collection): exactly ONE hash op carries the
+// input + seed under test; the assertions read the deterministic hash output.
+// Outputs are serialized as fixed-width, lower-case, `0x`-prefixed hex strings
+// (8 digits for a u32, 16 for a u64) so a 64-bit hash survives the JSON `2^53`
+// ceiling. `positions` is an int[] in derivation order (NOT sorted). Unknown
+// ops/keys SKIP (forward-compat).
+// ---------------------------------------------------------------------------
+
+// Parse a `seed` operand: a DECIMAL STRING parsed straight to a U64 lane pair
+// via BigInt, NEVER through a JS number/float (which would collapse seeds above
+// 2^53). A bare JSON number is accepted only for small (safe-integer) seeds.
+function parseSeedU64(v: unknown): U64 {
+  let n: bigint;
+  if (typeof v === "string") {
+    // Decimal-only grammar, matching the Rust runner's `s.parse::<u64>()`.
+    // BigInt() would otherwise also accept 0x.. / 0o.. / 0b.. forms, diverging
+    // from the reference (which requires a plain decimal seed string).
+    if (!/^[0-9]+$/.test(v)) {
+      throw new Error(`invalid u64 decimal-string seed: ${v}`);
+    }
+    n = BigInt(v);
+  } else if (typeof v === "number") {
+    if (!Number.isSafeInteger(v)) {
+      throw new Error(
+        `bare seed number ${v} is not a safe integer; encode large seeds as a decimal string`,
+      );
+    }
+    n = BigInt(v);
+  } else {
+    throw new Error(`expected u64 seed (decimal string or number)`);
+  }
+  if (n < 0n || n > 0xffffffffffffffffn) {
+    throw new Error(`seed out of u64 range [0, 2^64-1]: ${v}`);
+  }
+  return {
+    hi: Number((n >> 32n) & 0xffffffffn) >>> 0,
+    lo: Number(n & 0xffffffffn) >>> 0,
+  };
+}
+
+// Parse a `0x`-prefixed hex word operand to a U64 lane pair (the caller narrows
+// to a u32 number where the op needs a 32-bit word).
+function parseHexWordU64(v: unknown): U64 {
+  if (typeof v !== "string") {
+    throw new Error("hash-pipeline `word` must be a 0x-hex string");
+  }
+  if (!/^0x[0-9a-fA-F]+$/.test(v) || v.length > 18) {
+    throw new Error(`invalid hex word (must be 0x + <=16 hex digits): ${v}`);
+  }
+  const n = BigInt(v);
+  return {
+    hi: Number((n >> 32n) & 0xffffffffn) >>> 0,
+    lo: Number(n & 0xffffffffn) >>> 0,
+  };
+}
+
+// Parse a `0x`-hex byte string (e.g. "0x01020304") to a Uint8Array.
+function parseHexBytes(v: unknown): Uint8Array {
+  if (typeof v !== "string") {
+    throw new Error("hash-pipeline `bytes` must be a 0x-hex string");
+  }
+  const body = v.replace(/^0[xX]/, "");
+  if (body === v || body.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(body)) {
+    throw new Error(`invalid 0x-hex byte string: ${v}`);
+  }
+  const out = new Uint8Array(body.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(body.slice(2 * i, 2 * i + 2), 16);
+  }
+  return out;
+}
+
+function u32Hex(h: number): string {
+  return "0x" + (h >>> 0).toString(16).padStart(8, "0");
+}
+function u64Hex(h: U64): string {
+  return (
+    "0x" +
+    (h.hi >>> 0).toString(16).padStart(8, "0") +
+    (h.lo >>> 0).toString(16).padStart(8, "0")
+  );
+}
+
+// The probe a hash op builds. Word32/Word64 carry an already-computed hash;
+// I32/Bytes carry the logical input so EITHER the 32- or 64-bit form (incl.
+// lanes) can be asserted; Positions carries the derived-position array.
+type HashProbe =
+  | { kind: "word32"; h: number }
+  | { kind: "word64"; h: U64 }
+  | { kind: "i32"; value: number; seed: U64 }
+  | { kind: "bytes"; bytes: Uint8Array; seed: U64 }
+  | { kind: "positions"; p: number[] };
+
+// Evaluate one assertion key against the probe; returns undefined for an
+// unknown/unsupported key (forward-compat SKIP).
+function evalHashProbe(probe: HashProbe, key: string): string | undefined {
+  switch (probe.kind) {
+    case "word32":
+      return key === "hash32" ? u32Hex(probe.h) : undefined;
+    case "word64":
+      return evalH64(probe.h, key);
+    case "positions":
+      // Emitted in DERIVATION order (p_0 … p_{k-1}), NOT sorted.
+      return key === "positions"
+        ? `[${probe.p.map((x) => String(x)).join(",")}]`
+        : undefined;
+    case "i32":
+      if (key === "hash32") return u32Hex(hash32I32(probe.value, probe.seed));
+      if (key === "hash64" || key === "hash64_hi" || key === "hash64_lo") {
+        return evalH64(hash64I32(probe.value, probe.seed), key);
+      }
+      return undefined;
+    case "bytes":
+      if (key === "hash32") return u32Hex(hash32Bytes(probe.bytes, probe.seed));
+      if (key === "hash64" || key === "hash64_hi" || key === "hash64_lo") {
+        return evalH64(hash64Bytes(probe.bytes, probe.seed), key);
+      }
+      return undefined;
+  }
+}
+
+function evalH64(h: U64, key: string): string | undefined {
+  if (key === "hash64") return u64Hex(h);
+  if (key === "hash64_hi") return u32Hex(h.hi);
+  if (key === "hash64_lo") return u32Hex(h.lo);
+  return undefined;
+}
+
+// Render an expected hash-pipeline assertion value (a hex string for the hash
+// keys, an int[] for positions) into the runner's canonical string.
+function renderHashExpected(key: string, expected: unknown): string {
+  if (key === "positions" && Array.isArray(expected)) {
+    return `[${expected.map((e) => String(e)).join(",")}]`;
+  }
+  if (typeof expected === "string") return expected;
+  return String(expected);
+}
+
+function runHashPipeline(scenario: Scenario): void {
+  // Authoring rule: exactly ONE hash op. Zero or multiple => malformed => SKIP
+  // (like the sorted-table `from_sorted` rule). An unrecognised op kind also
+  // makes the scenario un-runnable here => SKIP (forward-compat).
+  if (scenario.operations.length !== 1) {
+    console.error(
+      `skip: hash-pipeline scenario must have exactly one op (forward-compat): got ${scenario.operations.length}`,
+    );
+    return;
+  }
+  const op = scenario.operations[0] as Operation & {
+    word?: unknown;
+    seed?: unknown;
+    bytes?: unknown;
+    m?: number;
+    k?: number;
+  };
+  let probe: HashProbe;
+  switch (op.op) {
+    case "hash_word32": {
+      const word = parseHexWordU64(op.word);
+      if (word.hi !== 0) {
+        throw new Error(`hash_word32 word exceeds 32 bits: ${op.word}`);
+      }
+      probe = {
+        kind: "word32",
+        h: hash32(word.lo >>> 0, parseSeedU64(op.seed)),
+      };
+      break;
+    }
+    case "hash_word64": {
+      probe = {
+        kind: "word64",
+        h: hash64(parseHexWordU64(op.word), parseSeedU64(op.seed)),
+      };
+      break;
+    }
+    case "hash_i32": {
+      probe = {
+        kind: "i32",
+        value: op.value as number,
+        seed: parseSeedU64(op.seed),
+      };
+      break;
+    }
+    case "hash_bytes": {
+      probe = {
+        kind: "bytes",
+        bytes: parseHexBytes(op.bytes),
+        seed: parseSeedU64(op.seed),
+      };
+      break;
+    }
+    case "positions": {
+      // The byte encoding of an i32 element drives positions: encode the i32 to
+      // its little-endian 4-byte form, then derive. No op-level seed (the scheme
+      // fixes the internal seeds 0 and SALT2).
+      const value = (op.value as number) >>> 0;
+      const bytes = new Uint8Array([
+        value & 0xff,
+        (value >>> 8) & 0xff,
+        (value >>> 16) & 0xff,
+        (value >>> 24) & 0xff,
+      ]);
+      probe = {
+        kind: "positions",
+        p: hashPositions(bytes, op.m as number, op.k as number),
+      };
+      break;
+    }
+    default:
+      console.error(
+        `skip: unknown hash-pipeline op (forward-compat): ${op.op}`,
+      );
+      return;
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalHashProbe(probe, key);
+    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
+    console.log(`${key}: ${computed}`);
+    const want = renderHashExpected(key, scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -1855,6 +2099,15 @@ function main(): void {
   }
   if (scenario.collection === "ImmutableSortedSet<i32>") {
     runSortedTable(scenario, false);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // HashPipeline — the deterministic, byte-exact named hash (hash-pipeline.md).
+  // A stateless probe built by exactly one hash op; outputs are fixed-width hex
+  // strings (hash32/hash64) or an int[] (positions). Separate dispatch.
+  if (scenario.collection === "HashPipeline") {
+    runHashPipeline(scenario);
     if (anyFail) process.exit(1);
     return;
   }
