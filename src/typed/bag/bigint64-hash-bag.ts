@@ -29,15 +29,21 @@ export class BigInt64HashBag {
   static bulkLoad(entries: Iterable<readonly [bigint, number]>): BigInt64HashBag {
     const bag = new BigInt64HashBag();
     for (const [value, count] of entries) {
-      if (count < 0)
-        throw new RangeError("Occurrences must not be negative");
+      if (!Number.isSafeInteger(count) || count < 0) {
+        throw new RangeError(
+          "bag occurrence count must be a non-negative safe integer, got " +
+            count,
+        );
+      }
       if (count === 0) continue;
       const current = bag.counts.get(value) ?? 0;
-      const next = current + count;
-      if (bag._size + count > Number.MAX_SAFE_INTEGER) {
+      if (
+        current + count > Number.MAX_SAFE_INTEGER ||
+        bag._size + count > Number.MAX_SAFE_INTEGER
+      ) {
         throw new RangeError("bag count overflow during pump");
       }
-      bag.counts.set(value, next);
+      bag.counts.set(value, current + count);
       bag._size += count;
     }
     return bag;

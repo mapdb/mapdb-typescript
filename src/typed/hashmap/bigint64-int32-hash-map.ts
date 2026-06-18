@@ -86,20 +86,44 @@ export class BigInt64Int32HashMap {
 
   /**
    * Bulk-loads a fresh map from key/value pairs in one O(n) pass. `opts.size`
-   * (or the source's `length`/`size` if available) pre-sizes the table; with a
-   * trustworthy size there is no rehash. Unlike {@link bulkLoadExact} the size
-   * is only a hint and the table may grow. Duplicate-key handling matches
-   * {@link bulkLoadExact}.
+   * (or the source's `length`/`size` if available) pre-sizes the table BEFORE
+   * iteration; with a trustworthy size there is no rehash. Unlike
+   * {@link bulkLoadExact} the size is only a hint: the source is never buffered
+   * and the table grows normally (via the same probe `set` uses) if the hint is
+   * exceeded. Duplicate-key handling matches {@link bulkLoadExact}.
    */
   static bulkLoad(
     pairs: Iterable<readonly [bigint, number]>,
     opts?: BulkLoadOptions,
   ): BigInt64Int32HashMap {
+    const onDuplicate = opts?.onDuplicate ?? "error";
     const sized = pairs as { length?: number; size?: number };
     const hint = opts?.size ?? sized.length ?? sized.size;
-    const buffer = Array.from(pairs);
     if (hint !== undefined) checkExpectedSize(hint);
-    return BigInt64Int32HashMap.bulkLoadExact(buffer, buffer.length, opts);
+    const map =
+      hint !== undefined ? new BigInt64Int32HashMap(hashCapacityFor(hint)) : new BigInt64Int32HashMap();
+    let i = 0;
+    for (const [key, value] of pairs) {
+      if (map.needsResize()) map.resize();
+      const mask = map.capacity - 1;
+      let idx = map.hash(key) & mask;
+      while (true) {
+        if (!map.occupied[idx]) {
+          map.keys[idx] = key;
+          map.values[idx] = value;
+          map.occupied[idx] = 1;
+          map._size++;
+          break;
+        }
+        if (Object.is(map.keys[idx], key)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break; // ignore: keep first
+        }
+        idx = (idx + 1) & mask;
+      }
+      i++;
+    }
+    return map;
   }
 
   set(key: bigint, value: number): this {

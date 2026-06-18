@@ -237,18 +237,43 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
 
   /**
    * Bulk-loads a fresh map from key/value pairs in one O(n) pass. \`opts.size\`
-   * (or the source's \`length\`/\`size\`) pre-sizes the table; the size is a hint
-   * and the table may grow. Duplicate handling matches {@link bulkLoadExact}.
+   * (or the source's \`length\`/\`size\`) pre-sizes the table BEFORE iteration;
+   * the size is only a hint: the source is never buffered and the table grows
+   * normally (via the same probe \`set\` uses) if the hint is exceeded.
+   * Duplicate handling matches {@link bulkLoadExact}.
    */
   static bulkLoad(
     pairs: Iterable<readonly [${K}, ${V}]>,
     opts?: BulkLoadOptions,
   ): ${cls} {
+    const onDuplicate = opts?.onDuplicate ?? "error";
     const sized = pairs as { length?: number; size?: number };
     const hint = opts?.size ?? sized.length ?? sized.size;
-    const buffer = Array.from(pairs);
     if (hint !== undefined) checkExpectedSize(hint);
-    return ${cls}.bulkLoadExact(buffer, buffer.length, opts);
+    const m =
+      hint !== undefined ? new ${cls}(hashCapacityFor(hint)) : new ${cls}();
+    let i = 0;
+    for (const [key, value] of pairs) {
+      if (m.needsResize()) m.resize();
+      const mask = m.keys.length - 1;
+      let idx = m.hashKey(key) & mask;
+      while (true) {
+        if (!m.occupied[idx]) {
+          m.keys[idx] = key;
+          m.values[idx] = value;
+          m.occupied[idx] = true;
+          m._size++;
+          break;
+        }
+        if (Object.is(m.keys[idx], key)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break; // ignore: keep first
+        }
+        idx = (idx + 1) & mask;
+      }
+      i++;
+    }
+    return m;
   }
 
   /** Inserts or updates a key-value pair. Returns the map for chaining, like JS Map.set. */
@@ -1193,6 +1218,145 @@ export function multimapClassName({ key, val }, variant) {
   return `${key.name}${val.name}${V}Multimap`;
 }
 
+// A three-way comparator EXPRESSION for a primitive's total order: numbers use
+// the IEEE-754 total-order comparator (NaN/-0 aware) from float-order; bigints
+// use a plain three-way ternary. `a`/`b` are TS expressions.
+function cmpExpr(prim, a, b) {
+  return prim.kind === "float"
+    ? `totalCmpNumber(${a}, ${b})`
+    : `(${a} < ${b} ? -1 : ${a} > ${b} ? 1 : 0)`;
+}
+
+// The shared multimap pump surface (over the base `set()` grouping): the three
+// documented entry points and the streaming Sink. Generated identically for
+// number- and bigint-key files; the only variation is the key/value comparator
+// expressions and whether the set variant dedupes values.
+function multimapPumpMembers(pair, variant, cls, K, V) {
+  const keyCmp = (a, b) => cmpExpr(pair.key, a, b);
+  const valCmp = (a, b) => cmpExpr(pair.val, a, b);
+  const isSet = variant === "set";
+  const dedupeNote = isSet ? ", with duplicate values dropped" : "";
+
+  return `
+  /**
+   * Bulk-loads a fresh multimap from pairs grouped by ascending key (the data
+   * pump). Alias of {@link fromSorted}: keys must be non-decreasing under the
+   * multimap's own comparator; out-of-order keys throw
+   * {@link PumpNotSortedError}. Equal keys are the normal grouping case${dedupeNote}.
+   * Value order within each key is preserved.
+   */
+  static fromSortedKeys(
+    sortedPairs: Iterable<readonly [${K}, ${V}]>,
+  ): ${cls} {
+    return ${cls}.fromSorted(sortedPairs);
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs sorted by ascending key AND, within
+   * each key's run, by ascending value (the data pump). Keys must be
+   * non-decreasing and, within a run of equal keys, values must be
+   * non-decreasing under the collection's comparators; any violation throws
+   * {@link PumpNotSortedError}.${
+     isSet
+       ? " As a set-valued multimap, equal adjacent values in a run are deduped."
+       : ""
+   } Observably identical to calling {@link set} for each pair in order.
+   */
+  static fromSortedKeyValues(
+    sortedPairs: Iterable<readonly [${K}, ${V}]>,
+  ): ${cls} {
+    const mm = new ${cls}();
+    let prevKey: ${K} | undefined;
+    let prevVal: ${V} | undefined;
+    let i = 0;
+    for (const [key, value] of sortedPairs) {
+      if (prevKey !== undefined) {
+        const kc = ${keyCmp("prevKey", "key")};
+        if (kc > 0) throw new PumpNotSortedError(i);
+        if (kc === 0) {
+          // same key run: values must be non-decreasing
+          const pv = prevVal as ${V};
+          const vc = ${valCmp("pv", "value")};
+          if (vc > 0) throw new PumpNotSortedError(i);
+        }
+      }
+      mm.set(key, value);
+      prevKey = key;
+      prevVal = value;
+      i++;
+    }
+    return mm;
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from UNSORTED pairs in one O(n) pass, grouping
+   * by key via the backing hash (the data pump). No ordering is claimed or
+   * validated; pairs accumulate per key in encounter order${
+     isSet ? " (set variant dedupes values)" : ""
+   }. Observably identical to calling {@link set} for each pair.
+   */
+  static bulkLoad(
+    pairs: Iterable<readonly [${K}, ${V}]>,
+  ): ${cls} {
+    const mm = new ${cls}();
+    for (const [key, value] of pairs) {
+      mm.set(key, value);
+    }
+    return mm;
+  }
+`;
+}
+
+// The streaming multimap Sink: unsorted grouping accumulation with the standard
+// pump Sink contract — `put`/`putAll` buffer into a fresh multimap, `create`
+// returns it once, and after any error the sink is poisoned (all later calls
+// throw); `create` is once-only and `put` after `create` fails.
+function multimapSinkClass(pair, variant, cls, K, V) {
+  const sinkCls = `${cls}Sink`;
+  const isSet = variant === "set";
+  return `
+/**
+ * Streaming builder for a {@link ${cls}} (the data pump's Sink form). Buffer
+ * pairs with {@link put} / {@link putAll}${
+   isSet ? " (the set variant dedupes values per key)" : ""
+ }, then call {@link create}
+ * once to get the finished multimap. After any error the sink is poisoned:
+ * every later \`put\`/\`putAll\`/\`create\` throws. \`create\` is once-only and
+ * \`put\` after \`create\` fails.
+ */
+export class ${sinkCls} {
+  private mm: ${cls} = new ${cls}();
+  private poisoned = false;
+  private done = false;
+
+  /** Appends one pair, grouping by key. */
+  put(entry: readonly [${K}, ${V}]): void {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    try {
+      this.mm.set(entry[0], entry[1]);
+    } catch (e) {
+      this.poisoned = true;
+      throw e;
+    }
+  }
+
+  /** Convenience: {@link put} every element of \`items\`. */
+  putAll(items: Iterable<readonly [${K}, ${V}]>): void {
+    for (const e of items) this.put(e);
+  }
+
+  /** Finishes the build and returns the multimap. Once-only. */
+  create(): ${cls} {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    this.done = true;
+    return this.mm;
+  }
+}
+`;
+}
+
 // set() body — the ONLY structural difference between list (append) and set
 // (dedup-then-append). The number-key branch carries the mapKeyOf tuple; the
 // bigint-key branch a direct Map. `eq` is the per-key-kind value comparator.
@@ -1326,7 +1490,7 @@ export class ${cls} {
     }
     return mm;
   }
-
+${multimapPumpMembers(pair, variant, cls, K, V)}
 ${putDoc}
   set(key: ${K}, value: ${V}): this {
 ${putBody}
@@ -1505,7 +1669,7 @@ ${putBody}
     yield* this[Symbol.iterator]();
   }
 }
-`;
+${multimapSinkClass(pair, variant, cls, K, V)}`;
 }
 
 function renderBigIntKeyMultimap(pair, variant, command, cls, K, V) {
@@ -1529,8 +1693,13 @@ function renderBigIntKeyMultimap(pair, variant, command, cls, K, V) {
       ? `  /** Adds a value under the given key. */`
       : `  /** Adds a value under the given key. Idempotent: a duplicate value for the same key is silently dropped. */`;
 
+  const valImport =
+    pair.val.kind === "float"
+      ? `import { totalCmpNumber } from "../internal/float-order.js";\n`
+      : "";
+
   return `${LICENSE}${banner(command)}
-import { PumpNotSortedError } from "../internal/pump.js";
+${valImport}import { PumpNotSortedError } from "../internal/pump.js";
 
 ${doc}
 export class ${cls} {
@@ -1573,7 +1742,7 @@ export class ${cls} {
     }
     return mm;
   }
-
+${multimapPumpMembers(pair, variant, cls, K, V)}
 ${putDoc}
   set(key: ${K}, value: ${V}): this {
 ${putBody}
@@ -1749,7 +1918,7 @@ ${putBody}
     yield* this[Symbol.iterator]();
   }
 }
-`;
+${multimapSinkClass(pair, variant, cls, K, V)}`;
 }
 
 export function renderMultimap(pair, variant, command) {

@@ -59,6 +59,67 @@ export class NumberBigIntSetMultimap {
     return mm;
   }
 
+  /**
+   * Bulk-loads a fresh multimap from pairs grouped by ascending key (the data
+   * pump). Alias of {@link fromSorted}: keys must be non-decreasing under the
+   * multimap's own comparator; out-of-order keys throw
+   * {@link PumpNotSortedError}. Equal keys are the normal grouping case, with duplicate values dropped.
+   * Value order within each key is preserved.
+   */
+  static fromSortedKeys(
+    sortedPairs: Iterable<readonly [number, bigint]>,
+  ): NumberBigIntSetMultimap {
+    return NumberBigIntSetMultimap.fromSorted(sortedPairs);
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs sorted by ascending key AND, within
+   * each key's run, by ascending value (the data pump). Keys must be
+   * non-decreasing and, within a run of equal keys, values must be
+   * non-decreasing under the collection's comparators; any violation throws
+   * {@link PumpNotSortedError}. As a set-valued multimap, equal adjacent values in a run are deduped. Observably identical to calling {@link set} for each pair in order.
+   */
+  static fromSortedKeyValues(
+    sortedPairs: Iterable<readonly [number, bigint]>,
+  ): NumberBigIntSetMultimap {
+    const mm = new NumberBigIntSetMultimap();
+    let prevKey: number | undefined;
+    let prevVal: bigint | undefined;
+    let i = 0;
+    for (const [key, value] of sortedPairs) {
+      if (prevKey !== undefined) {
+        const kc = totalCmpNumber(prevKey, key);
+        if (kc > 0) throw new PumpNotSortedError(i);
+        if (kc === 0) {
+          // same key run: values must be non-decreasing
+          const pv = prevVal as bigint;
+          const vc = (pv < value ? -1 : pv > value ? 1 : 0);
+          if (vc > 0) throw new PumpNotSortedError(i);
+        }
+      }
+      mm.set(key, value);
+      prevKey = key;
+      prevVal = value;
+      i++;
+    }
+    return mm;
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from UNSORTED pairs in one O(n) pass, grouping
+   * by key via the backing hash (the data pump). No ordering is claimed or
+   * validated; pairs accumulate per key in encounter order (set variant dedupes values). Observably identical to calling {@link set} for each pair.
+   */
+  static bulkLoad(
+    pairs: Iterable<readonly [number, bigint]>,
+  ): NumberBigIntSetMultimap {
+    const mm = new NumberBigIntSetMultimap();
+    for (const [key, value] of pairs) {
+      mm.set(key, value);
+    }
+    return mm;
+  }
+
   /** Adds a value under the given key. Idempotent: a duplicate value for the same key is silently dropped. */
   set(key: number, value: bigint): this {
     const mk = mapKeyOf(key);
@@ -247,5 +308,43 @@ export class NumberBigIntSetMultimap {
   /** Yields all key-value pairs as [key, value] tuples. */
   *entries(): Generator<[number, bigint]> {
     yield* this[Symbol.iterator]();
+  }
+}
+
+/**
+ * Streaming builder for a {@link NumberBigIntSetMultimap} (the data pump's Sink form). Buffer
+ * pairs with {@link put} / {@link putAll} (the set variant dedupes values per key), then call {@link create}
+ * once to get the finished multimap. After any error the sink is poisoned:
+ * every later `put`/`putAll`/`create` throws. `create` is once-only and
+ * `put` after `create` fails.
+ */
+export class NumberBigIntSetMultimapSink {
+  private mm: NumberBigIntSetMultimap = new NumberBigIntSetMultimap();
+  private poisoned = false;
+  private done = false;
+
+  /** Appends one pair, grouping by key. */
+  put(entry: readonly [number, bigint]): void {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    try {
+      this.mm.set(entry[0], entry[1]);
+    } catch (e) {
+      this.poisoned = true;
+      throw e;
+    }
+  }
+
+  /** Convenience: {@link put} every element of `items`. */
+  putAll(items: Iterable<readonly [number, bigint]>): void {
+    for (const e of items) this.put(e);
+  }
+
+  /** Finishes the build and returns the multimap. Once-only. */
+  create(): NumberBigIntSetMultimap {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    this.done = true;
+    return this.mm;
   }
 }

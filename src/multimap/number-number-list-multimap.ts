@@ -59,6 +59,67 @@ export class NumberNumberListMultimap {
     return mm;
   }
 
+  /**
+   * Bulk-loads a fresh multimap from pairs grouped by ascending key (the data
+   * pump). Alias of {@link fromSorted}: keys must be non-decreasing under the
+   * multimap's own comparator; out-of-order keys throw
+   * {@link PumpNotSortedError}. Equal keys are the normal grouping case.
+   * Value order within each key is preserved.
+   */
+  static fromSortedKeys(
+    sortedPairs: Iterable<readonly [number, number]>,
+  ): NumberNumberListMultimap {
+    return NumberNumberListMultimap.fromSorted(sortedPairs);
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs sorted by ascending key AND, within
+   * each key's run, by ascending value (the data pump). Keys must be
+   * non-decreasing and, within a run of equal keys, values must be
+   * non-decreasing under the collection's comparators; any violation throws
+   * {@link PumpNotSortedError}. Observably identical to calling {@link set} for each pair in order.
+   */
+  static fromSortedKeyValues(
+    sortedPairs: Iterable<readonly [number, number]>,
+  ): NumberNumberListMultimap {
+    const mm = new NumberNumberListMultimap();
+    let prevKey: number | undefined;
+    let prevVal: number | undefined;
+    let i = 0;
+    for (const [key, value] of sortedPairs) {
+      if (prevKey !== undefined) {
+        const kc = totalCmpNumber(prevKey, key);
+        if (kc > 0) throw new PumpNotSortedError(i);
+        if (kc === 0) {
+          // same key run: values must be non-decreasing
+          const pv = prevVal as number;
+          const vc = totalCmpNumber(pv, value);
+          if (vc > 0) throw new PumpNotSortedError(i);
+        }
+      }
+      mm.set(key, value);
+      prevKey = key;
+      prevVal = value;
+      i++;
+    }
+    return mm;
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from UNSORTED pairs in one O(n) pass, grouping
+   * by key via the backing hash (the data pump). No ordering is claimed or
+   * validated; pairs accumulate per key in encounter order. Observably identical to calling {@link set} for each pair.
+   */
+  static bulkLoad(
+    pairs: Iterable<readonly [number, number]>,
+  ): NumberNumberListMultimap {
+    const mm = new NumberNumberListMultimap();
+    for (const [key, value] of pairs) {
+      mm.set(key, value);
+    }
+    return mm;
+  }
+
   /** Adds a value under the given key. */
   set(key: number, value: number): this {
     const mk = mapKeyOf(key);
@@ -243,5 +304,43 @@ export class NumberNumberListMultimap {
   /** Yields all key-value pairs as [key, value] tuples. */
   *entries(): Generator<[number, number]> {
     yield* this[Symbol.iterator]();
+  }
+}
+
+/**
+ * Streaming builder for a {@link NumberNumberListMultimap} (the data pump's Sink form). Buffer
+ * pairs with {@link put} / {@link putAll}, then call {@link create}
+ * once to get the finished multimap. After any error the sink is poisoned:
+ * every later `put`/`putAll`/`create` throws. `create` is once-only and
+ * `put` after `create` fails.
+ */
+export class NumberNumberListMultimapSink {
+  private mm: NumberNumberListMultimap = new NumberNumberListMultimap();
+  private poisoned = false;
+  private done = false;
+
+  /** Appends one pair, grouping by key. */
+  put(entry: readonly [number, number]): void {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    try {
+      this.mm.set(entry[0], entry[1]);
+    } catch (e) {
+      this.poisoned = true;
+      throw e;
+    }
+  }
+
+  /** Convenience: {@link put} every element of `items`. */
+  putAll(items: Iterable<readonly [number, number]>): void {
+    for (const e of items) this.put(e);
+  }
+
+  /** Finishes the build and returns the multimap. Once-only. */
+  create(): NumberNumberListMultimap {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    this.done = true;
+    return this.mm;
   }
 }

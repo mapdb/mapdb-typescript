@@ -82,15 +82,39 @@ export class Int32HashSet {
 
   /**
    * Bulk-loads a fresh set from values in one O(n) pass. `opts.size` (or the
-   * source's `length`/`size`) pre-sizes the table. Size is a hint; the table
-   * may grow. Duplicate handling matches {@link bulkLoadExact}.
+   * source's `length`/`size`) pre-sizes the table BEFORE iteration. Size is
+   * only a hint: the source is never buffered and the table grows normally (via
+   * the same probe `add` uses) if the hint is exceeded. Duplicate handling
+   * matches {@link bulkLoadExact}.
    */
   static bulkLoad(values: Iterable<number>, opts?: BulkLoadOptions): Int32HashSet {
+    const onDuplicate = opts?.onDuplicate ?? "error";
     const sized = values as { length?: number; size?: number };
     const hint = opts?.size ?? sized.length ?? sized.size;
-    const buffer = Array.from(values);
     if (hint !== undefined) checkExpectedSize(hint);
-    return Int32HashSet.bulkLoadExact(buffer, buffer.length, opts);
+    const set =
+      hint !== undefined ? new Int32HashSet(hashCapacityFor(hint)) : new Int32HashSet();
+    let i = 0;
+    for (const value of values) {
+      if (set.needsResize()) set.resize();
+      const mask = set.capacity - 1;
+      let idx = set.hash(value) & mask;
+      while (true) {
+        if (!set.occupied[idx]) {
+          set.items[idx] = value;
+          set.occupied[idx] = 1;
+          set._size++;
+          break;
+        }
+        if (Object.is(set.items[idx], value)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break; // ignore: keep first
+        }
+        idx = (idx + 1) & mask;
+      }
+      i++;
+    }
+    return set;
   }
 
   add(value: number): this {

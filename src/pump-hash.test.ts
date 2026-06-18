@@ -270,5 +270,109 @@ describe("Bag pump", () => {
   });
   it("negative count throws", () => {
     expect(() => NumberHashBag.bulkLoad([[1, -1]])).toThrow(RangeError);
+    expect(() => Int32HashBag.bulkLoad([[1, -1]])).toThrow(RangeError);
+  });
+  it("NaN count throws (no corrupt _size)", () => {
+    expect(() => NumberHashBag.bulkLoad([[1, NaN]])).toThrow(RangeError);
+    expect(() => Int32HashBag.bulkLoad([[1, NaN]])).toThrow(RangeError);
+  });
+  it("fractional count throws", () => {
+    expect(() => NumberHashBag.bulkLoad([[1, 1.5]])).toThrow(RangeError);
+    expect(() => Int32HashBag.bulkLoad([[1, 2.5]])).toThrow(RangeError);
+  });
+  it("count above MAX_SAFE_INTEGER throws (not a safe integer)", () => {
+    const tooBig = Number.MAX_SAFE_INTEGER + 1; // 2^53, not a safe integer
+    expect(() => NumberHashBag.bulkLoad([[1, tooBig]])).toThrow(RangeError);
+    expect(() => Int32HashBag.bulkLoad([[1, tooBig]])).toThrow(RangeError);
+  });
+  it("per-key count overflow throws (sum exceeds MAX_SAFE_INTEGER)", () => {
+    const half = Math.floor(Number.MAX_SAFE_INTEGER / 2) + 1;
+    expect(() =>
+      NumberHashBag.bulkLoad([
+        [1, half],
+        [1, half],
+      ]),
+    ).toThrow(/overflow/);
+    expect(() =>
+      Int32HashBag.bulkLoad([
+        [1, half],
+        [1, half],
+      ]),
+    ).toThrow(/overflow/);
+  });
+  it("total _size overflow across distinct keys throws", () => {
+    const half = Math.floor(Number.MAX_SAFE_INTEGER / 2) + 1;
+    expect(() =>
+      NumberHashBag.bulkLoad([
+        [1, half],
+        [2, half],
+      ]),
+    ).toThrow(/overflow/);
+  });
+});
+
+describe("Hash bulkLoad is single-pass (generic iterable, hint pre-size)", () => {
+  // A generator source has no .length/.size; bulkLoad must consume it directly
+  // (not buffer via Array.from) and may pre-size from opts.size.
+  function* gen(n: number): Generator<readonly [number, number]> {
+    for (let i = 0; i < n; i++) yield [i, i * 2] as const;
+  }
+
+  it("number map bulkLoad over a generator with size hint == per-op", () => {
+    const n = 30;
+    const m = NumberNumberHashMap.bulkLoad(gen(n), { size: n });
+    expect(m.size).toBe(n);
+    for (let i = 0; i < n; i++) expect(m.get(i)).toBe(i * 2);
+  });
+
+  it("typed map bulkLoad grows past an UNDERSIZED hint (no exact ceiling)", () => {
+    const n = 50;
+    const pairs: [number, number][] = Array.from({ length: n }, (_, i) => [
+      i,
+      i,
+    ]);
+    const m = Int32Int32HashMap.bulkLoad(pairs, { size: 4 });
+    expect(m.size).toBe(n);
+    for (let i = 0; i < n; i++) expect(m.get(i)).toBe(i);
+  });
+
+  it("typed set bulkLoad over a generator grows (no hint)", () => {
+    function* vals(): Generator<number> {
+      for (let i = 0; i < 40; i++) yield i; // 40 distinct, no hint -> grows
+    }
+    const s = Int32HashSet.bulkLoad(vals());
+    expect(s.size).toBe(40);
+  });
+  it("set bulkLoad ignore dedups duplicate values over a generator", () => {
+    function* vals(): Generator<number> {
+      for (let i = 0; i < 40; i++) yield i % 20; // each value twice
+    }
+    const s = Int32HashSet.bulkLoad(vals(), { onDuplicate: "ignore" });
+    expect(s.size).toBe(20);
+  });
+
+  it("invalid size hint throws BEFORE iteration (source untouched)", () => {
+    let pulled = 0;
+    function* tracked(): Generator<readonly [number, number]> {
+      pulled++;
+      yield [1, 1] as const;
+    }
+    expect(() =>
+      NumberNumberHashMap.bulkLoad(tracked(), { size: 1.5 }),
+    ).toThrow(RangeError);
+    expect(pulled).toBe(0);
+  });
+
+  it("bulkLoad duplicate error/ignore over a generator", () => {
+    function* dups(): Generator<readonly [number, number]> {
+      yield [1, 1] as const;
+      yield [1, 2] as const;
+    }
+    expect(() => NumberNumberHashMap.bulkLoad(dups())).toThrow(
+      PumpDuplicateError,
+    );
+    const m = NumberNumberHashMap.bulkLoad(dups(), { onDuplicate: "ignore" });
+    expect(m.get(1)).toBe(1);
+    expect(m.size).toBe(1);
   });
 });

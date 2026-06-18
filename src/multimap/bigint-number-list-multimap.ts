@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 // CODE GENERATED — DO NOT EDIT. Regenerate with `npm run generate:multimap-nontyped`.
 
+import { totalCmpNumber } from "../internal/float-order.js";
 import { PumpNotSortedError } from "../internal/pump.js";
 
 /**
@@ -46,6 +47,67 @@ export class BigIntNumberListMultimap {
       mm.set(key, value);
       prev = key;
       i++;
+    }
+    return mm;
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs grouped by ascending key (the data
+   * pump). Alias of {@link fromSorted}: keys must be non-decreasing under the
+   * multimap's own comparator; out-of-order keys throw
+   * {@link PumpNotSortedError}. Equal keys are the normal grouping case.
+   * Value order within each key is preserved.
+   */
+  static fromSortedKeys(
+    sortedPairs: Iterable<readonly [bigint, number]>,
+  ): BigIntNumberListMultimap {
+    return BigIntNumberListMultimap.fromSorted(sortedPairs);
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs sorted by ascending key AND, within
+   * each key's run, by ascending value (the data pump). Keys must be
+   * non-decreasing and, within a run of equal keys, values must be
+   * non-decreasing under the collection's comparators; any violation throws
+   * {@link PumpNotSortedError}. Observably identical to calling {@link set} for each pair in order.
+   */
+  static fromSortedKeyValues(
+    sortedPairs: Iterable<readonly [bigint, number]>,
+  ): BigIntNumberListMultimap {
+    const mm = new BigIntNumberListMultimap();
+    let prevKey: bigint | undefined;
+    let prevVal: number | undefined;
+    let i = 0;
+    for (const [key, value] of sortedPairs) {
+      if (prevKey !== undefined) {
+        const kc = (prevKey < key ? -1 : prevKey > key ? 1 : 0);
+        if (kc > 0) throw new PumpNotSortedError(i);
+        if (kc === 0) {
+          // same key run: values must be non-decreasing
+          const pv = prevVal as number;
+          const vc = totalCmpNumber(pv, value);
+          if (vc > 0) throw new PumpNotSortedError(i);
+        }
+      }
+      mm.set(key, value);
+      prevKey = key;
+      prevVal = value;
+      i++;
+    }
+    return mm;
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from UNSORTED pairs in one O(n) pass, grouping
+   * by key via the backing hash (the data pump). No ordering is claimed or
+   * validated; pairs accumulate per key in encounter order. Observably identical to calling {@link set} for each pair.
+   */
+  static bulkLoad(
+    pairs: Iterable<readonly [bigint, number]>,
+  ): BigIntNumberListMultimap {
+    const mm = new BigIntNumberListMultimap();
+    for (const [key, value] of pairs) {
+      mm.set(key, value);
     }
     return mm;
   }
@@ -230,5 +292,43 @@ export class BigIntNumberListMultimap {
   /** Yields all key-value pairs as [key, value] tuples. */
   *entries(): Generator<[bigint, number]> {
     yield* this[Symbol.iterator]();
+  }
+}
+
+/**
+ * Streaming builder for a {@link BigIntNumberListMultimap} (the data pump's Sink form). Buffer
+ * pairs with {@link put} / {@link putAll}, then call {@link create}
+ * once to get the finished multimap. After any error the sink is poisoned:
+ * every later `put`/`putAll`/`create` throws. `create` is once-only and
+ * `put` after `create` fails.
+ */
+export class BigIntNumberListMultimapSink {
+  private mm: BigIntNumberListMultimap = new BigIntNumberListMultimap();
+  private poisoned = false;
+  private done = false;
+
+  /** Appends one pair, grouping by key. */
+  put(entry: readonly [bigint, number]): void {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    try {
+      this.mm.set(entry[0], entry[1]);
+    } catch (e) {
+      this.poisoned = true;
+      throw e;
+    }
+  }
+
+  /** Convenience: {@link put} every element of `items`. */
+  putAll(items: Iterable<readonly [bigint, number]>): void {
+    for (const e of items) this.put(e);
+  }
+
+  /** Finishes the build and returns the multimap. Once-only. */
+  create(): BigIntNumberListMultimap {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    this.done = true;
+    return this.mm;
   }
 }

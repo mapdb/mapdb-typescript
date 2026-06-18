@@ -48,9 +48,18 @@ export class NumberHashBag implements MapDbMutableBag<number> {
   static bulkLoad(entries: Iterable<readonly [number, number]>): NumberHashBag {
     const bag = new NumberHashBag();
     for (const [value, count] of entries) {
-      if (count < 0) throw new RangeError("Occurrences must not be negative");
+      if (!Number.isSafeInteger(count) || count < 0) {
+        throw new RangeError(
+          "bag occurrence count must be a non-negative safe integer, got " +
+            count,
+        );
+      }
       if (count === 0) continue;
-      if (bag._size + count > Number.MAX_SAFE_INTEGER) {
+      const current = bag.counts.get(mapKeyOf(value))?.count ?? 0;
+      if (
+        current + count > Number.MAX_SAFE_INTEGER ||
+        bag._size + count > Number.MAX_SAFE_INTEGER
+      ) {
         throw new RangeError("bag count overflow during pump");
       }
       bag.addOccurrences(value, count);
