@@ -41,6 +41,7 @@ export {
   ImmutableSortedMap,
   ImmutableSortedSet,
 } from "./immutable_sorted/immutable-sorted-map.js";
+export { RoaringU32 } from "./roaring/roaring-u32.js";
 
 // Full typed primitive collection surface (mutable + immutable; all six
 // element types and 36 key×value hash-map pairs). See src/typed/index.ts.
