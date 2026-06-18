@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import type { MapDbMutableSet } from "../api/index.js";
+import type { Range } from "../range/range.js";
 import { totalCmpNumber } from "../internal/float-order.js";
 
 const RED = false;
@@ -144,6 +145,116 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
       }
     }
     return result?.key;
+  }
+
+  // ── point navigation (NavigableSet surface) ─────────────────────────
+  //
+  // floor `<= x`, ceiling `>= x`, lower `< x` (strict), higher `> x`
+  // (strict). All comparisons go through the production totalCmpNumber.
+
+  /** Greatest element `< x` (strict), or `undefined`. */
+  lower(value: number): number | undefined {
+    let result: TreeNode | null = null;
+    let node = this.root;
+    while (node) {
+      if (totalCmpNumber(value, node.key) > 0) {
+        result = node;
+        node = node.right;
+      } else {
+        node = node.left;
+      }
+    }
+    return result?.key;
+  }
+
+  /** Least element `> x` (strict), or `undefined`. */
+  higher(value: number): number | undefined {
+    let result: TreeNode | null = null;
+    let node = this.root;
+    while (node) {
+      if (totalCmpNumber(value, node.key) < 0) {
+        result = node;
+        node = node.left;
+      } else {
+        node = node.right;
+      }
+    }
+    return result?.key;
+  }
+
+  /** Minimum element, or `undefined`. Alias for {@link min}. */
+  first(): number | undefined {
+    return this.min();
+  }
+
+  /** Maximum element, or `undefined`. Alias for {@link max}. */
+  last(): number | undefined {
+    return this.max();
+  }
+
+  // ── poll (positional removal) ───────────────────────────────────────
+
+  /**
+   * Removes and returns the minimum element, or `undefined` if empty. Does
+   * not trap on an empty set.
+   */
+  pollFirst(): number | undefined {
+    const e = this.min();
+    if (e === undefined) return undefined;
+    this.remove(e);
+    return e;
+  }
+
+  /**
+   * Removes and returns the maximum element, or `undefined` if empty. Does
+   * not trap on an empty set.
+   */
+  pollLast(): number | undefined {
+    const e = this.max();
+    if (e === undefined) return undefined;
+    this.remove(e);
+    return e;
+  }
+
+  // ── range slice & descending iteration (consume Range) ──────────────
+  //
+  // Range membership is EXACTLY `range.contains(element)`.
+
+  /** Elements ∈ `range`, ascending. Snapshot at call time; read-only. */
+  rangeElements(range: Range<number>): number[] {
+    const out: number[] = [];
+    for (const v of this.values()) if (range.contains(v)) out.push(v);
+    return out;
+  }
+
+  /** Elements ∈ `range`, descending. */
+  descendingRangeElements(range: Range<number>): number[] {
+    return this.rangeElements(range).reverse();
+  }
+
+  /** All elements, descending. */
+  descending(): number[] {
+    return [...this.values()].reverse();
+  }
+
+  /**
+   * A new independent set of the elements ∈ `range` (materialized snapshot;
+   * mutating it never affects the original and vice versa).
+   */
+  subSet(range: Range<number>): NumberTreeSet {
+    const out = new NumberTreeSet();
+    for (const v of this.rangeElements(range)) out.add(v);
+    return out;
+  }
+
+  /**
+   * Removes every element ∈ `range`; returns the count removed. A range that
+   * matches nothing is a no-op returning `0`.
+   */
+  removeRange(range: Range<number>): number {
+    const victims = this.rangeElements(range);
+    for (const v of victims) this.remove(v);
+    return victims.length;
   }
 
   *values(): Generator<number> {

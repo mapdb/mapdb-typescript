@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import type { MapDbMutableMap } from "../api/index.js";
+import type { Range } from "../range/range.js";
 import { totalCmpNumber } from "../internal/float-order.js";
 
 const RED = false;
@@ -153,6 +154,174 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
       } else node = node.right;
     }
     return result ? [result.key, result.value] : undefined;
+  }
+
+  // ── point navigation (NavigableMap surface) ─────────────────────────
+  //
+  // floor `<= k`, ceiling `>= k`, lower `< k` (strict), higher `> k`
+  // (strict). All comparisons go through the production totalCmpNumber
+  // (IEEE-754 total order). Absence is `undefined`.
+
+  /** Greatest key `<= k` and its value, or `undefined`. */
+  floorEntry(key: number): [number, number] | undefined {
+    return this.floor(key);
+  }
+
+  /** Greatest key `<= k`, or `undefined`. */
+  floorKey(key: number): number | undefined {
+    return this.floor(key)?.[0];
+  }
+
+  /** Least key `>= k` and its value, or `undefined`. */
+  ceilingEntry(key: number): [number, number] | undefined {
+    return this.ceiling(key);
+  }
+
+  /** Least key `>= k`, or `undefined`. */
+  ceilingKey(key: number): number | undefined {
+    return this.ceiling(key)?.[0];
+  }
+
+  /** Greatest key `< k` (strict) and its value, or `undefined`. */
+  lowerEntry(key: number): [number, number] | undefined {
+    let result: NumberNumberTreeMapNode | null = null;
+    let node = this.root;
+    while (node) {
+      if (totalCmpNumber(key, node.key) > 0) {
+        result = node;
+        node = node.right;
+      } else node = node.left;
+    }
+    return result ? [result.key, result.value] : undefined;
+  }
+
+  /** Greatest key `< k` (strict), or `undefined`. */
+  lowerKey(key: number): number | undefined {
+    return this.lowerEntry(key)?.[0];
+  }
+
+  /** Least key `> k` (strict) and its value, or `undefined`. */
+  higherEntry(key: number): [number, number] | undefined {
+    let result: NumberNumberTreeMapNode | null = null;
+    let node = this.root;
+    while (node) {
+      if (totalCmpNumber(key, node.key) < 0) {
+        result = node;
+        node = node.left;
+      } else node = node.right;
+    }
+    return result ? [result.key, result.value] : undefined;
+  }
+
+  /** Least key `> k` (strict), or `undefined`. */
+  higherKey(key: number): number | undefined {
+    return this.higherEntry(key)?.[0];
+  }
+
+  /** Minimum entry, or `undefined`. Alias for {@link min}. */
+  firstEntry(): [number, number] | undefined {
+    return this.min();
+  }
+
+  /** Minimum key, or `undefined`. */
+  firstKey(): number | undefined {
+    return this.min()?.[0];
+  }
+
+  /** Maximum entry, or `undefined`. Alias for {@link max}. */
+  lastEntry(): [number, number] | undefined {
+    return this.max();
+  }
+
+  /** Maximum key, or `undefined`. */
+  lastKey(): number | undefined {
+    return this.max()?.[0];
+  }
+
+  // ── poll (positional removal) ───────────────────────────────────────
+
+  /**
+   * Removes and returns the minimum entry, or `undefined` if empty. Does not
+   * trap on an empty map.
+   */
+  pollFirstEntry(): [number, number] | undefined {
+    const e = this.min();
+    if (e === undefined) return undefined;
+    this.remove(e[0]);
+    return e;
+  }
+
+  /**
+   * Removes and returns the maximum entry, or `undefined` if empty. Does not
+   * trap on an empty map.
+   */
+  pollLastEntry(): [number, number] | undefined {
+    const e = this.max();
+    if (e === undefined) return undefined;
+    this.remove(e[0]);
+    return e;
+  }
+
+  // ── range slice & descending iteration (consume Range) ──────────────
+  //
+  // Range membership is EXACTLY `range.contains(key)`: e.g. `open(1, 2)` over
+  // i32 matches no key yet is a valid, non-cut-empty range. We never infer
+  // discrete-domain emptiness from the cuts.
+
+  /** Keys whose key ∈ `range`, ascending. Snapshot at call time; read-only. */
+  rangeKeysIn(range: Range<number>): number[] {
+    const out: number[] = [];
+    for (const k of this.keys()) if (range.contains(k)) out.push(k);
+    return out;
+  }
+
+  /** `[key, value]` pairs whose key ∈ `range`, ascending. */
+  rangeEntriesIn(range: Range<number>): [number, number][] {
+    const out: [number, number][] = [];
+    for (const [k, v] of this.entries())
+      if (range.contains(k)) out.push([k, v]);
+    return out;
+  }
+
+  /** Keys whose key ∈ `range`, descending. */
+  descendingRangeKeys(range: Range<number>): number[] {
+    return this.rangeKeysIn(range).reverse();
+  }
+
+  /** `[key, value]` pairs whose key ∈ `range`, descending. */
+  descendingRangeEntries(range: Range<number>): [number, number][] {
+    return this.rangeEntriesIn(range).reverse();
+  }
+
+  /** All keys, descending. */
+  descendingKeys(): number[] {
+    return [...this.keys()].reverse();
+  }
+
+  /** All `[key, value]` pairs, descending. */
+  descendingEntries(): [number, number][] {
+    return [...this.entries()].reverse();
+  }
+
+  /**
+   * A new independent map of the entries whose key ∈ `range`. Mutating the
+   * snapshot never affects the original and vice versa (it is a materialized
+   * copy, not a live view).
+   */
+  subMap(range: Range<number>): NumberNumberTreeMap {
+    const out = new NumberNumberTreeMap();
+    for (const [k, v] of this.entries()) if (range.contains(k)) out.set(k, v);
+    return out;
+  }
+
+  /**
+   * Removes every entry whose key ∈ `range`; returns the count removed. A
+   * range that matches nothing is a no-op returning `0`.
+   */
+  removeRange(range: Range<number>): number {
+    const victims = this.rangeKeysIn(range);
+    for (const k of victims) this.remove(k);
+    return victims.length;
   }
 
   /** Yields entries in ascending key order. */

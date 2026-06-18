@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import type { Comparator } from "./strategy.js";
+import type { Range } from "../range/range.js";
 import { TreeMap } from "./treemap.js";
 
 /**
@@ -55,6 +56,95 @@ export class TreeSet<T> {
   max(): T | undefined {
     const entry = this.tree.max();
     return entry !== undefined ? entry.key : undefined;
+  }
+
+  // ── point navigation (NavigableSet surface) ─────────────────────────
+
+  /** Greatest element `<= x`, or `undefined`. */
+  floor(x: T): T | undefined {
+    return this.tree.floorKey(x);
+  }
+
+  /** Least element `>= x`, or `undefined`. */
+  ceiling(x: T): T | undefined {
+    return this.tree.ceilingKey(x);
+  }
+
+  /** Greatest element `< x` (strict), or `undefined`. */
+  lower(x: T): T | undefined {
+    return this.tree.lowerKey(x);
+  }
+
+  /** Least element `> x` (strict), or `undefined`. */
+  higher(x: T): T | undefined {
+    return this.tree.higherKey(x);
+  }
+
+  /** Minimum element, or `undefined`. Alias for {@link min}. */
+  first(): T | undefined {
+    return this.min();
+  }
+
+  /** Maximum element, or `undefined`. Alias for {@link max}. */
+  last(): T | undefined {
+    return this.max();
+  }
+
+  // ── poll (positional removal) ───────────────────────────────────────
+
+  /**
+   * Removes and returns the minimum element, or `undefined` if empty. Does
+   * not trap on an empty set.
+   */
+  pollFirst(): T | undefined {
+    return this.tree.pollFirstEntry()?.key;
+  }
+
+  /**
+   * Removes and returns the maximum element, or `undefined` if empty. Does
+   * not trap on an empty set.
+   */
+  pollLast(): T | undefined {
+    return this.tree.pollLastEntry()?.key;
+  }
+
+  // ── range slice & descending iteration (consume Range<T>) ───────────
+  //
+  // Range membership is EXACTLY `range.contains(element)`.
+
+  /** Elements ∈ `range`, ascending. Snapshot at call time; read-only. */
+  rangeElements(range: Range<T>): T[] {
+    return this.tree.rangeKeys(range);
+  }
+
+  /** Elements ∈ `range`, descending. */
+  descendingRangeElements(range: Range<T>): T[] {
+    return this.tree.descendingRangeKeys(range);
+  }
+
+  /** All elements, descending. */
+  descending(): T[] {
+    return this.tree.descendingKeys();
+  }
+
+  /**
+   * A new independent set of the elements ∈ `range` (materialized snapshot;
+   * mutating it never affects the original and vice versa). The snapshot
+   * preserves the source set's comparator so reverse/custom/float-total-order
+   * ordering is retained.
+   */
+  subSet(range: Range<T>): TreeSet<T> {
+    const out = new TreeSet<T>(this.tree.cmp);
+    for (const x of this.rangeElements(range)) out.add(x);
+    return out;
+  }
+
+  /**
+   * Removes every element ∈ `range`; returns the count removed. A range that
+   * matches nothing is a no-op returning `0`.
+   */
+  removeRange(range: Range<T>): number {
+    return this.tree.removeRange(range);
   }
 
   // ── functional ──────────────────────────────────────────────────────
