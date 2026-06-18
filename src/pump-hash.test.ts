@@ -111,6 +111,20 @@ describe("Hash pump (typed Int32Int32HashMap)", () => {
     expect(() => Int32Int32HashMap.bulkLoadExact([], 1.5)).toThrow(RangeError);
   });
 
+  it("exact size counts consumed duplicates even when ignored", () => {
+    expect(() =>
+      Int32Int32HashMap.bulkLoadExact(
+        [
+          [1, 10],
+          [1, 20],
+          [2, 30],
+        ],
+        2,
+        { onDuplicate: "ignore" },
+      ),
+    ).toThrow(RangeError);
+  });
+
   it("bulkLoad hint and no-hint paths", () => {
     const m1 = Int32Int32HashMap.bulkLoad([
       [1, 1],
@@ -211,6 +225,11 @@ describe("Hash pump (hashsets)", () => {
     );
     const s = NumberHashSet.bulkLoadExact([1, 1], 2, { onDuplicate: "ignore" });
     expect(s.size).toBe(1);
+  });
+  it("typed set exact size counts ignored duplicate values as consumed", () => {
+    expect(() =>
+      Int32HashSet.bulkLoadExact([1, 1, 2], 2, { onDuplicate: "ignore" }),
+    ).toThrow(RangeError);
   });
   it("bigint hashset", () => {
     const s = BigIntHashSet.bulkLoad([1n, 2n, 3n]);

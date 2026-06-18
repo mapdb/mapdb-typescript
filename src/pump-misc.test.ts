@@ -100,11 +100,34 @@ describe("Multimap pump (fromSortedKeys / fromSortedKeyValues / bulkLoad)", () =
     expect(mm.get(2)).toEqual([20]);
   });
 
+  it("fromSortedKeyValues list variant preserves equal adjacent values", () => {
+    const mm = NumberNumberListMultimap.fromSortedKeyValues([
+      [1, 10],
+      [1, 10],
+      [1, 11],
+      [2, 20],
+      [2, 20],
+    ]);
+    expect(mm.get(1)).toEqual([10, 10, 11]);
+    expect(mm.get(2)).toEqual([20, 20]);
+    expect(mm.size).toBe(5);
+  });
+
   it("fromSortedKeyValues rejects unsorted values within a key run", () => {
     expect(() =>
       NumberNumberSetMultimap.fromSortedKeyValues([
         [1, 11],
         [1, 10],
+      ]),
+    ).toThrow(PumpNotSortedError);
+  });
+
+  it("fromSortedKeyValues rejects value descent after equal values", () => {
+    expect(() =>
+      NumberNumberListMultimap.fromSortedKeyValues([
+        [1, 10],
+        [1, 10],
+        [1, 9],
       ]),
     ).toThrow(PumpNotSortedError);
   });

@@ -151,12 +151,21 @@ const totalCmpFloat = totalCmpNumber;
 interface Scenario {
   name: string;
   collection: string;
+  construction?: string;
   operations: Operation[];
   other?: {
     collection: string;
     operations: Operation[];
   };
   assertions: Record<string, unknown>;
+}
+
+function numberPairs(operations: Operation[]): [number, number][] {
+  return operations.map((op) => [op.key as number, op.value as number]);
+}
+
+function i64Pairs(operations: Operation[]): [bigint, number][] {
+  return operations.map((op) => [parseI64Operand(op.key), op.value as number]);
 }
 
 type Collection =
@@ -1052,20 +1061,28 @@ function parseI64Operand(v: unknown): bigint {
 }
 
 function runI64HashMap(scenario: Scenario): void {
-  const m = new BigIntNumberHashMap();
-  for (const op of scenario.operations) {
-    switch (op.op) {
-      case "put":
-        m.set(parseI64Operand(op.key), op.value as number);
-        break;
-      case "remove":
-        m.remove(parseI64Operand(op.key));
-        break;
-      case "clear":
-        m.clear();
-        break;
-      default:
-        throw new Error(`unknown i64-hashmap op: ${op.op}`);
+  let m: BigIntNumberHashMap;
+  if (scenario.construction === "bulkLoadExact") {
+    m = BigIntNumberHashMap.bulkLoadExact(
+      i64Pairs(scenario.operations),
+      scenario.operations.length,
+    );
+  } else {
+    m = new BigIntNumberHashMap();
+    for (const op of scenario.operations) {
+      switch (op.op) {
+        case "put":
+          m.set(parseI64Operand(op.key), op.value as number);
+          break;
+        case "remove":
+          m.remove(parseI64Operand(op.key));
+          break;
+        case "clear":
+          m.clear();
+          break;
+        default:
+          throw new Error(`unknown i64-hashmap op: ${op.op}`);
+      }
     }
   }
 
@@ -1144,16 +1161,23 @@ interface I64Multimap {
 }
 
 function runI64Multimap(scenario: Scenario, m: I64Multimap): void {
-  for (const op of scenario.operations) {
-    switch (op.op) {
-      case "put":
-        m.set(parseI64Operand(op.key), op.value as number);
-        break;
-      case "removeAll":
-        m.removeAll(parseI64Operand(op.key));
-        break;
-      default:
-        throw new Error(`unknown i64-multimap op: ${op.op}`);
+  if (scenario.construction === "fromSortedKeyValues") {
+    m =
+      m instanceof BigIntNumberListMultimap
+        ? BigIntNumberListMultimap.fromSortedKeyValues(i64Pairs(scenario.operations))
+        : BigIntNumberSetMultimap.fromSortedKeyValues(i64Pairs(scenario.operations));
+  } else {
+    for (const op of scenario.operations) {
+      switch (op.op) {
+        case "put":
+          m.set(parseI64Operand(op.key), op.value as number);
+          break;
+        case "removeAll":
+          m.removeAll(parseI64Operand(op.key));
+          break;
+        default:
+          throw new Error(`unknown i64-multimap op: ${op.op}`);
+      }
     }
   }
 
@@ -1252,9 +1276,21 @@ function main(): void {
   const f32Mode = scenario.collection.includes("<f32");
 
   // Create and populate main collection
-  const coll = createCollection(scenario.collection);
-  for (const op of scenario.operations) {
-    applyOperation(coll, op, f32Mode);
+  const coll =
+    scenario.collection === "HashMap<i32, i32>" &&
+    scenario.construction === "bulkLoadExact"
+      ? Int32Int32HashMap.bulkLoadExact(
+          numberPairs(scenario.operations),
+          scenario.operations.length,
+        )
+      : scenario.collection === "TreeMap<i32, i32>" &&
+          scenario.construction === "fromSorted"
+        ? NumberNumberTreeMap.fromSorted(numberPairs(scenario.operations))
+        : createCollection(scenario.collection);
+  if (scenario.construction === undefined) {
+    for (const op of scenario.operations) {
+      applyOperation(coll, op, f32Mode);
+    }
   }
 
   // Create and populate "other" collection if present
