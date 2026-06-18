@@ -41,6 +41,12 @@ export {
   ImmutableSortedMap,
   ImmutableSortedSet,
 } from "./immutable_sorted/immutable-sorted-map.js";
+export { BoundedLruMap } from "./bounded_lru/bounded-lru-map.js";
+export type {
+  EvictionCause,
+  EvictCallback,
+  BoundedLruMapOptions,
+} from "./bounded_lru/bounded-lru-map.js";
 
 // Full typed primitive collection surface (mutable + immutable; all six
 // element types and 36 key×value hash-map pairs). See src/typed/index.ts.
