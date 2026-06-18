@@ -249,3 +249,27 @@ describe("Range toString", () => {
     expect(Range.all().toString()).toBe("(-∞, +∞)");
   });
 });
+
+describe("Range i32 endpoint validation / canonicalization (v1)", () => {
+  it("normalizes -0 to +0 so -0 and +0 ranges are equal and hash equal", () => {
+    const negZero = Range.closedOpen(-0, -0);
+    const posZero = Range.closedOpen(0, 0);
+    expect(negZero.equals(posZero)).toBe(true);
+    expect(negZero.hashCode()).toBe(posZero.hashCode());
+    expect(negZero.isEmpty()).toBe(true);
+    expect(Range.singleton(-0).equals(Range.singleton(0))).toBe(true);
+  });
+
+  it("rejects endpoints with no i32 counterpart", () => {
+    expect(() => Range.closed(1.5, 5)).toThrow(RangeError);
+    expect(() => Range.closed(0, NaN)).toThrow(RangeError);
+    expect(() => Range.atLeast(Infinity)).toThrow(RangeError);
+    expect(() => Range.atMost(-Infinity)).toThrow(RangeError);
+    expect(() => Range.closed(0, 2147483648)).toThrow(RangeError); // INT32_MAX + 1
+    expect(() => Range.closed(-2147483649, 0)).toThrow(RangeError); // INT32_MIN - 1
+  });
+
+  it("accepts the int32 boundaries", () => {
+    expect(Range.closed(-2147483648, 2147483647).contains(0)).toBe(true);
+  });
+});

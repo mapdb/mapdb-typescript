@@ -102,6 +102,24 @@ function cmpNumber(a: number, b: number): number {
 }
 
 /**
+ * Validate + canonicalize a v1 `number` endpoint to the signed-int32 universe
+ * that the other four ports (Rust i32, Go int32, Zig i32, Java boxed Integer)
+ * share. Rejects non-integers, non-finite, and out-of-int32-range values —
+ * none have a cross-language i32 counterpart — and normalizes `-0` to `+0` so
+ * structural equality (`Object.is`) and the bit-faithful hash stay consistent
+ * with the numeric comparator (`cmpNumber` treats `-0 == +0`). Float ranges are
+ * a later widening that will use the IEEE-754 total order instead.
+ */
+function i32Endpoint(v: number): number {
+  if (!Number.isInteger(v) || v < -2147483648 || v > 2147483647) {
+    throw new RangeError(
+      `Range<i32>: endpoint must be a signed 32-bit integer, got ${String(v)}`,
+    );
+  }
+  return v === 0 ? 0 : v; // -0 === 0 is true → canonicalize -0 to +0
+}
+
+/**
  * Total order on cuts (the single source of truth for the algebra), using
  * `cmp` to order the finite endpoint values. The three side-aware spec
  * comparators all reduce to this because the two unbounded states are distinct
@@ -193,17 +211,17 @@ export class Range<T> {
    * which is empty-but-invalid-as-open).
    */
   static open(a: number, b: number): Range<number> {
-    return Range.fromCuts(above(a), below(b));
+    return Range.fromCuts(above(i32Endpoint(a)), below(i32Endpoint(b)));
   }
 
   /** `[a, b]` — both endpoints closed. Throws if `a > b`. */
   static closed(a: number, b: number): Range<number> {
-    return Range.fromCuts(below(a), above(b));
+    return Range.fromCuts(below(i32Endpoint(a)), above(i32Endpoint(b)));
   }
 
   /** `(a, b]`. Throws if `a > b`. */
   static openClosed(a: number, b: number): Range<number> {
-    return Range.fromCuts(above(a), above(b));
+    return Range.fromCuts(above(i32Endpoint(a)), above(i32Endpoint(b)));
   }
 
   /**
@@ -211,27 +229,27 @@ export class Range<T> {
    * `(Below(v), Below(v))`.
    */
   static closedOpen(a: number, b: number): Range<number> {
-    return Range.fromCuts(below(a), below(b));
+    return Range.fromCuts(below(i32Endpoint(a)), below(i32Endpoint(b)));
   }
 
   /** `(a, +∞)`. */
   static greaterThan(a: number): Range<number> {
-    return Range.fromCuts(above(a), ABOVE_ALL);
+    return Range.fromCuts(above(i32Endpoint(a)), ABOVE_ALL);
   }
 
   /** `[a, +∞)`. */
   static atLeast(a: number): Range<number> {
-    return Range.fromCuts(below(a), ABOVE_ALL);
+    return Range.fromCuts(below(i32Endpoint(a)), ABOVE_ALL);
   }
 
   /** `(-∞, b)`. */
   static lessThan(b: number): Range<number> {
-    return Range.fromCuts(BELOW_ALL, below(b));
+    return Range.fromCuts(BELOW_ALL, below(i32Endpoint(b)));
   }
 
   /** `(-∞, b]`. */
   static atMost(b: number): Range<number> {
-    return Range.fromCuts(BELOW_ALL, above(b));
+    return Range.fromCuts(BELOW_ALL, above(i32Endpoint(b)));
   }
 
   /** `(-∞, +∞)`. */
@@ -241,7 +259,8 @@ export class Range<T> {
 
   /** `[v, v]`. */
   static singleton(v: number): Range<number> {
-    return Range.fromCuts(below(v), above(v));
+    const e = i32Endpoint(v);
+    return Range.fromCuts(below(e), above(e));
   }
 
   // ---- queries ------------------------------------------------------------
@@ -423,8 +442,10 @@ export class Range<T> {
 function cutEquals<T>(a: Cut<T>, b: Cut<T>): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === CutKind.Below || a.kind === CutKind.Above) {
-    // Object.is so float +0/-0 and NaN bit-pattern semantics hold (the value
-    // model is generic; for v1 numbers this distinguishes -0 from +0).
+    // Object.is so the generic value model preserves float +0/-0 and NaN
+    // bit-pattern semantics for the later float widening. In v1, endpoints are
+    // canonicalized to int32 at the factory (i32Endpoint normalizes -0 to +0),
+    // so no -0 cut ever reaches here and equality stays consistent with cmpNumber.
     return Object.is(a.value, (b as { value: T }).value);
   }
   return true;
