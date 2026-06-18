@@ -131,3 +131,99 @@ describe("NumberTreeSet NavigableSet surface", () => {
     expect(snap.has(30)).toBe(true);
   });
 });
+
+describe("NumberTreeSet order statistics (rank / select)", () => {
+  const I32_MIN = -2147483648;
+  const I32_MAX = 2147483647;
+
+  const makeRand = (seed: bigint): (() => bigint) => {
+    let state = seed;
+    const MASK = (1n << 64n) - 1n;
+    return () => {
+      let x = state;
+      x ^= (x << 13n) & MASK;
+      x ^= x >> 7n;
+      x ^= (x << 17n) & MASK;
+      state = x & MASK;
+      return state;
+    };
+  };
+
+  it("rank present & absent, select by index, negative -> undefined", () => {
+    const s = NumberTreeSet.of([10, 20, 30, 40, 50]);
+    expect(s.rank(10)).toBe(0);
+    expect(s.rank(30)).toBe(2);
+    expect(s.rank(50)).toBe(4);
+    expect(s.rank(5)).toBe(0);
+    expect(s.rank(25)).toBe(2);
+    expect(s.rank(55)).toBe(5);
+    expect(s.select(0)).toBe(10);
+    expect(s.select(2)).toBe(30);
+    expect(s.select(4)).toBe(50);
+    expect(s.select(5)).toBeUndefined();
+    expect(s.select(-1)).toBeUndefined();
+  });
+
+  it("empty / single edges", () => {
+    const empty = new NumberTreeSet();
+    expect(empty.rank(5)).toBe(0);
+    expect(empty.select(0)).toBeUndefined();
+    const s = NumberTreeSet.of([7]);
+    expect(s.rank(6)).toBe(0);
+    expect(s.rank(7)).toBe(0);
+    expect(s.rank(8)).toBe(1);
+    expect(s.select(0)).toBe(7);
+    expect(s.select(1)).toBeUndefined();
+  });
+
+  it("signed i32 extremes", () => {
+    const s = NumberTreeSet.of([I32_MIN, -1, 0, 1, I32_MAX]);
+    expect(s.rank(I32_MIN)).toBe(0);
+    expect(s.rank(0)).toBe(2);
+    expect(s.rank(I32_MAX)).toBe(4);
+    expect(s.select(0)).toBe(I32_MIN);
+    expect(s.select(4)).toBe(I32_MAX);
+    expect(s.select(5)).toBeUndefined();
+  });
+
+  it("rank/select after remove + round trip identity", () => {
+    const s = NumberTreeSet.of([10, 20, 30, 40, 50]);
+    s.remove(30);
+    expect(s.rank(40)).toBe(2);
+    expect(s.rank(35)).toBe(2);
+    expect(s.select(2)).toBe(40);
+    expect(s.select(4)).toBeUndefined();
+    for (const x of s.toArray()) expect(s.select(s.rank(x))).toBe(x);
+    for (let i = 0; i < s.size; i++) expect(s.rank(s.select(i)!)).toBe(i);
+    s.checkSizeInvariant();
+  });
+
+  it("selectWhere is the predicate filter (rename of functional select)", () => {
+    const s = NumberTreeSet.of([1, 2, 3, 4, 5]);
+    expect(s.selectWhere((v) => v % 2 === 0).toArray()).toEqual([2, 4]);
+  });
+
+  it("subtree-size invariant over randomized insert/remove", () => {
+    const s = new NumberTreeSet();
+    const oracle = new Set<number>();
+    const rand = makeRand(0x9e3779b97f4a7c15n);
+    for (let step = 0; step < 4000; step++) {
+      const v = Number(rand() % 200n);
+      if (rand() % 2n === 0n) {
+        s.add(v);
+        oracle.add(v);
+      } else {
+        s.remove(v);
+        oracle.delete(v);
+      }
+      s.checkSizeInvariant();
+      expect(s.size).toBe(oracle.size);
+    }
+    const sorted = [...oracle].sort((a, b) => a - b);
+    sorted.forEach((v, i) => {
+      expect(s.rank(v)).toBe(i);
+      expect(s.select(i)).toBe(v);
+    });
+    expect(s.select(sorted.length)).toBeUndefined();
+  });
+});

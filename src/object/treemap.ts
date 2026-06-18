@@ -30,6 +30,19 @@ interface Node<K, V> {
   right: Node<K, V> | null;
   parent: Node<K, V> | null;
   red: boolean;
+  /**
+   * Number of nodes in the subtree rooted at this node (this node plus both
+   * children's subtrees). Maintained in O(1) on every structural change —
+   * insert, remove, and all rotations — so order-statistic `rank`/`select`
+   * run in O(log n). Invariant after any operation:
+   * `size === 1 + size(left) + size(right)`.
+   */
+  size: number;
+}
+
+/** Subtree size of an optional node link (`0` for an absent child). */
+function nodeSize<K, V>(n: Node<K, V> | null): number {
+  return n === null ? 0 : n.size;
 }
 
 /**
@@ -56,6 +69,7 @@ export class TreeMap<K, V> {
         right: null,
         parent: null,
         red: false,
+        size: 1,
       };
       this._size++;
       return this;
@@ -72,8 +86,10 @@ export class TreeMap<K, V> {
             right: null,
             parent: n,
             red: true,
+            size: 1,
           };
           n.left = node;
+          this.incSizeToRoot(n);
           this.fixAfterInsert(node);
           this._size++;
           return this;
@@ -88,8 +104,10 @@ export class TreeMap<K, V> {
             right: null,
             parent: n,
             red: true,
+            size: 1,
           };
           n.right = node;
+          this.incSizeToRoot(n);
           this.fixAfterInsert(node);
           this._size++;
           return this;
@@ -278,6 +296,82 @@ export class TreeMap<K, V> {
     return e;
   }
 
+  // ── order statistics (rank / select) ────────────────────────────────
+  //
+  // Backed by the per-node subtree-size augmentation; both run in O(log n) on
+  // the balanced tree. Comparisons go through the tree comparator, so the
+  // order is exactly the in-order traversal order (the float total order
+  // carries through for float keys). Pure queries; never mutate.
+
+  /**
+   * Returns the number of keys strictly less than `key` under the tree's
+   * comparator — the 0-based lower-bound index `key` occupies (if present) or
+   * would occupy (if absent). Defined for present and absent keys alike; the
+   * result is in `0..=size` (`size` for any key greater than the maximum).
+   */
+  rank(key: K): number {
+    let rank = 0;
+    let current = this.root;
+    while (current !== null) {
+      const c = this.cmp(key, current.key);
+      if (c < 0) {
+        // key < current.key: current and its right subtree are >= key.
+        current = current.left;
+      } else if (c > 0) {
+        // key > current.key: current and its whole left subtree are < key.
+        rank += 1 + nodeSize(current.left);
+        current = current.right;
+      } else {
+        // key == current.key: exactly the left subtree is strictly less.
+        return rank + nodeSize(current.left);
+      }
+    }
+    return rank;
+  }
+
+  /**
+   * Returns the `i`-th smallest key (0-based), or `undefined` if `i >= size`.
+   * `i === size` (and any larger index, including on an empty map) is absence,
+   * not a trap; a negative `i` (`number` can be negative) is likewise absence.
+   * Round-trips with {@link rank}: `selectKey(rank(k)) === k` for any present
+   * `k`, and `rank(selectKey(i)) === i` for every `0 <= i < size`.
+   */
+  selectKey(i: number): K | undefined {
+    return this.selectNode(i)?.key;
+  }
+
+  /**
+   * Returns the `i`-th smallest `[key, value]` entry (0-based), or `undefined`
+   * if `i >= size` or `i < 0`. Same index domain as {@link selectKey}.
+   */
+  selectEntry(i: number): [K, V] | undefined {
+    const n = this.selectNode(i);
+    return n === null ? undefined : [n.key, n.value];
+  }
+
+  /**
+   * Walks to the node at 0-based sorted index `i`, or `null` if out of range
+   * (`i < 0` or `i >= size`). The subtree-size augmentation makes this
+   * O(log n).
+   */
+  private selectNode(i: number): Node<K, V> | null {
+    if (i < 0) return null;
+    let current = this.root;
+    while (current !== null) {
+      const left = nodeSize(current.left);
+      if (i < left) {
+        current = current.left;
+      } else if (i === left) {
+        return current;
+      } else {
+        // Skip the left subtree and this node.
+        i -= left + 1;
+        current = current.right;
+      }
+    }
+    return null;
+  }
+
   // ── range slice & descending iteration (consume Range<K>) ───────────
   //
   // Range membership is EXACTLY `range.contains(key)`: e.g. `open(1, 2)` over
@@ -428,6 +522,46 @@ export class TreeMap<K, V> {
     return n !== null && n.red;
   }
 
+  /**
+   * Adds one to the cached subtree size of `n` and every ancestor, after a new
+   * leaf was linked below `n`.
+   */
+  private incSizeToRoot(n: Node<K, V> | null): void {
+    for (let p = n; p !== null; p = p.parent) p.size++;
+  }
+
+  /**
+   * Recomputes the cached subtree size of `n` and every ancestor from their
+   * children. Used after a delete splice (the rotations inside
+   * {@link fixAfterDelete} already maintain their own sizes), so only the
+   * spliced node's surviving path to the root needs refreshing.
+   */
+  private fixSizeToRoot(n: Node<K, V> | null): void {
+    for (let p = n; p !== null; p = p.parent) {
+      p.size = 1 + nodeSize(p.left) + nodeSize(p.right);
+    }
+  }
+
+  /**
+   * Test-only: assert the subtree-size invariant `size === 1 + left + right`
+   * at every node and that the root total equals {@link size}. Recomputes the
+   * total bottom-up. Not part of the public API.
+   */
+  checkSizeInvariant(): void {
+    const check = (n: Node<K, V> | null): number => {
+      if (n === null) return 0;
+      const l = check(n.left);
+      const r = check(n.right);
+      if (n.size !== 1 + l + r) {
+        throw new Error("subtree-size invariant violated");
+      }
+      return n.size;
+    };
+    if (check(this.root) !== this._size) {
+      throw new Error("root size mismatch with size");
+    }
+  }
+
   private rotateLeft(n: Node<K, V>): void {
     const r = n.right!;
     n.right = r.left;
@@ -438,6 +572,10 @@ export class TreeMap<K, V> {
     else n.parent.right = r;
     r.left = n;
     n.parent = r;
+    // `r` takes `n`'s former subtree size; recompute the demoted `n` (now
+    // `r`'s left child) from its children, then carry the total up to `r`.
+    r.size = n.size;
+    n.size = 1 + nodeSize(n.left) + nodeSize(n.right);
   }
 
   private rotateRight(n: Node<K, V>): void {
@@ -450,6 +588,8 @@ export class TreeMap<K, V> {
     else n.parent.left = l;
     l.right = n;
     n.parent = l;
+    l.size = n.size;
+    n.size = 1 + nodeSize(n.left) + nodeSize(n.right);
   }
 
   private fixAfterInsert(n_: Node<K, V>): void {
@@ -501,22 +641,32 @@ export class TreeMap<K, V> {
       n.value = succ.value;
       n = succ;
     }
+    // `n` is now the node physically spliced out (at most one child).
+    // `fixSizeFrom` is the lowest node whose cached subtree size must be
+    // refreshed; recomputing that path to the root once the structure is final
+    // restores the invariant. Rotations inside fixAfterDelete maintain their
+    // own sizes, and everything below `fixSizeFrom` stays consistent.
+    let fixSizeFrom: Node<K, V> | null = null;
     const child = n.left !== null ? n.left : n.right;
     if (child !== null) {
       child.parent = n.parent;
       if (n.parent === null) this.root = child;
       else if (n === n.parent.left) n.parent.left = child;
       else n.parent.right = child;
+      fixSizeFrom = child;
       if (!n.red) this.fixAfterDelete(child);
     } else if (n.parent === null) {
       this.root = null;
     } else {
       if (!n.red) this.fixAfterDelete(n);
+      // fixAfterDelete may have rotated `n` to a new parent; read it now.
+      fixSizeFrom = n.parent;
       if (n.parent !== null) {
         if (n === n.parent.left) n.parent.left = null;
         else n.parent.right = null;
       }
     }
+    this.fixSizeToRoot(fixSizeFrom);
   }
 
   private fixAfterDelete(n_: Node<K, V>): void {

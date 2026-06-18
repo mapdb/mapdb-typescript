@@ -708,6 +708,22 @@ function evaluateAssertion(
         }
       }
 
+      // Order statistics (rank / select). Matched by EXACT patterns so the
+      // functional select_<pred> keys (select_gt_N, select_even) are NOT
+      // misclassified: rank_<k> is `^rank_(-?\d+)$` (signed i32, leading `+`
+      // rejected), select_<i> is `^select_(\d+)$` (non-negative index).
+      const rankMatch = key.match(/^rank_(-?\d+)$/);
+      if (rankMatch) {
+        const k = parseInt(rankMatch[1], 10);
+        return navMap !== null ? navMap.rank(k) : navSet!.rank(k);
+      }
+      const selectMatch = key.match(/^select_(\d+)$/);
+      if (selectMatch) {
+        const i = parseInt(selectMatch[1], 10);
+        const r = navMap !== null ? navMap.selectKey(i) : navSet!.select(i);
+        return r === undefined ? null : r;
+      }
+
       // Result-log keys (replayed from execution order).
       if (key === "poll_first_keys") return log.pollFirstKeys;
       if (key === "poll_last_keys") return log.pollLastKeys;

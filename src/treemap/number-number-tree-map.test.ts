@@ -182,3 +182,104 @@ describe("NumberNumberTreeMap NavigableMap surface", () => {
     expect(snap.has(30)).toBe(true);
   });
 });
+
+describe("NumberNumberTreeMap order statistics (rank / select)", () => {
+  const I32_MIN = -2147483648;
+  const I32_MAX = 2147483647;
+  const mapOf = (keys: number[]): NumberNumberTreeMap => {
+    const m = new NumberNumberTreeMap();
+    for (const k of keys) m.set(k, k * 10);
+    return m;
+  };
+
+  // Deterministic xorshift so the randomized invariant test is reproducible.
+  const makeRand = (seed: bigint): (() => bigint) => {
+    let state = seed;
+    const MASK = (1n << 64n) - 1n;
+    return () => {
+      let x = state;
+      x ^= (x << 13n) & MASK;
+      x ^= x >> 7n;
+      x ^= (x << 17n) & MASK;
+      state = x & MASK;
+      return state;
+    };
+  };
+
+  it("rank of present & absent keys, select by index", () => {
+    const m = mapOf([10, 20, 30, 40, 50]);
+    expect(m.rank(10)).toBe(0);
+    expect(m.rank(30)).toBe(2);
+    expect(m.rank(50)).toBe(4);
+    expect(m.rank(5)).toBe(0);
+    expect(m.rank(25)).toBe(2);
+    expect(m.rank(55)).toBe(5);
+    expect(m.selectKey(0)).toBe(10);
+    expect(m.selectKey(2)).toBe(30);
+    expect(m.selectKey(4)).toBe(50);
+    expect(m.selectKey(5)).toBeUndefined();
+    expect(m.selectEntry(2)).toEqual([30, 300]);
+    expect(m.selectEntry(5)).toBeUndefined();
+    expect(m.selectKey(-1)).toBeUndefined(); // negative -> undefined, no trap
+    expect(m.selectEntry(-1)).toBeUndefined();
+  });
+
+  it("empty / single edges", () => {
+    const empty = mapOf([]);
+    expect(empty.rank(5)).toBe(0);
+    expect(empty.selectKey(0)).toBeUndefined();
+    const single = mapOf([7]);
+    expect(single.rank(6)).toBe(0);
+    expect(single.rank(7)).toBe(0);
+    expect(single.rank(8)).toBe(1);
+    expect(single.selectKey(0)).toBe(7);
+    expect(single.selectKey(1)).toBeUndefined();
+  });
+
+  it("signed i32 extremes", () => {
+    const m = mapOf([I32_MIN, -1, 0, 1, I32_MAX]);
+    expect(m.rank(I32_MIN)).toBe(0);
+    expect(m.rank(0)).toBe(2);
+    expect(m.rank(I32_MAX)).toBe(4);
+    expect(m.selectKey(0)).toBe(I32_MIN);
+    expect(m.selectKey(4)).toBe(I32_MAX);
+    expect(m.selectKey(5)).toBeUndefined();
+  });
+
+  it("rank/select after remove (no stale sizes) + round trip", () => {
+    const m = mapOf([10, 20, 30, 40, 50]);
+    m.remove(30);
+    expect([...m.keys()]).toEqual([10, 20, 40, 50]);
+    expect(m.rank(40)).toBe(2);
+    expect(m.rank(35)).toBe(2);
+    expect(m.selectKey(2)).toBe(40);
+    expect(m.selectKey(4)).toBeUndefined();
+    m.checkSizeInvariant();
+    for (const k of [...m.keys()]) expect(m.selectKey(m.rank(k))).toBe(k);
+    for (let i = 0; i < m.size; i++) expect(m.rank(m.selectKey(i)!)).toBe(i);
+  });
+
+  it("subtree-size invariant over randomized insert/remove", () => {
+    const m = new NumberNumberTreeMap();
+    const oracle = new Set<number>();
+    const rand = makeRand(0x9e3779b97f4a7c15n);
+    for (let step = 0; step < 4000; step++) {
+      const key = Number(rand() % 200n);
+      if (rand() % 2n === 0n) {
+        m.set(key, key * 10);
+        oracle.add(key);
+      } else {
+        m.remove(key);
+        oracle.delete(key);
+      }
+      m.checkSizeInvariant();
+      expect(m.size).toBe(oracle.size);
+    }
+    const sorted = [...oracle].sort((a, b) => a - b);
+    sorted.forEach((k, i) => {
+      expect(m.rank(k)).toBe(i);
+      expect(m.selectKey(i)).toBe(k);
+    });
+    expect(m.selectKey(sorted.length)).toBeUndefined();
+  });
+});

@@ -237,3 +237,188 @@ describe("TreeSet NavigableSet surface", () => {
     expect(s.has(30)).toBe(true);
   });
 });
+
+// Deterministic xorshift (mirrors the Rust/Go invariant tests) so the
+// randomized size-invariant test never relies on external randomness.
+function makeRand(seed: bigint): () => bigint {
+  let state = seed;
+  const MASK = (1n << 64n) - 1n;
+  return () => {
+    let x = state;
+    x ^= (x << 13n) & MASK;
+    x ^= x >> 7n;
+    x ^= (x << 17n) & MASK;
+    state = x & MASK;
+    return state;
+  };
+}
+
+describe("TreeMap order statistics (rank / select)", () => {
+  it("rank of present and absent keys (lower-bound index)", () => {
+    const m = mapOf([10, 20, 30, 40, 50]);
+    expect(m.rank(10)).toBe(0);
+    expect(m.rank(30)).toBe(2);
+    expect(m.rank(50)).toBe(4);
+    expect(m.rank(5)).toBe(0); // before min
+    expect(m.rank(25)).toBe(2); // between 20 and 30
+    expect(m.rank(55)).toBe(5); // past max -> size
+  });
+
+  it("selectKey / selectEntry by 0-based index", () => {
+    const m = mapOf([10, 20, 30, 40, 50]); // value = key*10
+    expect(m.selectKey(0)).toBe(10);
+    expect(m.selectKey(2)).toBe(30);
+    expect(m.selectKey(4)).toBe(50);
+    expect(m.selectKey(5)).toBeUndefined(); // == size
+    expect(m.selectKey(999)).toBeUndefined();
+    expect(m.selectEntry(0)).toEqual([10, 100]);
+    expect(m.selectEntry(2)).toEqual([30, 300]);
+    expect(m.selectEntry(5)).toBeUndefined();
+  });
+
+  it("negative index returns undefined (no trap)", () => {
+    const m = mapOf([10, 20, 30]);
+    expect(m.selectKey(-1)).toBeUndefined();
+    expect(m.selectEntry(-1)).toBeUndefined();
+    expect(m.selectKey(-100)).toBeUndefined();
+  });
+
+  it("empty and single-element edges", () => {
+    const empty = mapOf([]);
+    expect(empty.rank(5)).toBe(0);
+    expect(empty.selectKey(0)).toBeUndefined();
+
+    const single = mapOf([]);
+    single.set(7, 70);
+    expect(single.rank(6)).toBe(0);
+    expect(single.rank(7)).toBe(0);
+    expect(single.rank(8)).toBe(1);
+    expect(single.selectKey(0)).toBe(7);
+    expect(single.selectEntry(0)).toEqual([7, 70]);
+    expect(single.selectKey(1)).toBeUndefined();
+  });
+
+  it("signed i32 extremes", () => {
+    const m = mapOf([I32_MIN, -1, 0, 1, I32_MAX]);
+    expect(m.rank(I32_MIN)).toBe(0);
+    expect(m.rank(0)).toBe(2);
+    expect(m.rank(I32_MAX)).toBe(4);
+    expect(m.selectKey(0)).toBe(I32_MIN);
+    expect(m.selectKey(4)).toBe(I32_MAX);
+    expect(m.selectKey(5)).toBeUndefined();
+  });
+
+  it("stale subtree sizes after remove are detected", () => {
+    const m = mapOf([10, 20, 30, 40, 50]);
+    expect(m.remove(30)).toBe(300);
+    expect([...m.keys()]).toEqual([10, 20, 40, 50]);
+    expect(m.rank(40)).toBe(2);
+    expect(m.rank(35)).toBe(2);
+    expect(m.selectKey(2)).toBe(40);
+    expect(m.selectKey(4)).toBeUndefined();
+    m.checkSizeInvariant();
+  });
+
+  it("round-trip selectKey(rank(k))==k and rank(selectKey(i))==i", () => {
+    const m = mapOf([10, 20, 30, 40, 50, -7, 0, 99]);
+    for (const k of [...m.keys()]) {
+      expect(m.selectKey(m.rank(k))).toBe(k);
+    }
+    for (let i = 0; i < m.size; i++) {
+      const k = m.selectKey(i)!;
+      expect(m.rank(k)).toBe(i);
+    }
+    expect(m.selectKey(m.size)).toBeUndefined();
+  });
+
+  it("order statistics follow the comparator (reverse order)", () => {
+    const m = new TreeMap<number, number>(reverseComparator<number>());
+    for (const k of [10, 20, 30, 40, 50]) m.set(k, k * 10);
+    expect(m.selectKey(0)).toBe(50);
+    expect(m.selectKey(4)).toBe(10);
+    expect(m.rank(50)).toBe(0);
+    expect(m.rank(10)).toBe(4);
+    m.checkSizeInvariant();
+  });
+
+  it("subtree-size invariant holds over randomized insert/remove", () => {
+    const m = new TreeMap<number, number>(naturalComparator<number>());
+    const oracle = new Set<number>();
+    const rand = makeRand(0x9e3779b97f4a7c15n);
+    for (let step = 0; step < 4000; step++) {
+      const key = Number(rand() % 200n);
+      if (rand() % 2n === 0n) {
+        m.set(key, key * 10);
+        oracle.add(key);
+      } else {
+        m.remove(key);
+        oracle.delete(key);
+      }
+      m.checkSizeInvariant();
+      expect(m.size).toBe(oracle.size);
+    }
+    const sorted = [...oracle].sort((a, b) => a - b);
+    sorted.forEach((k, i) => {
+      expect(m.rank(k)).toBe(i);
+      expect(m.selectKey(i)).toBe(k);
+    });
+    expect(m.selectKey(sorted.length)).toBeUndefined();
+  });
+});
+
+describe("TreeSet order statistics (rank / select)", () => {
+  it("rank / select basics with present & absent ranks", () => {
+    const s = setOf([10, 20, 30, 40, 50]);
+    expect(s.rank(10)).toBe(0);
+    expect(s.rank(30)).toBe(2);
+    expect(s.rank(50)).toBe(4);
+    expect(s.rank(5)).toBe(0);
+    expect(s.rank(25)).toBe(2);
+    expect(s.rank(55)).toBe(5);
+    expect(s.select(0)).toBe(10);
+    expect(s.select(2)).toBe(30);
+    expect(s.select(4)).toBe(50);
+    expect(s.select(5)).toBeUndefined(); // == size
+    expect(s.select(-1)).toBeUndefined(); // negative -> undefined, no trap
+  });
+
+  it("empty and single-element edges", () => {
+    const empty = setOf([]);
+    expect(empty.rank(5)).toBe(0);
+    expect(empty.select(0)).toBeUndefined();
+
+    const s = setOf([7]);
+    expect(s.rank(6)).toBe(0);
+    expect(s.rank(7)).toBe(0);
+    expect(s.rank(8)).toBe(1);
+    expect(s.select(0)).toBe(7);
+    expect(s.select(1)).toBeUndefined();
+  });
+
+  it("signed i32 extremes", () => {
+    const s = setOf([I32_MIN, -1, 0, 1, I32_MAX]);
+    expect(s.rank(I32_MIN)).toBe(0);
+    expect(s.rank(0)).toBe(2);
+    expect(s.rank(I32_MAX)).toBe(4);
+    expect(s.select(0)).toBe(I32_MIN);
+    expect(s.select(4)).toBe(I32_MAX);
+    expect(s.select(5)).toBeUndefined();
+  });
+
+  it("rank / select after remove + round-trip identity", () => {
+    const s = setOf([10, 20, 30, 40, 50]);
+    expect(s.remove(30)).toBe(true);
+    expect(s.rank(40)).toBe(2);
+    expect(s.rank(35)).toBe(2);
+    expect(s.select(2)).toBe(40);
+    expect(s.select(4)).toBeUndefined();
+    for (const x of s.toArray()) expect(s.select(s.rank(x))).toBe(x);
+    for (let i = 0; i < s.size; i++) expect(s.rank(s.select(i)!)).toBe(i);
+    s.checkSizeInvariant();
+  });
+
+  it("selectWhere is the predicate filter (rename of functional select)", () => {
+    const s = setOf([1, 2, 3, 4, 5]);
+    expect(s.selectWhere((v) => v % 2 === 0).toArray()).toEqual([2, 4]);
+  });
+});
