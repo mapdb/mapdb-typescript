@@ -27,6 +27,7 @@ import { NumberTreeSet } from "./treeset/number-tree-set.js";
 import { NumberNumberTreeMap } from "./treemap/number-number-tree-map.js";
 import { NumberArrayStack } from "./stack/number-array-stack.js";
 import { totalCmpNumber } from "./internal/float-order.js";
+import { Range, BoundType } from "./range/range.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +43,9 @@ interface Operation {
   value?: number | string | { bits?: string };
   index?: number;
   delta?: number;
+  // Range<i32> constructor operands (spec/features/bound-range.md).
+  lower?: number;
+  upper?: number;
 }
 
 // Scratch views to reinterpret an f32 bit pattern <-> JS number. A JS
@@ -173,6 +177,28 @@ type Collection =
 // Collection factory + operations
 // ---------------------------------------------------------------------------
 
+// The number-keyed collection kinds this runner understands via
+// createCollection (Range<i32> and the bigint-keyed kinds are dispatched
+// separately in main). Used by the forward-compat skip so an unknown kind is
+// skipped rather than crashing createCollection's `default` throw.
+const KNOWN_COLLECTIONS = new Set<string>([
+  "HashMap<i32, i32>",
+  "ArrayList<i32>",
+  "HashSet<i32>",
+  "HashBag<i32>",
+  "TreeSet<i32>",
+  "TreeMap<i32, i32>",
+  "ArrayStack<i32>",
+  "HashMap<f32, i32>",
+  "HashSet<f32>",
+  "TreeSet<f32>",
+  "ArrayList<f32>",
+]);
+
+function isKnownCollection(type: string): boolean {
+  return KNOWN_COLLECTIONS.has(type);
+}
+
 function createCollection(type: string): Collection {
   switch (type) {
     case "HashMap<i32, i32>":
@@ -221,9 +247,15 @@ function createCollection(type: string): Collection {
   }
 }
 
-function applyOperation(coll: Collection, op: Operation, f32Mode: boolean): void {
-  const k = (): number => (f32Mode ? parseF32Value(op.key) : (op.key as number));
-  const v = (): number => (f32Mode ? parseF32Value(op.value) : (op.value as number));
+function applyOperation(
+  coll: Collection,
+  op: Operation,
+  f32Mode: boolean,
+): void {
+  const k = (): number =>
+    f32Mode ? parseF32Value(op.key) : (op.key as number);
+  const v = (): number =>
+    f32Mode ? parseF32Value(op.value) : (op.value as number);
   switch (op.op) {
     case "put":
       if (
@@ -373,13 +405,18 @@ function evaluateF32Assertion(key: string, coll: Collection): unknown {
   // ArrayList `sorted` form renders unquoted.
   const renderSorted = (vals: number[], quoted: boolean): string => {
     vals.sort(totalCmpFloat);
-    const parts = vals.map((v) => (quoted ? `"${formatF32(v)}"` : formatF32(v)));
+    const parts = vals.map((v) =>
+      quoted ? `"${formatF32(v)}"` : formatF32(v),
+    );
     return "[" + parts.join(",") + "]";
   };
   if (key === "sorted_keys" && coll instanceof NumberNumberHashMap) {
     return renderSorted(coll.keysToArray(), true);
   }
-  if ((key === "sorted_values" || key === "to_sorted_array") && coll instanceof NumberHashSet) {
+  if (
+    (key === "sorted_values" || key === "to_sorted_array") &&
+    coll instanceof NumberHashSet
+  ) {
     return renderSorted(coll.toArray(), true);
   }
   // TreeSet<f32>: the sorted output is the production tree's in-order
@@ -920,7 +957,11 @@ let anyFail = false;
 // runner emits for its computed value. Float comparisons go through
 // formatF32, which encodes bit-pattern identity (NaN -> "NaN",
 // -0.0 -> "-0.0" distinct from "0.0").
-function renderExpected(expected: unknown, key: string, f32Mode: boolean): string {
+function renderExpected(
+  expected: unknown,
+  key: string,
+  f32Mode: boolean,
+): string {
   if (expected === null || expected === undefined) return "null";
   if (typeof expected === "boolean") return expected ? "true" : "false";
 
@@ -1048,7 +1089,9 @@ function parseI64Operand(v: unknown): bigint {
     }
     return BigInt(v);
   }
-  throw new Error(`expected i64 key (decimal string or number), got ${typeof v}`);
+  throw new Error(
+    `expected i64 key (decimal string or number), got ${typeof v}`,
+  );
 }
 
 function runI64HashMap(scenario: Scenario): void {
@@ -1078,13 +1121,18 @@ function runI64HashMap(scenario: Scenario): void {
     console.log(`${key}: ${computed}`);
     const want = renderI64Expected(scenario.assertions[key]);
     if (computed !== want) {
-      console.log(`FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`);
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
       anyFail = true;
     }
   }
 }
 
-function evalI64MapAssertion(key: string, m: BigIntNumberHashMap): string | undefined {
+function evalI64MapAssertion(
+  key: string,
+  m: BigIntNumberHashMap,
+): string | undefined {
   if (key === "size") return String(m.size);
   if (key === "is_empty") return String(m.isEmpty());
   if (key === "sorted_keys") {
@@ -1166,13 +1214,18 @@ function runI64Multimap(scenario: Scenario, m: I64Multimap): void {
     console.log(`${key}: ${computed}`);
     const want = renderI64MultimapExpected(key, scenario.assertions[key]);
     if (computed !== want) {
-      console.log(`FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`);
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
       anyFail = true;
     }
   }
 }
 
-function evalI64MultimapAssertion(key: string, m: I64Multimap): string | undefined {
+function evalI64MultimapAssertion(
+  key: string,
+  m: I64Multimap,
+): string | undefined {
   if (key === "distinct_key_count") return String(m.keysCount);
   if (key === "sorted_keys") {
     const keys = m.uniqueKeys().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
@@ -1202,6 +1255,139 @@ function renderI64MultimapExpected(key: string, expected: unknown): string {
     return `[${expected.map((e) => String(e)).join(",")}]`;
   }
   return String(expected);
+}
+
+// ---------------------------------------------------------------------------
+// Range<i32> runner — the Bound/Range value model (spec/features/bound-range.md).
+// Exactly ONE constructor op builds the range under test; an optional "other"
+// block (same single-builder shape) supplies the second range for binary ops.
+// Routed through the production Range — every assertion is proved against the
+// real cut algebra, not re-derived here.
+// ---------------------------------------------------------------------------
+
+function buildRange(ops: Operation[]): Range<number> {
+  if (ops.length !== 1) {
+    throw new Error("Range<i32> scenario must have exactly one constructor op");
+  }
+  const op = ops[0];
+  const lower = (): number => op.lower as number;
+  const upper = (): number => op.upper as number;
+  switch (op.op) {
+    case "closed":
+      return Range.closed(lower(), upper());
+    case "open":
+      return Range.open(lower(), upper());
+    case "closed_open":
+      return Range.closedOpen(lower(), upper());
+    case "open_closed":
+      return Range.openClosed(lower(), upper());
+    case "at_least":
+      return Range.atLeast(lower());
+    case "greater_than":
+      return Range.greaterThan(lower());
+    case "at_most":
+      return Range.atMost(upper());
+    case "less_than":
+      return Range.lessThan(upper());
+    case "all":
+      return Range.all();
+    case "singleton":
+      return Range.singleton(op.value as number);
+    default:
+      throw new Error(`unknown range op: ${op.op}`);
+  }
+}
+
+function boundTypeStr(bt: BoundType | null): string {
+  if (bt === BoundType.Open) return "open";
+  if (bt === BoundType.Closed) return "closed";
+  return "null";
+}
+
+function optIntStr(v: number | null): string {
+  return v === null ? "null" : String(v);
+}
+
+function evalRangeAssertion(
+  key: string,
+  range: Range<number>,
+  other: Range<number> | null,
+): string | undefined {
+  if (key === "is_empty") return String(range.isEmpty());
+  if (key === "has_lower_bound") return String(range.hasLowerBound());
+  if (key === "has_upper_bound") return String(range.hasUpperBound());
+  if (key === "lower_bound_type") return boundTypeStr(range.lowerBoundType());
+  if (key === "upper_bound_type") return boundTypeStr(range.upperBoundType());
+  if (key === "lower_endpoint") return optIntStr(range.lowerEndpoint());
+  if (key === "upper_endpoint") return optIntStr(range.upperEndpoint());
+  {
+    const m = key.match(/^contains_(-?\d+)$/);
+    if (m) return String(range.contains(parseInt(m[1], 10)));
+  }
+
+  // Binary ops require "other"; if absent, the key is treated as unknown
+  // (skip) rather than crashing.
+  if (other === null) return undefined;
+
+  if (key === "encloses_other") return String(range.encloses(other));
+  if (key === "is_connected_other") return String(range.isConnected(other));
+  if (key === "span_lower") return optIntStr(range.span(other).lowerEndpoint());
+  if (key === "span_upper") return optIntStr(range.span(other).upperEndpoint());
+  if (key === "span_lower_type")
+    return boundTypeStr(range.span(other).lowerBoundType());
+  if (key === "span_upper_type")
+    return boundTypeStr(range.span(other).upperBoundType());
+
+  // Intersection: null = disjoint, present (possibly cut-empty) = abut/overlap.
+  const inter = range.intersection(other);
+  if (key === "intersection_is_none") return String(inter === null);
+  if (key === "intersection_is_empty")
+    return String(inter !== null && inter.isEmpty());
+  if (key === "intersection_lower")
+    return optIntStr(inter === null ? null : inter.lowerEndpoint());
+  if (key === "intersection_upper")
+    return optIntStr(inter === null ? null : inter.upperEndpoint());
+  if (key === "intersection_lower_type")
+    return boundTypeStr(inter === null ? null : inter.lowerBoundType());
+  if (key === "intersection_upper_type")
+    return boundTypeStr(inter === null ? null : inter.upperBoundType());
+  if (key === "intersection_has_lower_bound")
+    return String(inter !== null && inter.hasLowerBound());
+  if (key === "intersection_has_upper_bound")
+    return String(inter !== null && inter.hasUpperBound());
+
+  return undefined; // unknown assertion key -> skip
+}
+
+function runRange(scenario: Scenario): void {
+  const range = buildRange(scenario.operations);
+  const other = scenario.other ? buildRange(scenario.other.operations) : null;
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalRangeAssertion(key, range, other);
+    if (computed === undefined) continue; // unknown key -> skip (forward-compat)
+    console.log(`${key}: ${computed}`);
+    const want = renderRangeExpected(scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
+// Render an expected Range assertion value into the runner's canonical string.
+// Endpoints are numbers or null; bound types are "open"/"closed"/null strings;
+// the remaining keys are booleans.
+function renderRangeExpected(expected: unknown): string {
+  if (expected === null || expected === undefined) return "null";
+  if (typeof expected === "boolean") return expected ? "true" : "false";
+  if (typeof expected === "number") return String(expected);
+  return String(expected); // bound-type strings ("open"/"closed")
 }
 
 function main(): void {
@@ -1238,6 +1424,25 @@ function main(): void {
   if (scenario.collection === "SetMultimap<i64, i32>") {
     runI64Multimap(scenario, new BigIntNumberSetMultimap());
     if (anyFail) process.exit(1);
+    return;
+  }
+
+  // Range<i32> — the Bound/Range value model, built by a single constructor
+  // op and probed by the range assertion keys. Separate dispatch (it is a
+  // value type, not in the number-keyed Collection union).
+  if (scenario.collection === "Range<i32>") {
+    runRange(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // Forward-compat (README "unknown collection kinds skip"): a runner that does
+  // not understand a collection kind must SKIP, not fail, so newer scenarios
+  // never break an older runner. Mirrors the unknown-assertion-key skip below.
+  if (!isKnownCollection(scenario.collection)) {
+    console.error(
+      `skip: unsupported collection kind (forward-compat): ${scenario.collection}`,
+    );
     return;
   }
 
@@ -1291,7 +1496,13 @@ function main(): void {
       }
       throw e;
     }
-    emit(scenario.name, key, formatValue(actual), scenario.assertions[key], f32Mode);
+    emit(
+      scenario.name,
+      key,
+      formatValue(actual),
+      scenario.assertions[key],
+      f32Mode,
+    );
   }
 
   if (anyFail) process.exit(1);
