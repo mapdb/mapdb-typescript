@@ -7,6 +7,12 @@
 
 import type { MapDbMutableMap } from "../api/index.js";
 import { bigintHashSeed } from "../internal/hash.js";
+import {
+  checkExpectedSize,
+  hashCapacityFor,
+  PumpDuplicateError,
+  type BulkLoadOptions,
+} from "../internal/pump.js";
 
 const DEFAULT_CAPACITY = 16;
 const LOAD_FACTOR = 0.75;
@@ -36,6 +42,70 @@ export class BigIntNumberHashMap implements MapDbMutableMap<bigint, number> {
       m.set(k, v);
     }
     return m;
+  }
+
+  /**
+   * Bulk-loads a fresh map from exactly `n` key/value pairs in one O(n) pass
+   * (the data pump): the table is sized for `n` up front, so there is ZERO
+   * mid-load rehash, and slots are filled via the same probe `set` uses. Throws
+   * `RangeError` if `n` is invalid or if the source yields more or fewer than
+   * `n` pairs. Duplicate keys throw {@link PumpDuplicateError} unless
+   * `onDuplicate` is "ignore" (keeps the first). Observably identical to setting
+   * the pairs one by one.
+   */
+  static bulkLoadExact(
+    pairs: Iterable<readonly [bigint, number]>,
+    n: number,
+    opts?: BulkLoadOptions,
+  ): BigIntNumberHashMap {
+    checkExpectedSize(n);
+    const onDuplicate = opts?.onDuplicate ?? "error";
+    const m = new BigIntNumberHashMap(hashCapacityFor(n));
+    const mask = m.keys.length - 1;
+    let seen = 0;
+    let i = 0;
+    for (const [key, value] of pairs) {
+      if (seen >= n) {
+        throw new RangeError("pump source exceeds exact size " + n);
+      }
+      let idx = m.hashKey(key) & mask;
+      while (true) {
+        if (!m.occupied[idx]) {
+          m.keys[idx] = key;
+          m.values[idx] = value;
+          m.occupied[idx] = true;
+          m._size++;
+          break;
+        }
+        if (Object.is(m.keys[idx], key)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break; // ignore: keep first
+        }
+        idx = (idx + 1) & mask;
+      }
+      seen++;
+      i++;
+    }
+    if (seen < n) {
+      throw new RangeError("pump source has fewer than exact size " + n);
+    }
+    return m;
+  }
+
+  /**
+   * Bulk-loads a fresh map from key/value pairs in one O(n) pass. `opts.size`
+   * (or the source's `length`/`size`) pre-sizes the table; the size is a hint
+   * and the table may grow. Duplicate handling matches {@link bulkLoadExact}.
+   */
+  static bulkLoad(
+    pairs: Iterable<readonly [bigint, number]>,
+    opts?: BulkLoadOptions,
+  ): BigIntNumberHashMap {
+    const sized = pairs as { length?: number; size?: number };
+    const hint = opts?.size ?? sized.length ?? sized.size;
+    const buffer = Array.from(pairs);
+    if (hint !== undefined) checkExpectedSize(hint);
+    return BigIntNumberHashMap.bulkLoadExact(buffer, buffer.length, opts);
   }
 
   /** Inserts or updates a key-value pair. Returns the map for chaining, like JS Map.set. */

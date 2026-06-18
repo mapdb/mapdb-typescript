@@ -133,6 +133,19 @@ export class ${cls} {
     this.data = new ${Arr}(Math.max(initialCapacity, 1));
   }
 
+  /**
+   * Bulk-loads a fresh list from \`values\` in one O(n) pass (the data pump),
+   * allocating the backing array exactly once. Equivalent to appending each
+   * value but with no intermediate growth.
+   */
+  static bulkLoad(values: Iterable<${T}>): ${cls} {
+    const buffer = Array.from(values);
+    const list = new ${cls}(Math.max(buffer.length, 1));
+    list.data.set(buffer);
+    list._size = buffer.length;
+    return list;
+  }
+
   add(value: ${T}): this {
     this.ensureCapacity(this._size + 1);
     this.data[this._size++] = value;
@@ -947,9 +960,16 @@ export function hashSetClassName(prim) {
 // rule the hashmap generator uses, so int keys import nothing.
 function hashHelperPreamble(prim) {
   const keyHash = KEY_HASH[prim.kind];
+  const pumpImport =
+    `import {\n` +
+    `  checkExpectedSize,\n` +
+    `  hashCapacityFor,\n` +
+    `  PumpDuplicateError,\n` +
+    `  type BulkLoadOptions,\n` +
+    `} from "../../internal/pump.js";\n`;
   return keyHash.import
-    ? `\nimport { ${keyHash.import.names.join(", ")} } from "${keyHash.import.from}";\n`
-    : `\n`;
+    ? `\nimport { ${keyHash.import.names.join(", ")} } from "${keyHash.import.from}";\n${pumpImport}`
+    : `\n${pumpImport}`;
 }
 
 export function renderHashSet(prim, command) {
@@ -979,6 +999,66 @@ export class ${cls} {
     this.capacity = nextPowerOfTwo(capacity);
     this.items = new ${Arr}(this.capacity);
     this.occupied = new Uint8Array(this.capacity);
+  }
+
+  /**
+   * Bulk-loads a fresh set from exactly \`n\` values in one O(n) pass (the data
+   * pump): the table is sized for \`n\` up front, so there is ZERO mid-load
+   * rehash, and slots are filled via the same probe \`add\` uses. Throws
+   * \`RangeError\` if \`n\` is invalid or if the source yields more or fewer than
+   * \`n\` values. Duplicate values throw {@link PumpDuplicateError} unless
+   * \`onDuplicate\` is "ignore" (keeps the first). Observably identical to adding
+   * the values one by one.
+   */
+  static bulkLoadExact(
+    values: Iterable<${T}>,
+    n: number,
+    opts?: BulkLoadOptions,
+  ): ${cls} {
+    checkExpectedSize(n);
+    const onDuplicate = opts?.onDuplicate ?? "error";
+    const set = new ${cls}(hashCapacityFor(n));
+    const mask = set.capacity - 1;
+    let seen = 0;
+    let i = 0;
+    for (const value of values) {
+      if (seen >= n) {
+        throw new RangeError("pump source exceeds exact size " + n);
+      }
+      let idx = set.hash(value) & mask;
+      while (true) {
+        if (!set.occupied[idx]) {
+          set.items[idx] = value;
+          set.occupied[idx] = 1;
+          set._size++;
+          break;
+        }
+        if (Object.is(set.items[idx], value)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break; // ignore: keep first
+        }
+        idx = (idx + 1) & mask;
+      }
+      seen++;
+      i++;
+    }
+    if (seen < n) {
+      throw new RangeError("pump source has fewer than exact size " + n);
+    }
+    return set;
+  }
+
+  /**
+   * Bulk-loads a fresh set from values in one O(n) pass. \`opts.size\` (or the
+   * source's \`length\`/\`size\`) pre-sizes the table. Size is a hint; the table
+   * may grow. Duplicate handling matches {@link bulkLoadExact}.
+   */
+  static bulkLoad(values: Iterable<${T}>, opts?: BulkLoadOptions): ${cls} {
+    const sized = values as { length?: number; size?: number };
+    const hint = opts?.size ?? sized.length ?? sized.size;
+    const buffer = Array.from(values);
+    if (hint !== undefined) checkExpectedSize(hint);
+    return ${cls}.bulkLoadExact(buffer, buffer.length, opts);
   }
 
   add(value: ${T}): this {
@@ -1835,6 +1915,18 @@ export class ${cls} {
     for (const v of values) {
       stack.push(v);
     }
+    return stack;
+  }
+
+  /**
+   * Bulk-loads a fresh stack from \`values\` in one O(n) pass (the data pump),
+   * allocating the backing array exactly once. The last value becomes the top.
+   */
+  static bulkLoad(values: Iterable<${T}>): ${cls} {
+    const buffer = Array.from(values);
+    const stack = new ${cls}(Math.max(buffer.length, 1));
+    stack.data.set(buffer);
+    stack._size = buffer.length;
     return stack;
   }
 
@@ -2855,6 +2947,29 @@ export class ${cls} {
   add(value: ${T}): this {
     this.addOccurrences(value, 1);
     return this;
+  }
+
+  /**
+   * Bulk-loads a fresh bag from (value, count) entries in one O(n) pass (the
+   * data pump). Counts for equal values accumulate; total count is
+   * overflow-checked against Number.MAX_SAFE_INTEGER. Backed by a native Map, so
+   * this is a convenience over a per-element loop, not a pre-sized table fill.
+   */
+  static bulkLoad(entries: Iterable<readonly [${T}, number]>): ${cls} {
+    const bag = new ${cls}();
+    for (const [value, count] of entries) {
+      if (count < 0)
+        throw new RangeError("Occurrences must not be negative");
+      if (count === 0) continue;
+      const current = bag.counts.get(value) ?? 0;
+      const next = current + count;
+      if (bag._size + count > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError("bag count overflow during pump");
+      }
+      bag.counts.set(value, next);
+      bag._size += count;
+    }
+    return bag;
   }
 
   addOccurrences(value: ${T}, occurrences: number): void {

@@ -5,6 +5,8 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 // CODE GENERATED — DO NOT EDIT. Regenerate with `npm run generate:multimap-nontyped`.
 
+import { PumpNotSortedError } from "../internal/pump.js";
+
 /**
  * A multimap that maps bigint keys to sets of unique number values.
  * Backed by a JavaScript Map from key to array of values (duplicates on set are silently dropped).
@@ -21,6 +23,31 @@ export class BigIntNumberSetMultimap {
   /** Creates a new empty multimap. */
   static of(): BigIntNumberSetMultimap {
     return new BigIntNumberSetMultimap();
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs grouped by ascending key (the data
+   * pump). Keys must be non-decreasing; out-of-order keys throw
+   * {@link PumpNotSortedError}. Equal keys are the normal grouping case (a run of
+   * equal keys becomes one key with that run's values, with duplicate values dropped).
+   * Value order within each key is preserved. Observably identical to calling
+   * {@link set} for each pair in order.
+   */
+  static fromSorted(
+    sortedPairs: Iterable<readonly [bigint, number]>,
+  ): BigIntNumberSetMultimap {
+    const mm = new BigIntNumberSetMultimap();
+    let prev: bigint | undefined;
+    let i = 0;
+    for (const [key, value] of sortedPairs) {
+      if (prev !== undefined && prev > key) {
+        throw new PumpNotSortedError(i);
+      }
+      mm.set(key, value);
+      prev = key;
+      i++;
+    }
+    return mm;
   }
 
   /** Adds a value under the given key. Idempotent: a duplicate value for the same key is silently dropped. */

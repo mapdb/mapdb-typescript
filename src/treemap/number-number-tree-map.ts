@@ -6,6 +6,12 @@
 
 import type { MapDbMutableMap } from "../api/index.js";
 import { totalCmpNumber } from "../internal/float-order.js";
+import {
+  buildRedBlack,
+  PumpDuplicateError,
+  PumpNotSortedError,
+  type PumpOptions,
+} from "../internal/pump.js";
 
 const RED = false;
 const BLACK = true;
@@ -26,6 +32,42 @@ interface NumberNumberTreeMapNode {
 export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
   private root: NumberNumberTreeMapNode | null = null;
   private _size = 0;
+
+  /**
+   * Bulk-loads a fresh map from ascending-sorted key/value pairs in a single
+   * O(n) pass (the data pump), bypassing per-element rebalancing. Input order is
+   * validated with the map's own IEEE-754 total-order comparator; out-of-order
+   * input throws {@link PumpNotSortedError}. Duplicate keys throw
+   * {@link PumpDuplicateError} unless `onDuplicate` is "ignore" (keeps the first
+   * pair of each run). The result is observably identical to inserting the same
+   * pairs one by one with {@link set}.
+   */
+  static fromSorted(
+    sortedPairs: Iterable<readonly [number, number]>,
+    opts?: PumpOptions,
+  ): NumberNumberTreeMap {
+    const sink = new NumberNumberTreeMapSink(opts);
+    sink.putAll(sortedPairs);
+    return sink.create();
+  }
+
+  /** @internal Builds the tree from a validated, deduplicated sorted buffer. */
+  static buildFromSortedBuffer(
+    keys: number[],
+    values: number[],
+  ): NumberNumberTreeMap {
+    const map = new NumberNumberTreeMap();
+    map.root = buildRedBlack<NumberNumberTreeMapNode>(keys.length, (j) => ({
+      key: keys[j],
+      value: values[j],
+      left: null,
+      right: null,
+      parent: null,
+      color: BLACK,
+    }));
+    map._size = keys.length;
+    return map;
+  }
 
   /** Inserts or updates. Returns the map for chaining, like JS Map.set. */
   set(key: number, value: number): this {
@@ -396,5 +438,63 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
       }
     }
     x.color = BLACK;
+  }
+}
+
+/**
+ * Streaming builder for a {@link NumberNumberTreeMap} from ascending-sorted
+ * pairs (the data pump's Sink form). Buffer pairs with {@link put} / {@link
+ * putAll} — each is validated against the previous key — then call {@link
+ * create} once to get the finished map. After an order/duplicate error the sink
+ * is poisoned: every later `put`/`putAll`/`create` throws. `create` is
+ * once-only.
+ */
+export class NumberNumberTreeMapSink {
+  private readonly keys: number[] = [];
+  private readonly values: number[] = [];
+  private readonly onDuplicate: "error" | "ignore";
+  private index = 0;
+  private poisoned = false;
+  private done = false;
+
+  constructor(opts?: PumpOptions) {
+    this.onDuplicate = opts?.onDuplicate ?? "error";
+  }
+
+  /** Appends one prepared pair. Throws if out of order or (per policy) duplicate. */
+  put(entry: readonly [number, number]): void {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    const [k, v] = entry;
+    const i = this.index++;
+    if (this.keys.length > 0) {
+      const cmp = totalCmpNumber(this.keys[this.keys.length - 1], k);
+      if (cmp > 0) {
+        this.poisoned = true;
+        throw new PumpNotSortedError(i);
+      }
+      if (cmp === 0) {
+        if (this.onDuplicate === "error") {
+          this.poisoned = true;
+          throw new PumpDuplicateError(i);
+        }
+        return; // ignore: keep first pair of the run
+      }
+    }
+    this.keys.push(k);
+    this.values.push(v);
+  }
+
+  /** Convenience: {@link put} every element of `items`. */
+  putAll(items: Iterable<readonly [number, number]>): void {
+    for (const e of items) this.put(e);
+  }
+
+  /** Finishes the build and returns the map. Once-only. */
+  create(): NumberNumberTreeMap {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    this.done = true;
+    return NumberNumberTreeMap.buildFromSortedBuffer(this.keys, this.values);
   }
 }

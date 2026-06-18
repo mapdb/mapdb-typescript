@@ -6,6 +6,8 @@
 
 import { totalCmpNumber } from "../internal/float-order.js";
 
+import { buildRedBlack, PumpNotSortedError } from "../internal/pump.js";
+
 const RED = false;
 const BLACK = true;
 
@@ -23,6 +25,38 @@ export class NumberTreeBag {
   private root: TreeNode | null = null;
   private _size = 0;
   private _distinctSize = 0;
+
+  /**
+   * Bulk-loads a fresh bag from ascending-sorted values in a single O(n) pass
+   * (the data pump). Equal adjacent values collapse into one node whose count is
+   * the run length (overflow-checked against Number.MAX_SAFE_INTEGER). Order is
+   * validated with the bag's own comparator; out-of-order input throws
+   * {@link PumpNotSortedError}. The result is observably identical to adding the
+   * values one by one.
+   */
+  static fromSorted(sorted: Iterable<number>): NumberTreeBag {
+    const sink = new NumberTreeBagSink();
+    sink.putAll(sorted);
+    return sink.create();
+  }
+
+  /** @internal Builds the tree from validated (key, count) runs. */
+  static buildFromSortedRuns(keys: number[], counts: number[]): NumberTreeBag {
+    const bag = new NumberTreeBag();
+    bag.root = buildRedBlack<TreeNode>(keys.length, (j) => ({
+      key: keys[j],
+      count: counts[j],
+      left: null,
+      right: null,
+      parent: null,
+      color: BLACK,
+    }));
+    bag._distinctSize = keys.length;
+    let total = 0;
+    for (const c of counts) total += c;
+    bag._size = total;
+    return bag;
+  }
 
   static of(values: number[]): NumberTreeBag {
     const bag = new NumberTreeBag();
@@ -437,5 +471,55 @@ export class NumberTreeBag {
       }
     }
     x.color = BLACK;
+  }
+}
+
+/**
+ * Streaming builder for a {@link NumberTreeBag} from ascending-sorted values (the
+ * data pump's Sink form). Equal adjacent values increment the current run's
+ * count (overflow-checked). Buffer values with {@link put} / {@link putAll} then
+ * call {@link create} once. Poisoned after an order error; `create` is
+ * once-only.
+ */
+export class NumberTreeBagSink {
+  private readonly keys: number[] = [];
+  private readonly counts: number[] = [];
+  private index = 0;
+  private poisoned = false;
+  private done = false;
+
+  put(value: number): void {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    const i = this.index++;
+    if (this.keys.length > 0) {
+      const cmp = totalCmpNumber(this.keys[this.keys.length - 1], value);
+      if (cmp > 0) {
+        this.poisoned = true;
+        throw new PumpNotSortedError(i);
+      }
+      if (cmp === 0) {
+        const next = this.counts[this.counts.length - 1] + 1;
+        if (next > Number.MAX_SAFE_INTEGER) {
+          this.poisoned = true;
+          throw new RangeError("bag count overflow during pump");
+        }
+        this.counts[this.counts.length - 1] = next;
+        return;
+      }
+    }
+    this.keys.push(value);
+    this.counts.push(1);
+  }
+
+  putAll(items: Iterable<number>): void {
+    for (const e of items) this.put(e);
+  }
+
+  create(): NumberTreeBag {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    this.done = true;
+    return NumberTreeBag.buildFromSortedRuns(this.keys, this.counts);
   }
 }

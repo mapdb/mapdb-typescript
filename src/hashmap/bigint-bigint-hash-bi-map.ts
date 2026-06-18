@@ -6,6 +6,7 @@
 // CODE GENERATED — DO NOT EDIT. Regenerate with `npm run generate:hashmap-nontyped`.
 
 
+import { PumpDuplicateError } from "../internal/pump.js";
 /**
  * Bidirectional hash map from bigint keys to bigint values.
  * Both key->value and value->key lookups are O(1).
@@ -24,6 +25,26 @@ export class BigIntBigIntHashBiMap {
   /** Creates a new empty BiMap. */
   static of(): BigIntBigIntHashBiMap {
     return new BigIntBigIntHashBiMap();
+  }
+
+  /**
+   * Bulk-loads a fresh bi-map from key/value pairs in one O(n) pass (the data
+   * pump). A bi-map requires a bijection, so — unlike {@link set}, which
+   * overwrites — a duplicate KEY or duplicate VALUE throws
+   * {@link PumpDuplicateError}. Both directions are probed before either side is
+   * inserted, so a rejected pair leaves the map unchanged.
+   */
+  static bulkLoad(pairs: Iterable<readonly [bigint, bigint]>): BigIntBigIntHashBiMap {
+    const bm = new BigIntBigIntHashBiMap();
+    let i = 0;
+    for (const [key, value] of pairs) {
+      if (bm._forward.has(key)) throw new PumpDuplicateError(i, "key");
+      if (bm._inverse.has(value)) throw new PumpDuplicateError(i, "value");
+      bm._forward.set(key, value);
+      bm._inverse.set(value, key);
+      i++;
+    }
+    return bm;
   }
 
   /**

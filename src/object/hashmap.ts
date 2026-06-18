@@ -21,6 +21,18 @@ export class HashMap<K, V> implements MapDbMutableMap<K, V> {
     return new HashMap<K, V>(entries);
   }
 
+  /**
+   * Bulk-loads a fresh map from key/value pairs. This map is backed by a native
+   * `Map`, which has no caller-controllable capacity, so there is no
+   * pre-sized-table structural pump here — this is a convenience that delegates
+   * to the (already O(n)) `Map` constructor for API symmetry with the
+   * open-addressing collections. Later duplicate keys overwrite earlier ones,
+   * matching `Map` semantics.
+   */
+  static bulkLoad<K, V>(pairs: Iterable<readonly [K, V]>): HashMap<K, V> {
+    return new HashMap<K, V>(pairs as Iterable<[K, V]>);
+  }
+
   // ── MapDbMutableMap ─────────────────────────────────────────────────
 
   set(key: K, value: V): this {

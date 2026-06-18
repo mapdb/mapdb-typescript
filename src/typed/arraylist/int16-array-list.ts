@@ -21,6 +21,19 @@ export class Int16ArrayList {
     this.data = new Int16Array(Math.max(initialCapacity, 1));
   }
 
+  /**
+   * Bulk-loads a fresh list from `values` in one O(n) pass (the data pump),
+   * allocating the backing array exactly once. Equivalent to appending each
+   * value but with no intermediate growth.
+   */
+  static bulkLoad(values: Iterable<number>): Int16ArrayList {
+    const buffer = Array.from(values);
+    const list = new Int16ArrayList(Math.max(buffer.length, 1));
+    list.data.set(buffer);
+    list._size = buffer.length;
+    return list;
+  }
+
   add(value: number): this {
     this.ensureCapacity(this._size + 1);
     this.data[this._size++] = value;

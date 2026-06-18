@@ -6,6 +6,12 @@
 // CODE GENERATED — DO NOT EDIT. Regenerate with `npm run generate:typed-hashmap`.
 
 import { f64HashSeed } from "../../internal/float-order.js";
+import {
+  checkExpectedSize,
+  hashCapacityFor,
+  PumpDuplicateError,
+  type BulkLoadOptions,
+} from "../../internal/pump.js";
 
 const DEFAULT_CAPACITY = 16;
 const LOAD_FACTOR = 0.75;
@@ -28,6 +34,72 @@ export class Float64Float64HashMap {
     this.keys = new Float64Array(this.capacity);
     this.values = new Float64Array(this.capacity);
     this.occupied = new Uint8Array(this.capacity);
+  }
+
+  /**
+   * Bulk-loads a fresh map from exactly `n` key/value pairs in one O(n) pass
+   * (the data pump): the table is sized for `n` up front, so there is ZERO
+   * mid-load rehash, and slots are filled via the same probe `set` uses. Throws
+   * `RangeError` if `n` is not a valid size or if the source yields more or
+   * fewer than `n` pairs. Duplicate keys throw {@link PumpDuplicateError} unless
+   * `onDuplicate` is "ignore" (keeps the first). The result is observably
+   * identical to the same pairs inserted one by one.
+   */
+  static bulkLoadExact(
+    pairs: Iterable<readonly [number, number]>,
+    n: number,
+    opts?: BulkLoadOptions,
+  ): Float64Float64HashMap {
+    checkExpectedSize(n);
+    const onDuplicate = opts?.onDuplicate ?? "error";
+    const map = new Float64Float64HashMap(hashCapacityFor(n));
+    const mask = map.capacity - 1;
+    let seen = 0;
+    let i = 0;
+    for (const [key, value] of pairs) {
+      if (seen >= n) {
+        throw new RangeError("pump source exceeds exact size " + n);
+      }
+      let idx = map.hash(key) & mask;
+      while (true) {
+        if (!map.occupied[idx]) {
+          map.keys[idx] = key;
+          map.values[idx] = value;
+          map.occupied[idx] = 1;
+          map._size++;
+          break;
+        }
+        if (Object.is(map.keys[idx], key)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break; // ignore: keep first
+        }
+        idx = (idx + 1) & mask;
+      }
+      seen++;
+      i++;
+    }
+    if (seen < n) {
+      throw new RangeError("pump source has fewer than exact size " + n);
+    }
+    return map;
+  }
+
+  /**
+   * Bulk-loads a fresh map from key/value pairs in one O(n) pass. `opts.size`
+   * (or the source's `length`/`size` if available) pre-sizes the table; with a
+   * trustworthy size there is no rehash. Unlike {@link bulkLoadExact} the size
+   * is only a hint and the table may grow. Duplicate-key handling matches
+   * {@link bulkLoadExact}.
+   */
+  static bulkLoad(
+    pairs: Iterable<readonly [number, number]>,
+    opts?: BulkLoadOptions,
+  ): Float64Float64HashMap {
+    const sized = pairs as { length?: number; size?: number };
+    const hint = opts?.size ?? sized.length ?? sized.size;
+    const buffer = Array.from(pairs);
+    if (hint !== undefined) checkExpectedSize(hint);
+    return Float64Float64HashMap.bulkLoadExact(buffer, buffer.length, opts);
   }
 
   set(key: number, value: number): this {

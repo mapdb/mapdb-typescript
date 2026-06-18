@@ -21,6 +21,19 @@ export class BigInt64ArrayList {
     this.data = new BigInt64Array(Math.max(initialCapacity, 1));
   }
 
+  /**
+   * Bulk-loads a fresh list from `values` in one O(n) pass (the data pump),
+   * allocating the backing array exactly once. Equivalent to appending each
+   * value but with no intermediate growth.
+   */
+  static bulkLoad(values: Iterable<bigint>): BigInt64ArrayList {
+    const buffer = Array.from(values);
+    const list = new BigInt64ArrayList(Math.max(buffer.length, 1));
+    list.data.set(buffer);
+    list._size = buffer.length;
+    return list;
+  }
+
   add(value: bigint): this {
     this.ensureCapacity(this._size + 1);
     this.data[this._size++] = value;

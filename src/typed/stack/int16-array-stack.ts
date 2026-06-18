@@ -30,6 +30,18 @@ export class Int16ArrayStack {
     return stack;
   }
 
+  /**
+   * Bulk-loads a fresh stack from `values` in one O(n) pass (the data pump),
+   * allocating the backing array exactly once. The last value becomes the top.
+   */
+  static bulkLoad(values: Iterable<number>): Int16ArrayStack {
+    const buffer = Array.from(values);
+    const stack = new Int16ArrayStack(Math.max(buffer.length, 1));
+    stack.data.set(buffer);
+    stack._size = buffer.length;
+    return stack;
+  }
+
   /** Creates a mutable stack from an immutable one. */
   static fromMutable(imm: { toArray(): number[] }): Int16ArrayStack {
     const arr = imm.toArray();

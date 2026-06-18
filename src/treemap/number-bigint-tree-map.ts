@@ -7,6 +7,13 @@
 import type { MapDbMutableMap } from "../api/index.js";
 import { totalCmpNumber } from "../internal/float-order.js";
 
+import {
+  buildRedBlack,
+  PumpDuplicateError,
+  PumpNotSortedError,
+  type PumpOptions,
+} from "../internal/pump.js";
+
 const RED = false;
 const BLACK = true;
 
@@ -26,6 +33,41 @@ interface NumberBigIntTreeMapNode {
 export class NumberBigIntTreeMap implements MapDbMutableMap<number, bigint> {
   private root: NumberBigIntTreeMapNode | null = null;
   private _size = 0;
+
+  /**
+   * Bulk-loads a fresh map from ascending-sorted key/value pairs in a single
+   * O(n) pass (the data pump), bypassing per-element rebalancing. Input order is
+   * validated with the map's own comparator; out-of-order input throws
+   * {@link PumpNotSortedError}. Duplicate keys throw {@link PumpDuplicateError}
+   * unless `onDuplicate` is "ignore" (keeps the first pair of each run). The
+   * result is observably identical to inserting the pairs one by one.
+   */
+  static fromSorted(
+    sortedPairs: Iterable<readonly [number, bigint]>,
+    opts?: PumpOptions,
+  ): NumberBigIntTreeMap {
+    const sink = new NumberBigIntTreeMapSink(opts);
+    sink.putAll(sortedPairs);
+    return sink.create();
+  }
+
+  /** @internal Builds the tree from a validated, deduplicated sorted buffer. */
+  static buildFromSortedBuffer(
+    keys: number[],
+    values: bigint[],
+  ): NumberBigIntTreeMap {
+    const map = new NumberBigIntTreeMap();
+    map.root = buildRedBlack<NumberBigIntTreeMapNode>(keys.length, (j) => ({
+      key: keys[j],
+      value: values[j],
+      left: null,
+      right: null,
+      parent: null,
+      color: BLACK,
+    }));
+    map._size = keys.length;
+    return map;
+  }
 
   /** Inserts or updates. Returns the map for chaining, like JS Map.set. */
   set(key: number, value: bigint): this {
@@ -396,5 +438,58 @@ export class NumberBigIntTreeMap implements MapDbMutableMap<number, bigint> {
       }
     }
     x.color = BLACK;
+  }
+}
+
+/**
+ * Streaming builder for a {@link NumberBigIntTreeMap} from ascending-sorted pairs (the data
+ * pump's Sink form). Buffer pairs with {@link put} / {@link putAll} then call
+ * {@link create} once. Poisoned after an order/duplicate error; `create` is
+ * once-only.
+ */
+export class NumberBigIntTreeMapSink {
+  private readonly keys: number[] = [];
+  private readonly values: bigint[] = [];
+  private readonly onDuplicate: "error" | "ignore";
+  private index = 0;
+  private poisoned = false;
+  private done = false;
+
+  constructor(opts?: PumpOptions) {
+    this.onDuplicate = opts?.onDuplicate ?? "error";
+  }
+
+  put(entry: readonly [number, bigint]): void {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    const [k, v] = entry;
+    const i = this.index++;
+    if (this.keys.length > 0) {
+      const cmp = totalCmpNumber(this.keys[this.keys.length - 1], k);
+      if (cmp > 0) {
+        this.poisoned = true;
+        throw new PumpNotSortedError(i);
+      }
+      if (cmp === 0) {
+        if (this.onDuplicate === "error") {
+          this.poisoned = true;
+          throw new PumpDuplicateError(i);
+        }
+        return;
+      }
+    }
+    this.keys.push(k);
+    this.values.push(v);
+  }
+
+  putAll(items: Iterable<readonly [number, bigint]>): void {
+    for (const e of items) this.put(e);
+  }
+
+  create(): NumberBigIntTreeMap {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    this.done = true;
+    return NumberBigIntTreeMap.buildFromSortedBuffer(this.keys, this.values);
   }
 }

@@ -20,6 +20,29 @@ export class Int8HashBag {
     return this;
   }
 
+  /**
+   * Bulk-loads a fresh bag from (value, count) entries in one O(n) pass (the
+   * data pump). Counts for equal values accumulate; total count is
+   * overflow-checked against Number.MAX_SAFE_INTEGER. Backed by a native Map, so
+   * this is a convenience over a per-element loop, not a pre-sized table fill.
+   */
+  static bulkLoad(entries: Iterable<readonly [number, number]>): Int8HashBag {
+    const bag = new Int8HashBag();
+    for (const [value, count] of entries) {
+      if (count < 0)
+        throw new RangeError("Occurrences must not be negative");
+      if (count === 0) continue;
+      const current = bag.counts.get(value) ?? 0;
+      const next = current + count;
+      if (bag._size + count > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError("bag count overflow during pump");
+      }
+      bag.counts.set(value, next);
+      bag._size += count;
+    }
+    return bag;
+  }
+
   addOccurrences(value: number, occurrences: number): void {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");

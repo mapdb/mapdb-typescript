@@ -6,6 +6,13 @@
 
 import type { MapDbMutableSet } from "../api/index.js";
 
+import {
+  buildRedBlack,
+  PumpDuplicateError,
+  PumpNotSortedError,
+  type PumpOptions,
+} from "../internal/pump.js";
+
 const RED = false;
 const BLACK = true;
 
@@ -21,6 +28,37 @@ interface TreeNode {
 export class BigIntTreeSet implements MapDbMutableSet<bigint> {
   private root: TreeNode | null = null;
   private _size = 0;
+
+  /**
+   * Bulk-loads a fresh set from ascending-sorted values in a single O(n) pass
+   * (the data pump), bypassing per-element rebalancing. Order is validated with
+   * the set's own comparator; out-of-order input throws
+   * {@link PumpNotSortedError}. Duplicate values throw {@link PumpDuplicateError}
+   * unless `onDuplicate` is "ignore" (keeps the first of each run). The result
+   * is observably identical to adding the values one by one.
+   */
+  static fromSorted(
+    sorted: Iterable<bigint>,
+    opts?: PumpOptions,
+  ): BigIntTreeSet {
+    const sink = new BigIntTreeSetSink(opts);
+    sink.putAll(sorted);
+    return sink.create();
+  }
+
+  /** @internal Builds the tree from a validated, deduplicated sorted buffer. */
+  static buildFromSortedBuffer(keys: bigint[]): BigIntTreeSet {
+    const set = new BigIntTreeSet();
+    set.root = buildRedBlack<TreeNode>(keys.length, (j) => ({
+      key: keys[j],
+      left: null,
+      right: null,
+      parent: null,
+      color: BLACK,
+    }));
+    set._size = keys.length;
+    return set;
+  }
 
   static of(values: bigint[]): BigIntTreeSet {
     const s = new BigIntTreeSet();
@@ -417,5 +455,60 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
       }
     }
     x.color = BLACK;
+  }
+}
+
+/**
+ * Streaming builder for a {@link BigIntTreeSet} from ascending-sorted values (the
+ * data pump's Sink form). Buffer values with {@link put} / {@link putAll} then
+ * call {@link create} once. Poisoned after an order/duplicate error; `create`
+ * is once-only.
+ */
+export class BigIntTreeSetSink {
+  private readonly keys: bigint[] = [];
+  private readonly onDuplicate: "error" | "ignore";
+  private index = 0;
+  private poisoned = false;
+  private done = false;
+
+  constructor(opts?: PumpOptions) {
+    this.onDuplicate = opts?.onDuplicate ?? "error";
+  }
+
+  put(value: bigint): void {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    const i = this.index++;
+    if (this.keys.length > 0) {
+      const cmp =
+        this.keys[this.keys.length - 1] < value
+          ? -1
+          : this.keys[this.keys.length - 1] > value
+            ? 1
+            : 0;
+      if (cmp > 0) {
+        this.poisoned = true;
+        throw new PumpNotSortedError(i);
+      }
+      if (cmp === 0) {
+        if (this.onDuplicate === "error") {
+          this.poisoned = true;
+          throw new PumpDuplicateError(i);
+        }
+        return;
+      }
+    }
+    this.keys.push(value);
+  }
+
+  putAll(items: Iterable<bigint>): void {
+    for (const e of items) this.put(e);
+  }
+
+  create(): BigIntTreeSet {
+    if (this.poisoned) throw new Error("sink is poisoned after a prior error");
+    if (this.done) throw new Error("sink already created");
+    this.done = true;
+    return BigIntTreeSet.buildFromSortedBuffer(this.keys);
   }
 }

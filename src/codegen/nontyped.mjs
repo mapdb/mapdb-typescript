@@ -134,10 +134,17 @@ export function hashMapClassName({ key, val }) {
 function hashMapImports(key) {
   const helper = `import { ${key.hashImport.name} } from "${key.hashImport.from}";`;
   const typeImport = `import type { MapDbMutableMap } from "../api/index.js";`;
+  const pump =
+    `import {\n` +
+    `  checkExpectedSize,\n` +
+    `  hashCapacityFor,\n` +
+    `  PumpDuplicateError,\n` +
+    `  type BulkLoadOptions,\n` +
+    `} from "../internal/pump.js";`;
   if (key.kind === "float") {
-    return `\n${helper}\n\n${typeImport}\n`;
+    return `\n${helper}\n\n${typeImport}\n${pump}\n`;
   }
-  return `\n${typeImport}\n${helper}\n`;
+  return `\n${typeImport}\n${helper}\n${pump}\n`;
 }
 
 export function renderHashMap(pair, command) {
@@ -178,6 +185,70 @@ export class ${cls} implements MapDbMutableMap<${K}, ${V}> {
       m.set(k, v);
     }
     return m;
+  }
+
+  /**
+   * Bulk-loads a fresh map from exactly \`n\` key/value pairs in one O(n) pass
+   * (the data pump): the table is sized for \`n\` up front, so there is ZERO
+   * mid-load rehash, and slots are filled via the same probe \`set\` uses. Throws
+   * \`RangeError\` if \`n\` is invalid or if the source yields more or fewer than
+   * \`n\` pairs. Duplicate keys throw {@link PumpDuplicateError} unless
+   * \`onDuplicate\` is "ignore" (keeps the first). Observably identical to setting
+   * the pairs one by one.
+   */
+  static bulkLoadExact(
+    pairs: Iterable<readonly [${K}, ${V}]>,
+    n: number,
+    opts?: BulkLoadOptions,
+  ): ${cls} {
+    checkExpectedSize(n);
+    const onDuplicate = opts?.onDuplicate ?? "error";
+    const m = new ${cls}(hashCapacityFor(n));
+    const mask = m.keys.length - 1;
+    let seen = 0;
+    let i = 0;
+    for (const [key, value] of pairs) {
+      if (seen >= n) {
+        throw new RangeError("pump source exceeds exact size " + n);
+      }
+      let idx = m.hashKey(key) & mask;
+      while (true) {
+        if (!m.occupied[idx]) {
+          m.keys[idx] = key;
+          m.values[idx] = value;
+          m.occupied[idx] = true;
+          m._size++;
+          break;
+        }
+        if (Object.is(m.keys[idx], key)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break; // ignore: keep first
+        }
+        idx = (idx + 1) & mask;
+      }
+      seen++;
+      i++;
+    }
+    if (seen < n) {
+      throw new RangeError("pump source has fewer than exact size " + n);
+    }
+    return m;
+  }
+
+  /**
+   * Bulk-loads a fresh map from key/value pairs in one O(n) pass. \`opts.size\`
+   * (or the source's \`length\`/\`size\`) pre-sizes the table; the size is a hint
+   * and the table may grow. Duplicate handling matches {@link bulkLoadExact}.
+   */
+  static bulkLoad(
+    pairs: Iterable<readonly [${K}, ${V}]>,
+    opts?: BulkLoadOptions,
+  ): ${cls} {
+    const sized = pairs as { length?: number; size?: number };
+    const hint = opts?.size ?? sized.length ?? sized.size;
+    const buffer = Array.from(pairs);
+    if (hint !== undefined) checkExpectedSize(hint);
+    return ${cls}.bulkLoadExact(buffer, buffer.length, opts);
   }
 
   /** Inserts or updates a key-value pair. Returns the map for chaining, like JS Map.set. */
@@ -704,10 +775,11 @@ export function renderBiMap(pair, command) {
   //                   no import)
   //   mixed key/value: <blank> <blank> import { Inverse } /**  (import sits
   //                   directly above the doc comment, no blank between)
+  const pumpImport = `import { PumpDuplicateError } from "../internal/pump.js";`;
   const imports =
     cls === inv
-      ? `\n\n`
-      : `\n\nimport { ${inv} } from "./${biMapInverseFileName(pair)}";\n`;
+      ? `\n\n${pumpImport}\n`
+      : `\n\nimport { ${inv} } from "./${biMapInverseFileName(pair)}";\n${pumpImport}\n`;
 
   return `${LICENSE}${banner(command)}${imports}/**
  * Bidirectional hash map from ${K} keys to ${V} values.
@@ -727,6 +799,26 @@ export class ${cls} {
   /** Creates a new empty BiMap. */
   static of(): ${cls} {
     return new ${cls}();
+  }
+
+  /**
+   * Bulk-loads a fresh bi-map from key/value pairs in one O(n) pass (the data
+   * pump). A bi-map requires a bijection, so — unlike {@link set}, which
+   * overwrites — a duplicate KEY or duplicate VALUE throws
+   * {@link PumpDuplicateError}. Both directions are probed before either side is
+   * inserted, so a rejected pair leaves the map unchanged.
+   */
+  static bulkLoad(pairs: Iterable<readonly [${K}, ${V}]>): ${cls} {
+    const bm = new ${cls}();
+    let i = 0;
+    for (const [key, value] of pairs) {
+      if (bm._forward.has(key)) throw new PumpDuplicateError(i, "key");
+      if (bm._inverse.has(value)) throw new PumpDuplicateError(i, "value");
+      bm._forward.set(key, value);
+      bm._inverse.set(value, key);
+      i++;
+    }
+    return bm;
   }
 
   /**
@@ -1182,7 +1274,12 @@ function renderNumberKeyMultimap(pair, variant, command, cls, K, V) {
       : `  /** Adds a value under the given key. Idempotent: a duplicate value for the same key is silently dropped. */`;
 
   return `${LICENSE}${banner(command)}
-import { mapKeyOf, NEG_ZERO_KEY } from "../internal/float-order.js";
+import {
+  mapKeyOf,
+  NEG_ZERO_KEY,
+  totalCmpNumber,
+} from "../internal/float-order.js";
+import { PumpNotSortedError } from "../internal/pump.js";
 
 type MapKey = ${K} | typeof NEG_ZERO_KEY;
 
@@ -1201,6 +1298,33 @@ export class ${cls} {
   /** Creates a new empty multimap. */
   static of(): ${cls} {
     return new ${cls}();
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs grouped by ascending key (the data
+   * pump). Keys must be non-decreasing under the multimap's own comparator;
+   * out-of-order keys throw {@link PumpNotSortedError}. Equal keys are the normal
+   * grouping case (a run of equal keys becomes one key with that run's values${
+     variant === "set" ? ", with duplicate values dropped" : ""
+   }).
+   * Value order within each key is preserved. Observably identical to calling
+   * {@link set} for each pair in order.
+   */
+  static fromSorted(
+    sortedPairs: Iterable<readonly [${K}, ${V}]>,
+  ): ${cls} {
+    const mm = new ${cls}();
+    let prev: ${K} | undefined;
+    let i = 0;
+    for (const [key, value] of sortedPairs) {
+      if (prev !== undefined && totalCmpNumber(prev, key) > 0) {
+        throw new PumpNotSortedError(i);
+      }
+      mm.set(key, value);
+      prev = key;
+      i++;
+    }
+    return mm;
   }
 
 ${putDoc}
@@ -1406,6 +1530,8 @@ function renderBigIntKeyMultimap(pair, variant, command, cls, K, V) {
       : `  /** Adds a value under the given key. Idempotent: a duplicate value for the same key is silently dropped. */`;
 
   return `${LICENSE}${banner(command)}
+import { PumpNotSortedError } from "../internal/pump.js";
+
 ${doc}
 export class ${cls} {
   private _map: Map<${K}, ${V}[]>;
@@ -1419,6 +1545,33 @@ export class ${cls} {
   /** Creates a new empty multimap. */
   static of(): ${cls} {
     return new ${cls}();
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs grouped by ascending key (the data
+   * pump). Keys must be non-decreasing; out-of-order keys throw
+   * {@link PumpNotSortedError}. Equal keys are the normal grouping case (a run of
+   * equal keys becomes one key with that run's values${
+     variant === "set" ? ", with duplicate values dropped" : ""
+   }).
+   * Value order within each key is preserved. Observably identical to calling
+   * {@link set} for each pair in order.
+   */
+  static fromSorted(
+    sortedPairs: Iterable<readonly [${K}, ${V}]>,
+  ): ${cls} {
+    const mm = new ${cls}();
+    let prev: ${K} | undefined;
+    let i = 0;
+    for (const [key, value] of sortedPairs) {
+      if (prev !== undefined && prev > key) {
+        throw new PumpNotSortedError(i);
+      }
+      mm.set(key, value);
+      prev = key;
+      i++;
+    }
+    return mm;
   }
 
 ${putDoc}

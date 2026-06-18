@@ -5,7 +5,12 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 // CODE GENERATED — DO NOT EDIT. Regenerate with `npm run generate:multimap-nontyped`.
 
-import { mapKeyOf, NEG_ZERO_KEY } from "../internal/float-order.js";
+import {
+  mapKeyOf,
+  NEG_ZERO_KEY,
+  totalCmpNumber,
+} from "../internal/float-order.js";
+import { PumpNotSortedError } from "../internal/pump.js";
 
 type MapKey = number | typeof NEG_ZERO_KEY;
 
@@ -27,6 +32,31 @@ export class NumberNumberListMultimap {
   /** Creates a new empty multimap. */
   static of(): NumberNumberListMultimap {
     return new NumberNumberListMultimap();
+  }
+
+  /**
+   * Bulk-loads a fresh multimap from pairs grouped by ascending key (the data
+   * pump). Keys must be non-decreasing under the multimap's own comparator;
+   * out-of-order keys throw {@link PumpNotSortedError}. Equal keys are the normal
+   * grouping case (a run of equal keys becomes one key with that run's values).
+   * Value order within each key is preserved. Observably identical to calling
+   * {@link set} for each pair in order.
+   */
+  static fromSorted(
+    sortedPairs: Iterable<readonly [number, number]>,
+  ): NumberNumberListMultimap {
+    const mm = new NumberNumberListMultimap();
+    let prev: number | undefined;
+    let i = 0;
+    for (const [key, value] of sortedPairs) {
+      if (prev !== undefined && totalCmpNumber(prev, key) > 0) {
+        throw new PumpNotSortedError(i);
+      }
+      mm.set(key, value);
+      prev = key;
+      i++;
+    }
+    return mm;
   }
 
   /** Adds a value under the given key. */

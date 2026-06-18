@@ -6,6 +6,12 @@
 // CODE GENERATED — DO NOT EDIT. Regenerate with `npm run generate:typed-hashset`.
 
 import { bigintHashSeed } from "../../internal/hash.js";
+import {
+  checkExpectedSize,
+  hashCapacityFor,
+  PumpDuplicateError,
+  type BulkLoadOptions,
+} from "../../internal/pump.js";
 
 const DEFAULT_CAPACITY = 16;
 const LOAD_FACTOR = 0.75;
@@ -26,6 +32,66 @@ export class BigInt64HashSet {
     this.capacity = nextPowerOfTwo(capacity);
     this.items = new BigInt64Array(this.capacity);
     this.occupied = new Uint8Array(this.capacity);
+  }
+
+  /**
+   * Bulk-loads a fresh set from exactly `n` values in one O(n) pass (the data
+   * pump): the table is sized for `n` up front, so there is ZERO mid-load
+   * rehash, and slots are filled via the same probe `add` uses. Throws
+   * `RangeError` if `n` is invalid or if the source yields more or fewer than
+   * `n` values. Duplicate values throw {@link PumpDuplicateError} unless
+   * `onDuplicate` is "ignore" (keeps the first). Observably identical to adding
+   * the values one by one.
+   */
+  static bulkLoadExact(
+    values: Iterable<bigint>,
+    n: number,
+    opts?: BulkLoadOptions,
+  ): BigInt64HashSet {
+    checkExpectedSize(n);
+    const onDuplicate = opts?.onDuplicate ?? "error";
+    const set = new BigInt64HashSet(hashCapacityFor(n));
+    const mask = set.capacity - 1;
+    let seen = 0;
+    let i = 0;
+    for (const value of values) {
+      if (seen >= n) {
+        throw new RangeError("pump source exceeds exact size " + n);
+      }
+      let idx = set.hash(value) & mask;
+      while (true) {
+        if (!set.occupied[idx]) {
+          set.items[idx] = value;
+          set.occupied[idx] = 1;
+          set._size++;
+          break;
+        }
+        if (Object.is(set.items[idx], value)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break; // ignore: keep first
+        }
+        idx = (idx + 1) & mask;
+      }
+      seen++;
+      i++;
+    }
+    if (seen < n) {
+      throw new RangeError("pump source has fewer than exact size " + n);
+    }
+    return set;
+  }
+
+  /**
+   * Bulk-loads a fresh set from values in one O(n) pass. `opts.size` (or the
+   * source's `length`/`size`) pre-sizes the table. Size is a hint; the table
+   * may grow. Duplicate handling matches {@link bulkLoadExact}.
+   */
+  static bulkLoad(values: Iterable<bigint>, opts?: BulkLoadOptions): BigInt64HashSet {
+    const sized = values as { length?: number; size?: number };
+    const hint = opts?.size ?? sized.length ?? sized.size;
+    const buffer = Array.from(values);
+    if (hint !== undefined) checkExpectedSize(hint);
+    return BigInt64HashSet.bulkLoadExact(buffer, buffer.length, opts);
   }
 
   add(value: bigint): this {

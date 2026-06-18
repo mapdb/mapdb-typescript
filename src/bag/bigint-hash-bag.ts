@@ -28,6 +28,25 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
     return bag;
   }
 
+  /**
+   * Bulk-loads a fresh bag from (value, count) entries in one O(n) pass (the
+   * data pump). Counts for equal values accumulate; the total is overflow-checked
+   * against Number.MAX_SAFE_INTEGER. Backed by a native Map, so this is a
+   * convenience over a per-element loop, not a pre-sized table fill.
+   */
+  static bulkLoad(entries: Iterable<readonly [bigint, number]>): BigIntHashBag {
+    const bag = new BigIntHashBag();
+    for (const [value, count] of entries) {
+      if (count < 0) throw new RangeError("Occurrences must not be negative");
+      if (count === 0) continue;
+      if (bag._size + count > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError("bag count overflow during pump");
+      }
+      bag.addOccurrences(value, count);
+    }
+    return bag;
+  }
+
   /** Adds a single occurrence of the value. */
   add(value: bigint): this {
     this.addOccurrences(value, 1);

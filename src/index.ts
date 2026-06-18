@@ -35,6 +35,18 @@ export { NumberNumberPair } from "./tuple/number-number-pair.js";
 export { BigIntBigIntPair } from "./tuple/bigint-bigint-pair.js";
 export { NumberInterval } from "./interval/number-interval.js";
 
+// Data pump (bulk import) shared surface: the thrown error classes, the
+// duplicate/size option types. Per-collection entry points are the static
+// `fromSorted` / `bulkLoad` / `bulkLoadExact` factories and the ordered `*Sink`
+// classes on each collection.
+export {
+  PumpNotSortedError,
+  PumpDuplicateError,
+  type DuplicatePolicy,
+  type PumpOptions,
+  type BulkLoadOptions,
+} from "./internal/pump.js";
+
 // Full typed primitive collection surface (mutable + immutable; all six
 // element types and 36 key×value hash-map pairs). See src/typed/index.ts.
 export * from "./typed/index.js";
