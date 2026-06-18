@@ -463,7 +463,10 @@ function formatValue(v: unknown): string {
   if (Array.isArray(v)) {
     // Canonical no-space-after-comma format -- matches validate.rs,
     // cmd/validate/main.go, and validate.zig so harness diffs line up.
-    return `[${v.map((x) => formatValue(x)).join(",")}]`;
+    // String elements (e.g. container_types ["array","bitmap"]) are JSON-quoted
+    // by every other port's array formatter, so quote them here too; a bare
+    // top-level scalar string (serialized_hex "0x...") stays unquoted to match.
+    return `[${v.map((x) => (typeof x === "string" ? JSON.stringify(x) : formatValue(x))).join(",")}]`;
   }
   return String(v);
 }
