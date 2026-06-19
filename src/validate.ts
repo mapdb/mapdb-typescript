@@ -2101,6 +2101,23 @@ function parseSignedI32(rest: string): number | undefined {
   return n;
 }
 
+// Validate a raw JSON `add` item `value` as a signed i32. The library rejects a
+// non-integer / out-of-`[-2^31, 2^31-1]` item (it has no i32 counterpart and
+// would be silently remapped), so an out-of-range scenario value is
+// not-applicable here and the runner must SKIP it (return null) rather than
+// coerce with `| 0`, which would diverge from the other ports.
+function i32ItemOpt(value: unknown): number | null {
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < -2147483648 ||
+    value > 2147483647
+  ) {
+    return null;
+  }
+  return value;
+}
+
 // Parse a NON-NEGATIVE base-10 u32 suffix exactly like Rust's
 // `rest.parse::<u32>()`: reject non-digits and values above u32::MAX.
 function parseU32(rest: string): number | undefined {
@@ -2124,7 +2141,11 @@ function runCountMin(scenario: Scenario): void {
 
   for (const op of ops.slice(1)) {
     if (op.op === "add") {
-      const value = (op.value as number) | 0;
+      const value = i32ItemOpt(op.value);
+      if (value === null) {
+        console.error("skip: CountMin add `item` is not a signed i32");
+        return;
+      }
       const count = parseCountOpt(
         (op as Operation & { count?: unknown }).count,
       );
@@ -2236,7 +2257,11 @@ function runSpaceSaving(scenario: Scenario): void {
 
   for (const op of ops.slice(1)) {
     if (op.op === "add") {
-      const value = (op.value as number) | 0;
+      const value = i32ItemOpt(op.value);
+      if (value === null) {
+        console.error("skip: SpaceSaving add `item` is not a signed i32");
+        return;
+      }
       const count = parseCountOpt(
         (op as Operation & { count?: unknown }).count,
       );

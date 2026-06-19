@@ -43,6 +43,21 @@ function saturatingAddU64(a: bigint, b: bigint): bigint {
   return c > U64_MAX ? U64_MAX : c;
 }
 
+/**
+ * Reject an item that is not a signed 32-bit integer. The item surface is `i32`
+ * (spec §"Element encoding") and the tie-break is on signed-i32 order; a
+ * non-integer or out-of-`[-2^31, 2^31-1]` value (`2147483648`, `1.5`, `NaN`,
+ * `Infinity`) is not a valid element and would otherwise be tracked as a raw JS
+ * number. Mirrors the Bloom / Range / CountMin i32 guard.
+ */
+function checkI32Item(value: number): void {
+  if (!Number.isInteger(value) || value < -2147483648 || value > 2147483647) {
+    throw new RangeError(
+      `SpaceSaving: item must be a signed 32-bit integer, got ${String(value)}`,
+    );
+  }
+}
+
 /** A monitored `(item, count, error)` triple. */
 export interface SSEntry {
   item: number;
@@ -105,6 +120,7 @@ export class SpaceSaving {
     if (count < 0n || count > U64_MAX) {
       throw new Error(`SpaceSaving.add count out of u64 range: ${count}`);
     }
+    checkI32Item(item);
     if (count === 0n) {
       return; // zero-weight add changes nothing.
     }

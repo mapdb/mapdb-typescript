@@ -47,6 +47,21 @@ function saturatingAddU64(a: bigint, b: bigint): bigint {
 }
 
 /**
+ * Reject an element that is not a signed 32-bit integer. The element surface is
+ * `i32` (spec §"Element encoding"); a non-integer or out-of-`[-2^31, 2^31-1]`
+ * value has no `i32` counterpart and would be silently remapped by the
+ * `value >>> 0` reinterpret (e.g. `2147483648`, `1.5`, `NaN`, `Infinity`).
+ * Mirrors the Bloom / Range i32 guard.
+ */
+function checkI32Item(value: number): void {
+  if (!Number.isInteger(value) || value < -2147483648 || value > 2147483647) {
+    throw new RangeError(
+      `CountMin: item must be a signed 32-bit integer, got ${String(value)}`,
+    );
+  }
+}
+
+/**
  * Encode an `i32` element to its little-endian 4-byte form (two's-complement
  * bit reinterpret, NOT sign-extend), the input the byte `positions` path
  * consumes. `1 → [01,00,00,00]`, `-1 → [ff,ff,ff,ff]`,
@@ -146,7 +161,10 @@ export class CountMin {
    */
   private columns(item: number): number[] {
     // Element encoding: i32 -> reinterpret u32 -> 4 LE bytes -> byte positions
-    // path (length fold applied), identical to Bloom.
+    // path (length fold applied), identical to Bloom. The item MUST be a valid
+    // i32 (a non-integer / out-of-range value would be silently remapped by the
+    // `value >>> 0` reinterpret).
+    checkI32Item(item);
     return positions(encodeI32(item), this.w, this.d);
   }
 

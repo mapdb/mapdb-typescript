@@ -195,6 +195,30 @@ describe("CountMin", () => {
     expect(() => c.add(1, U64_MAX + 1n)).toThrow(/u64 range/);
   });
 
+  it("rejects non-i32 items on add/addOne/estimate", () => {
+    const c = CountMin.withParams(2, 4);
+    for (const bad of [
+      2147483648,
+      -2147483649,
+      1.5,
+      NaN,
+      Infinity,
+      -Infinity,
+    ]) {
+      expect(() => c.add(bad, 1n)).toThrow(/signed 32-bit integer/);
+      expect(() => c.addOne(bad)).toThrow(/signed 32-bit integer/);
+      expect(() => c.estimate(bad)).toThrow(/signed 32-bit integer/);
+    }
+  });
+
+  it("accepts the i32 boundaries", () => {
+    for (const v of [-2147483648, 2147483647, 0]) {
+      const c = CountMin.withParams(2, 4);
+      expect(() => c.add(v, 1n)).not.toThrow();
+      expect(c.estimate(v)).toBe(1n); // fresh sketch: no collision noise
+    }
+  });
+
   // optimal() pinned integer table (native-only, float-quarantined).
   it("optimal() reproduces the pinned (w,d) table", () => {
     const cases: [number, number, number, number][] = [

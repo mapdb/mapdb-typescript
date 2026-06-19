@@ -168,4 +168,30 @@ describe("SpaceSaving", () => {
     expect(() => s.add(1, -1n)).toThrow(/u64 range/);
     expect(() => s.add(1, U64_MAX + 1n)).toThrow(/u64 range/);
   });
+
+  it("rejects non-i32 items on add/addOne", () => {
+    const s = SpaceSaving.withCapacity(2);
+    for (const bad of [
+      2147483648,
+      -2147483649,
+      1.5,
+      NaN,
+      Infinity,
+      -Infinity,
+    ]) {
+      expect(() => s.add(bad, 1n)).toThrow(/signed 32-bit integer/);
+      expect(() => s.addOne(bad)).toThrow(/signed 32-bit integer/);
+      // even a zero-weight add validates the item before the no-op.
+      expect(() => s.add(bad, 0n)).toThrow(/signed 32-bit integer/);
+    }
+  });
+
+  it("accepts the i32 boundaries", () => {
+    const s = SpaceSaving.withCapacity(3);
+    expect(() => s.addOne(-2147483648)).not.toThrow(); // INT_MIN
+    expect(() => s.addOne(2147483647)).not.toThrow(); // INT_MAX
+    expect(() => s.addOne(0)).not.toThrow();
+    expect(s.count(-2147483648)).toBe(1n);
+    expect(s.count(2147483647)).toBe(1n);
+  });
 });
