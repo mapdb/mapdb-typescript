@@ -268,6 +268,38 @@ export function hash64Bytes(bytes: Uint8Array, seed: U64): U64 {
   return hash64(encodeBytesWord64(bytes), seed);
 }
 
+// ---- Input validation (cross-language i32/u32 contract) -------------------
+//
+// JavaScript `number` is dynamically typed, so a caller can pass a value the
+// four typed ports (Rust u32, Go uint32, Zig u32, Java int treated unsigned)
+// cannot express. Those ports either won't compile such a call or trap on it
+// (e.g. `% 0` is an integer-divide-by-zero trap). To preserve bit-exact
+// cross-language behavior, the dynamically-typed port validates the same domain
+// and throws rather than silently returning a bogus value (NaN, negative, …).
+
+/** Whether `v` is an integer in the unsigned 32-bit range `[0, 2^32-1]`. */
+function isU32(v: number): boolean {
+  return Number.isInteger(v) && v >= 0 && v <= 4294967295;
+}
+
+/** Validate `v` is a u32; throw `RangeError` otherwise. */
+function validateU32(v: number, label: string): void {
+  if (!isU32(v)) {
+    throw new RangeError(
+      `${label} must be an unsigned 32-bit integer, got ${String(v)}`,
+    );
+  }
+}
+
+/** Validate `v` is a non-zero u32; throw `RangeError` otherwise. */
+function validateU32NonZero(v: number, label: string): void {
+  if (!isU32(v) || v === 0) {
+    throw new RangeError(
+      `${label} must be a non-zero unsigned 32-bit integer, got ${String(v)}`,
+    );
+  }
+}
+
 // ---- Derived positions (Kirsch–Mitzenmacher double hashing) --------------
 
 /**
@@ -286,6 +318,12 @@ export function positionsFromHashes(
   m: number,
   k: number,
 ): number[] {
+  // The typed ports take `m: u32` and compute `combined % m`: an `m == 0` there
+  // is an integer-divide-by-zero TRAP. JS `% 0` silently yields NaN instead, so
+  // validate up front — `m` must be a non-zero u32 (the table size) and `k` a
+  // u32 (the derivation count) — mirroring the typed-port contract.
+  validateU32NonZero(m, "positionsFromHashes: m (table size)");
+  validateU32(k, "positionsFromHashes: k (position count)");
   const out: number[] = [];
   for (let i = 0; i < k; i++) {
     // i*h2 wraps mod 2^32 (Math.imul); h1 + that wraps mod 2^32 (`>>> 0`).
@@ -329,6 +367,15 @@ function clz64(x: U64): number {
  *   shifted up with a guard bit set at position `p - 1`.
  */
 export function hllSplit(input: Uint8Array, p: number): [number, number] {
+  // The typed ports pin `4 <= p <= 18` (Rust `debug_assert!`, etc.); the index
+  // and guard-bit shifts below rely on it (`32 - p`, `p - 1`). The dynamically-
+  // typed port must reject out-of-domain `p` rather than return bogus bits:
+  // e.g. `hllSplit([], 0)` would otherwise produce `[0, 33]`.
+  if (!Number.isInteger(p) || p < 4 || p > 18) {
+    throw new RangeError(
+      `hllSplit: p (log2 register count) must be an integer in [4, 18], got ${String(p)}`,
+    );
+  }
   const x = hash64Bytes(input, { hi: 0, lo: 0 });
   // idx = (x >> (64 - p)) as u32. Since p <= 18 < 32, the top p bits live in
   // the hi lane: x >> (64 - p) == x.hi >>> (32 - p).
