@@ -28,6 +28,7 @@ import { NumberNumberTreeMap } from "./treemap/number-number-tree-map.js";
 import { NumberArrayStack } from "./stack/number-array-stack.js";
 import { totalCmpNumber } from "./internal/float-order.js";
 import { Range, BoundType } from "./range/range.js";
+import { FenwickTree } from "./fenwick/fenwick.js";
 import {
   ImmutableSortedMap,
   ImmutableSortedSet,
@@ -2041,6 +2042,152 @@ function runHashPipeline(scenario: Scenario): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// FenwickTree runner (spec/features/fenwick.md)
+//
+// A fixed-size i32-element / i64-accumulator Binary Indexed Tree. Construction
+// is EXACTLY ONE op (`with_size` or `from_values`) first, then any number of
+// `update`/`set` point ops (all indices in-range; out-of-range traps are
+// native-test-only). Sum-returning assertions (`total`, `get_<i>`,
+// `prefix_sum_<i>`, `range_sum_<lo>_<hi>`, and each `tree` element) are i64 and
+// wire-encoded as DECIMAL STRINGS via BigInt.toString (parsed straight to
+// bigint, never via a JS number / f64); the runner accepts a bare JSON number
+// too (small in-range values). `tree` is the canonical 1-based BIT array in
+// 1-based index order — an explicit-order key, NOT sorted. Unknown ops / kinds
+// / assertion keys SKIP (forward-compat).
+// ---------------------------------------------------------------------------
+
+// Evaluate one Fenwick assertion key; returns undefined for an unknown key
+// (forward-compat SKIP). i64 results are decimal strings (BigInt.toString
+// produces the signed decimal, matching Rust's i64 Display).
+function evalFenwickAssertion(
+  key: string,
+  tree: FenwickTree,
+): string | undefined {
+  if (key === "size") return String(tree.size());
+  if (key === "is_empty") return String(tree.isEmpty());
+  if (key === "total") return tree.total().toString();
+  if (key === "tree") {
+    return `[${tree
+      .canonicalTree()
+      .map((v) => v.toString())
+      .join(",")}]`;
+  }
+  // Parse a single non-negative i32-range index suffix; out-of-range/unparseable
+  // -> undefined (SKIP), matching the reference runner's UNKNOWN_ASSERTION skip.
+  const parseI32Index = (s: string): number | undefined => {
+    if (!/^[0-9]+$/.test(s)) return undefined;
+    const v = Number(s);
+    if (!Number.isInteger(v) || v < 0 || v > 2147483647) return undefined;
+    return v;
+  };
+  if (key.startsWith("get_")) {
+    const i = parseI32Index(key.slice(4));
+    return i === undefined ? undefined : tree.get(i).toString();
+  }
+  if (key.startsWith("prefix_sum_")) {
+    const i = parseI32Index(key.slice("prefix_sum_".length));
+    return i === undefined ? undefined : tree.prefixSum(i).toString();
+  }
+  if (key.startsWith("range_sum_")) {
+    const rest = key.slice("range_sum_".length);
+    const us = rest.indexOf("_");
+    if (us < 0) return undefined;
+    const lo = parseI32Index(rest.slice(0, us));
+    const hi = parseI32Index(rest.slice(us + 1));
+    if (lo === undefined || hi === undefined) return undefined;
+    return tree.rangeSum(lo, hi).toString();
+  }
+  return undefined;
+}
+
+// Render an expected Fenwick assertion value into the runner's canonical
+// string. i64 scalars arrive as decimal strings (or bare numbers when small);
+// the `tree` array arrives as an array of decimal strings / numbers, compared
+// positionally (NOT sorted). size is an int, is_empty a bool.
+function renderFenwickExpected(expected: unknown): string {
+  if (Array.isArray(expected)) {
+    return `[${expected.map((e) => String(e)).join(",")}]`;
+  }
+  return String(expected);
+}
+
+function runFenwick(scenario: Scenario): void {
+  const ops = scenario.operations;
+  // Authoring rule: the FIRST op MUST be exactly one construction op
+  // (`with_size` OR `from_values`); a missing/late/duplicate construction op is
+  // a malformed scenario => SKIP (forward-compat), like the hash-pipeline
+  // single-op and sorted-table from_sorted rules.
+  if (ops.length === 0) {
+    console.error(
+      `skip: fenwick scenario must begin with a construction op (forward-compat): ${scenario.name}`,
+    );
+    return;
+  }
+  const first = ops[0] as Operation & { n?: number; values?: number[] };
+  let tree: FenwickTree;
+  if (first.op === "with_size") {
+    const n = typeof first.n === "number" ? first.n : -1;
+    if (!Number.isInteger(n) || n < 0) {
+      console.error(
+        `skip: fenwick with_size negative/invalid n (malformed): ${first.n}`,
+      );
+      return;
+    }
+    tree = FenwickTree.withSize(n);
+  } else if (first.op === "from_values") {
+    const vals = first.values;
+    if (!Array.isArray(vals)) {
+      console.error(`skip: fenwick from_values needs a values array`);
+      return;
+    }
+    tree = FenwickTree.fromValues(vals);
+  } else {
+    console.error(
+      `skip: fenwick first op must be with_size/from_values (forward-compat): ${first.op}`,
+    );
+    return;
+  }
+
+  // Subsequent ops: update/set only. A non-first construction op or any unknown
+  // op makes the scenario malformed/un-runnable => SKIP.
+  for (let k = 1; k < ops.length; k++) {
+    const op = ops[k] as Operation & {
+      index?: number;
+      delta?: number;
+      value?: number;
+    };
+    if (op.op === "update") {
+      tree.update(op.index as number, op.delta as number);
+    } else if (op.op === "set") {
+      tree.set(op.index as number, op.value as number);
+    } else if (op.op === "with_size" || op.op === "from_values") {
+      console.error(
+        `skip: fenwick has a non-first construction op (malformed)`,
+      );
+      return;
+    } else {
+      console.error(`skip: unknown fenwick op (forward-compat): ${op.op}`);
+      return;
+    }
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalFenwickAssertion(key, tree);
+    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
+    console.log(`${key}: ${computed}`);
+    const want = renderFenwickExpected(scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -2108,6 +2255,19 @@ function main(): void {
   // strings (hash32/hash64) or an int[] (positions). Separate dispatch.
   if (scenario.collection === "HashPipeline") {
     runHashPipeline(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // FenwickTree — the fixed-size i32-element / i64-accumulator Binary Indexed
+  // Tree (spec/features/fenwick.md). Built by EXACTLY ONE construction op
+  // (`with_size` or `from_values`) first, then any number of `update`/`set`
+  // point ops; sum-returning assertions are i64 emitted as DECIMAL STRINGS
+  // (BigInt.toString — never via a JS number). Separate dispatch (the
+  // single-construction-op model is not in the mutate-an-existing-collection
+  // applyOperation path).
+  if (scenario.collection === "FenwickTree") {
+    runFenwick(scenario);
     if (anyFail) process.exit(1);
     return;
   }

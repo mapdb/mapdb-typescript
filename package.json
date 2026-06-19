@@ -62,6 +62,10 @@
       "types": "./dist/interval/*.d.ts",
       "import": "./dist/interval/*.js"
     },
+    "./fenwick/*": {
+      "types": "./dist/fenwick/*.d.ts",
+      "import": "./dist/fenwick/*.js"
+    },
     "./immutable_sorted/*": {
       "types": "./dist/immutable_sorted/*.d.ts",
       "import": "./dist/immutable_sorted/*.js"
