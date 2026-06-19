@@ -42,6 +42,8 @@ import {
   hash64Bytes,
   positions as hashPositions,
 } from "./hash/hash.js";
+import { CountMin } from "./count_min/count-min.js";
+import { SpaceSaving, type SSEntry } from "./space_saving/space-saving.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -2041,6 +2043,265 @@ function runHashPipeline(scenario: Scenario): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// CountMin (spec/features/count-min.md)
+//
+// A d×w integer counter matrix. Built by exactly ONE leading `with_params` op
+// (zero or multiple => malformed => SKIP); never `optimal` (the float-derivation
+// trap is kept out of the shared suite — an `optimal`/`epsilon`/`delta` op is
+// unknown here => SKIP). Subsequent `add` ops carry an i32 `value` and a `count`
+// DECIMAL STRING (omitted => 1; may exceed 2^53). Counters / `estimate_<v>` /
+// `total` are u64 DECIMAL STRINGS (the 2^64 range exceeds JSON-safe 2^53);
+// `depth`/`width` are plain ints. `counters` is the row-major (explicit-order,
+// NOT sorted) primary oracle. Unknown ops/keys SKIP (forward-compat).
+// ---------------------------------------------------------------------------
+
+const U64_MAX_BIG = 0xffffffffffffffffn;
+
+// Parse a `count` operand: a DECIMAL STRING parsed straight to a bigint (never
+// via a JS number/float), reusing the i64-suite's wide-integer discipline. A
+// bare JSON number is also accepted for small counts. Returns null if malformed
+// (negative, non-numeric, or exceeding u64::MAX) so the caller can SKIP.
+function parseCountOpt(v: unknown): bigint | null {
+  if (v === undefined || v === null) return 1n; // count omitted => 1
+  let n: bigint;
+  if (typeof v === "string") {
+    if (!/^[0-9]+$/.test(v)) return null;
+    n = BigInt(v);
+  } else if (typeof v === "number") {
+    if (!Number.isSafeInteger(v) || v < 0) return null;
+    n = BigInt(v);
+  } else {
+    return null;
+  }
+  if (n < 0n || n > U64_MAX_BIG) return null;
+  return n;
+}
+
+// Recognise an `estimate_<v>` assertion: `<v>` is a SIGNED base-10 i32
+// (exact ^estimate_(-?[0-9]+)$). A leading `+` is rejected.
+function cmEstimateKey(key: string): number | undefined {
+  const rest = key.startsWith("estimate_")
+    ? key.slice("estimate_".length)
+    : undefined;
+  if (rest === undefined) return undefined;
+  return parseSignedI32(rest);
+}
+
+// Parse a SIGNED base-10 i32 suffix exactly like Rust's `rest.parse::<i32>()`:
+// reject a leading `+`, non-digits, and out-of-i32-range values (Rust's parse
+// rejects those, so they are unknown keys => SKIP). An out-of-range suffix MUST
+// be undefined here, not silently wrapped via `| 0` (which would diverge).
+function parseSignedI32(rest: string): number | undefined {
+  if (!/^-?[0-9]+$/.test(rest)) return undefined;
+  const n = Number(rest);
+  if (!Number.isInteger(n) || n < -2147483648 || n > 2147483647) {
+    return undefined;
+  }
+  return n;
+}
+
+// Parse a NON-NEGATIVE base-10 u32 suffix exactly like Rust's
+// `rest.parse::<u32>()`: reject non-digits and values above u32::MAX.
+function parseU32(rest: string): number | undefined {
+  if (!/^[0-9]+$/.test(rest)) return undefined;
+  const n = Number(rest);
+  if (!Number.isInteger(n) || n < 0 || n > 4294967295) return undefined;
+  return n;
+}
+
+function runCountMin(scenario: Scenario): void {
+  const ops = scenario.operations;
+  const withParams = ops.filter((o) => o.op === "with_params");
+  if (withParams.length !== 1 || ops[0]?.op !== "with_params") {
+    console.error(
+      "skip: CountMin scenario needs exactly one leading `with_params` op (forward-compat)",
+    );
+    return;
+  }
+  const ctor = ops[0] as Operation & { d?: number; w?: number };
+  const cms = CountMin.withParams(ctor.d as number, ctor.w as number);
+
+  for (const op of ops.slice(1)) {
+    if (op.op === "add") {
+      const value = (op.value as number) | 0;
+      const count = parseCountOpt(
+        (op as Operation & { count?: unknown }).count,
+      );
+      if (count === null) {
+        console.error(
+          "skip: CountMin add `count` is not a 0..=u64::MAX integer",
+        );
+        return;
+      }
+      cms.add(value, count);
+    } else {
+      console.error(`skip: unknown CountMin op (forward-compat): ${op.op}`);
+      return;
+    }
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    let computed: string;
+    if (key === "counters") {
+      computed = `[${cms
+        .toCounters()
+        .map((c) => `"${c.toString()}"`)
+        .join(",")}]`;
+    } else if (key === "total") {
+      computed = cms.total().toString();
+    } else if (key === "depth") {
+      computed = cms.depth().toString();
+    } else if (key === "width") {
+      computed = cms.width().toString();
+    } else if (cmEstimateKey(key) !== undefined) {
+      computed = cms.estimate(cmEstimateKey(key)!).toString();
+    } else {
+      continue; // unknown key -> SKIP (forward-compat)
+    }
+    console.log(`${key}: ${computed}`);
+    const want = renderCmExpected(key, scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
+// Render an expected CountMin assertion value into the runner's canonical
+// string. `counters` is an array of decimal strings; scalar u64 keys
+// (total/estimate_<v>) arrive as a JSON string and render UNQUOTED;
+// depth/width are plain ints.
+function renderCmExpected(key: string, expected: unknown): string {
+  if (key === "counters" && Array.isArray(expected)) {
+    return `[${expected.map((e) => `"${String(e)}"`).join(",")}]`;
+  }
+  if (typeof expected === "string") return expected;
+  return String(expected);
+}
+
+// ---------------------------------------------------------------------------
+// SpaceSaving (spec/features/count-min.md)
+//
+// A bounded heavy-hitters summary. Built by exactly ONE leading `with_capacity`
+// op (zero or multiple => SKIP). Subsequent `add` ops are applied IN LISTED
+// ORDER (order-dependent — a runner MUST NOT reorder). `value` is an i32;
+// `count` is a u64 decimal string (omitted => 1). `monitored_set` / `top_k_<k>`
+// are explicit-order arrays of `[item, count_str, error_str]` triples in
+// canonical order (count DESC, signed item ASC). count/error are u64 decimal
+// strings (2^64 range); size/capacity plain ints. Unknown ops/keys SKIP.
+// ---------------------------------------------------------------------------
+
+// Recognise a `top_k_<k>` assertion: `<k>` is a NON-NEGATIVE base-10 int
+// (exact ^top_k_([0-9]+)$).
+function ssTopKKey(key: string): number | undefined {
+  const rest = key.startsWith("top_k_")
+    ? key.slice("top_k_".length)
+    : undefined;
+  if (rest === undefined) return undefined;
+  return parseU32(rest);
+}
+
+// Recognise a `<prefix><v>` assertion whose `<v>` is a SIGNED base-10 i32.
+function ssSignedKey(key: string, prefix: string): number | undefined {
+  const rest = key.startsWith(prefix) ? key.slice(prefix.length) : undefined;
+  if (rest === undefined) return undefined;
+  return parseSignedI32(rest);
+}
+
+// Render a (item, count, error) triple list as a JSON array of
+// [item, "count", "error"] (item int, count/error u64 decimal strings).
+function formatSsTriples(triples: SSEntry[]): string {
+  const parts = triples.map(
+    (t) => `[${t.item},"${t.count.toString()}","${t.error.toString()}"]`,
+  );
+  return `[${parts.join(",")}]`;
+}
+
+function runSpaceSaving(scenario: Scenario): void {
+  const ops = scenario.operations;
+  const withCapacity = ops.filter((o) => o.op === "with_capacity");
+  if (withCapacity.length !== 1 || ops[0]?.op !== "with_capacity") {
+    console.error(
+      "skip: SpaceSaving scenario needs exactly one leading `with_capacity` op (forward-compat)",
+    );
+    return;
+  }
+  const ctor = ops[0] as Operation & { m?: number };
+  const ss = SpaceSaving.withCapacity(ctor.m as number);
+
+  for (const op of ops.slice(1)) {
+    if (op.op === "add") {
+      const value = (op.value as number) | 0;
+      const count = parseCountOpt(
+        (op as Operation & { count?: unknown }).count,
+      );
+      if (count === null) {
+        console.error(
+          "skip: SpaceSaving add `count` is not a 0..=u64::MAX integer",
+        );
+        return;
+      }
+      ss.add(value, count);
+    } else {
+      console.error(`skip: unknown SpaceSaving op (forward-compat): ${op.op}`);
+      return;
+    }
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    let computed: string;
+    let isTriple = false;
+    if (key === "monitored_set") {
+      computed = formatSsTriples(ss.monitoredSet());
+      isTriple = true;
+    } else if (key === "size") {
+      computed = ss.size().toString();
+    } else if (key === "capacity") {
+      computed = ss.capacity().toString();
+    } else if (ssTopKKey(key) !== undefined) {
+      computed = formatSsTriples(ss.topK(ssTopKKey(key)!));
+      isTriple = true;
+    } else if (ssSignedKey(key, "count_") !== undefined) {
+      computed = ss.count(ssSignedKey(key, "count_")!).toString();
+    } else if (ssSignedKey(key, "error_") !== undefined) {
+      computed = ss.error(ssSignedKey(key, "error_")!).toString();
+    } else {
+      continue; // unknown key -> SKIP (forward-compat)
+    }
+    console.log(`${key}: ${computed}`);
+    const want = renderSsExpected(scenario.assertions[key], isTriple);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
+// Render an expected SpaceSaving assertion value. Triple-array keys
+// (monitored_set / top_k_<k>) arrive as JSON arrays of [item, "count", "error"]
+// (count/error already quoted strings); scalar u64 keys (count_<v>/error_<v>)
+// render UNQUOTED; size/capacity plain ints.
+function renderSsExpected(expected: unknown, isTriple: boolean): string {
+  if (isTriple && Array.isArray(expected)) {
+    const parts = expected.map((triple) => {
+      const t = triple as [number, string, string];
+      return `[${t[0]},"${String(t[1])}","${String(t[2])}"]`;
+    });
+    return `[${parts.join(",")}]`;
+  }
+  if (typeof expected === "string") return expected;
+  return String(expected);
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -2108,6 +2369,24 @@ function main(): void {
   // strings (hash32/hash64) or an int[] (positions). Separate dispatch.
   if (scenario.collection === "HashPipeline") {
     runHashPipeline(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // CountMin — a d×w integer counter matrix (spec/features/count-min.md). Built
+  // by exactly one leading `with_params` op; u64 counters/estimate/total are
+  // decimal strings (the 2^64 range exceeds 2^53). Separate dispatch.
+  if (scenario.collection === "CountMin") {
+    runCountMin(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // SpaceSaving — a bounded heavy-hitters summary (spec/features/count-min.md).
+  // Built by exactly one leading `with_capacity` op; adds applied IN LISTED
+  // ORDER (order-dependent). Separate dispatch.
+  if (scenario.collection === "SpaceSaving") {
+    runSpaceSaving(scenario);
     if (anyFail) process.exit(1);
     return;
   }

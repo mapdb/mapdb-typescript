@@ -36,6 +36,9 @@ export { NumberInterval } from "./interval/number-interval.js";
 export { Range, BoundType, CutKind } from "./range/range.js";
 export * as hash from "./hash/hash.js";
 export type { U64 } from "./hash/hash.js";
+export { CountMin } from "./count_min/count-min.js";
+export { SpaceSaving } from "./space_saving/space-saving.js";
+export type { SSEntry } from "./space_saving/space-saving.js";
 export type { Cut } from "./range/range.js";
 export {
   ImmutableSortedMap,
