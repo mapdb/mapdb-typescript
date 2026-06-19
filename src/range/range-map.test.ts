@@ -200,3 +200,16 @@ describe("RangeMap clear / isEmpty", () => {
     expectEntries(m, []);
   });
 });
+
+describe("RangeMap point-query i32 validation (v1)", () => {
+  it("get / getEntry reject non-i32 query points", () => {
+    const m = new RangeMap<number, number>();
+    m.put(Range.closedOpen(0, 10), 100);
+    expect(() => m.get(2.5)).toThrow(RangeError);
+    expect(() => m.getEntry(2.5)).toThrow(RangeError);
+    expect(() => m.get(NaN)).toThrow(RangeError);
+    // valid i32 points still answer
+    expect(m.get(3)).toBe(100);
+    expect(m.getEntry(3)).toBeDefined();
+  });
+});

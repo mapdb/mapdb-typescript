@@ -133,6 +133,35 @@ function i32Endpoint(v: number): number {
 }
 
 /**
+ * Validate a v1 `number` **query point** (the argument of `contains` /
+ * `rangeContaining` / RangeMap `get`/`getEntry`) against the signed-int32
+ * universe the four typed ports (Rust i32, Go int32, Zig i32, Java boxed
+ * Integer) share. The typed ports cannot even *express* a non-i32 point query —
+ * the parameter is statically `i32` — so `Range.open(1, 2).contains(1.5)` has no
+ * cross-language counterpart and must throw rather than silently answer (it
+ * would wrongly report `true` since `1 < 1.5 < 2` numerically, whereas no `i32`
+ * lies in `(1, 2)`). Mirrors {@link i32Endpoint}; throws on non-integer,
+ * non-finite, or out-of-int32-range. Float-point queries are a later widening.
+ */
+function i32Point(v: number): void {
+  if (!Number.isInteger(v) || v < -2147483648 || v > 2147483647) {
+    throw new RangeError(
+      `Range<i32>: query point must be a signed 32-bit integer, got ${String(v)}`,
+    );
+  }
+}
+
+/**
+ * Validate a v1 point-query argument for the {@link RangeSet}/{@link RangeMap}
+ * point queries, so the i32 check fires even when the structure is empty (and so
+ * never reaches a {@link Range.contains} call). Mirrors the in-range check in
+ * {@link Range.contains}; non-`number` `T` is left for the later widening.
+ */
+export function validateI32Point<T>(v: T): void {
+  if (typeof v === "number") i32Point(v);
+}
+
+/**
  * Total order on cuts (the single source of truth for the algebra), using
  * `cmp` to order the finite endpoint values. The three side-aware spec
  * comparators all reduce to this because the two unbounded states are distinct
@@ -314,8 +343,18 @@ export class Range<T> {
 
   // ---- queries ------------------------------------------------------------
 
-  /** Whether `x` falls within the range (normative `contains`). */
+  /**
+   * Whether `x` falls within the range (normative `contains`).
+   *
+   * In the v1 `number`/i32 specialisation, `x` is validated to be a signed
+   * 32-bit integer (the only point the four typed ports can express): a
+   * non-i32 such as `1.5` throws rather than silently answering, since the
+   * cross-language contract has no non-i32 query point. This is the single
+   * point-query choke point — {@link RangeSet.contains}/`rangeContaining` and
+   * {@link RangeMap.get}/`getEntry` all reduce to it.
+   */
   contains(x: T): boolean {
+    if (typeof x === "number") i32Point(x);
     const lo = this._lower;
     const lowerOk =
       lo.kind === CutKind.BelowAll

@@ -52,7 +52,13 @@
  *   algebra of {@link Range}.
  */
 
-import { Range, type Cut, BELOW_ALL_CUT, ABOVE_ALL_CUT } from "./range.js";
+import {
+  Range,
+  type Cut,
+  BELOW_ALL_CUT,
+  ABOVE_ALL_CUT,
+  validateI32Point,
+} from "./range.js";
 
 export class RangeSet<T> {
   /** Normal form: non-empty, pairwise non-connected, ascending by lower cut. */
@@ -136,11 +142,13 @@ export class RangeSet<T> {
    * integer-point predicate — `(1, 2)` correctly contains no `i32`.
    */
   contains(value: T): boolean {
+    validateI32Point(value);
     return this.ranges.some((r) => r.contains(value));
   }
 
   /** The stored range containing `value`, or `undefined`. */
   rangeContaining(value: T): Range<T> | undefined {
+    validateI32Point(value);
     return this.ranges.find((r) => r.contains(value));
   }
 

@@ -35,7 +35,7 @@
  * @typeParam V - the mapped value type (v1 `number`/i32).
  */
 
-import { Range } from "./range.js";
+import { Range, validateI32Point } from "./range.js";
 
 /** One `(range, value)` entry of a {@link RangeMap}, exposed by `asMapOfRanges`. */
 export type RangeMapEntry<T, V> = [Range<T>, V];
@@ -89,6 +89,7 @@ export class RangeMap<T, V> {
 
   /** The value mapped at `value`, or `undefined` if uncovered. */
   get(value: T): V | undefined {
+    validateI32Point(value);
     for (const e of this.entries) {
       if (e.range.contains(value)) return e.value;
     }
@@ -99,6 +100,7 @@ export class RangeMap<T, V> {
    * The `(range, value)` entry covering `value`, or `undefined` if uncovered.
    */
   getEntry(value: T): RangeMapEntry<T, V> | undefined {
+    validateI32Point(value);
     for (const e of this.entries) {
       if (e.range.contains(value)) return [e.range, e.value];
     }

@@ -280,3 +280,16 @@ describe("RangeSet normal-form invariant", () => {
     expect(v.every((r) => !r.isEmpty())).toBe(true);
   });
 });
+
+describe("RangeSet point-query i32 validation (v1)", () => {
+  it("contains / rangeContaining reject non-i32 query points", () => {
+    const s = new RangeSet<number>();
+    s.add(Range.open(1, 5));
+    expect(() => s.contains(2.5)).toThrow(RangeError);
+    expect(() => s.rangeContaining(2.5)).toThrow(RangeError);
+    expect(() => s.contains(NaN)).toThrow(RangeError);
+    // valid i32 points still answer
+    expect(s.contains(3)).toBe(true);
+    expect(s.rangeContaining(3)).toBeDefined();
+  });
+});
