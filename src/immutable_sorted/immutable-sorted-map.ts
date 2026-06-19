@@ -84,6 +84,22 @@ function cmpI32(a: number, b: number): number {
 }
 
 /**
+ * Validate a 0-based order-statistic index for `selectKey`/`selectEntry`/
+ * `select`. The typed ports take a `usize` index (unsigned, integral): a
+ * negative or non-integer `i` has no counterpart and throws, rather than being
+ * silently treated as "out of range -> undefined". An in-range `i >= size`
+ * still returns `undefined` (matching the typed ports' `None`).
+ */
+function selectIndex(i: number): number {
+  if (!Number.isInteger(i) || i < 0) {
+    throw new RangeError(
+      `ImmutableSorted: select index must be a non-negative integer, got ${String(i)}`,
+    );
+  }
+  return i;
+}
+
+/**
  * Verify a slice is strictly ascending under {@link cmpI32}; throw otherwise.
  * Empty and single-element slices vacuously pass. Both bad-input failures
  * (out-of-order and duplicate) reduce to this single check: every adjacent
@@ -106,6 +122,14 @@ function assertStrictlyAscending(xs: readonly number[]): void {
  * never `(lo + hi) / 2`, so it is overflow-safe at the signed extremes.
  */
 function binarySearch(sorted: readonly number[], key: number): number {
+  // The query key is an i32 in every typed port (`get`/`contains_key`/
+  // `floor_key`/… take `key: &K` where K is i32); a non-i32 JS number has no
+  // counterpart and would otherwise silently binary-search to a bogus
+  // miss/answer (e.g. `get(1.5)` -> undefined). Validate here — the single
+  // choke point all point/navigation/rank queries on both the map and the set
+  // funnel through (lowerBound delegates to binarySearch) — so the check fires
+  // once per query. Construction validates its keys separately via i32().
+  i32(key, "query key");
   let lo = 0;
   let hi = sorted.length - 1;
   while (lo <= hi) {
@@ -329,12 +353,12 @@ export class ImmutableSortedMap<
    * Round-trips with {@link rank}: `selectKey(rank(k)) === k` for present `k`.
    */
   selectKey(i: number): K | undefined {
-    return i >= 0 && i < this._keys.length ? (this._keys[i] as K) : undefined;
+    return selectIndex(i) < this._keys.length ? (this._keys[i] as K) : undefined;
   }
 
   /** The `i`-th smallest `[key, value]` entry (0-based), or `undefined`. */
   selectEntry(i: number): [K, V] | undefined {
-    return i >= 0 && i < this._keys.length
+    return selectIndex(i) < this._keys.length
       ? ([this._keys[i], this._values[i]] as [K, V])
       : undefined;
   }
@@ -525,9 +549,11 @@ export class ImmutableSortedSet<T extends number = number> {
     return lowerBound(this._elems, elem);
   }
 
-  /** The `i`-th smallest element (0-based), or `undefined` if `i >= size` or `i < 0`. */
+  /** The `i`-th smallest element (0-based), or `undefined` if `i >= size`. */
   select(i: number): T | undefined {
-    return i >= 0 && i < this._elems.length ? (this._elems[i] as T) : undefined;
+    return selectIndex(i) < this._elems.length
+      ? (this._elems[i] as T)
+      : undefined;
   }
 
   // ── iteration ───────────────────────────────────────────────────────
