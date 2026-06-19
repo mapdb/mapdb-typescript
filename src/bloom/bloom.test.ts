@@ -5,7 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
 import { describe, it, expect } from "vitest";
-import { Bloom } from "./bloom.js";
+import { Bloom, byteIndex } from "./bloom.js";
 
 function hex(b: Uint8Array): string {
   let s = "0x";
@@ -233,5 +233,51 @@ describe("Bloom — serialization", () => {
     expect(Bloom.withParams(1, 1).toBytes().length).toBe(1);
     expect(Bloom.withParams(64, 3).toHex()).toBe("0x0000000000000000");
     expect(Bloom.withParams(65, 3).toBytes().length).toBe(9);
+  });
+});
+
+describe("Bloom — byteIndex() is u32-safe (no signed-shift false negatives)", () => {
+  it("small positions agree with i >> 3", () => {
+    for (const i of [0, 1, 7, 8, 9, 15, 16, 100, 1000, 0x7fffffff]) {
+      expect(byteIndex(i)).toBe(Math.floor(i / 8));
+      expect(byteIndex(i)).toBe(i >> 3); // signed shift still correct < 2^31
+      expect(byteIndex(i)).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("the witness position 2147484978 maps to byte 268435622, not negative", () => {
+    // m_bits=2147487744, k=1, v=421424 -> position 2147484978 (>= 2^31).
+    // Signed `i >> 3` would be -268435290 (a property access off the array),
+    // dropping the bit -> false negative. floor(i/8) is the real byte index.
+    const i = 2147484978;
+    expect(i >> 3).toBe(-268435290); // documents the wrong (signed) result
+    expect(byteIndex(i)).toBe(268435622);
+    expect(byteIndex(i)).toBe(Math.floor(i / 8));
+    expect(byteIndex(i)).toBeGreaterThan(0);
+  });
+
+  it("positions across the whole u32 domain stay non-negative and correct", () => {
+    for (const i of [
+      0x80000000, // 2^31
+      0x80000001,
+      0xc0000000,
+      0xffffffff, // 2^32-1 (max possible m_bits - 1)
+      2147484978,
+    ]) {
+      const idx = byteIndex(i);
+      expect(idx).toBe(Math.floor(i / 8));
+      expect(idx).toBeGreaterThanOrEqual(0);
+      expect(Number.isInteger(idx)).toBe(true);
+    }
+  });
+
+  it("end-to-end: a large-m_bits filter records and recalls an element with a >= 2^31 position", () => {
+    // m_bits=2147487744 (~256 MiB array). Allocation is fast; the bit lands at
+    // position 2147484978 (>= 2^31) so this fails on the signed-shift bug.
+    const b = Bloom.withParams(2147487744, 1);
+    b.add(421424);
+    expect(b.mightContain(421424)).toBe(true); // no false negative
+    expect(b.bitCount()).toBe(1);
+    expect(b.setBits()).toEqual([2147484978]);
   });
 });

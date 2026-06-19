@@ -50,8 +50,10 @@ export class Bloom {
   /** Number of hash functions / positions set per element. */
   private readonly _k: number;
   /**
-   * The bit array, exactly `ceil(m / 8)` bytes; bit `i` lives in byte `i >> 3`
-   * at bit position `i & 7` (LSB-first within a byte). The unused high bits of
+   * The bit array, exactly `ceil(m / 8)` bytes; bit `i` lives in byte
+   * `floor(i / 8)` at bit position `i & 7` (LSB-first within a byte). A signed
+   * `i >> 3` would be wrong for `i >= 2^31` (it coerces `i` to int32 and goes
+   * negative); see {@link byteIndex}. The unused high bits of
    * the final byte are always `0` — no `positions` index ever reaches them.
    */
   private readonly bytes: Uint8Array;
@@ -244,7 +246,8 @@ export class Bloom {
   /**
    * The serialized bit array (`spec/features/bloom.md` §"Serialized bit-array
    * form"): length exactly `ceil(m / 8)` bytes; **LSB-first** bit order within
-   * each byte (bit `i` ⇒ `byte[i >> 3] |= 1 << (i & 7)`); ascending byte order;
+   * each byte (bit `i` ⇒ `byte[floor(i / 8)] |= 1 << (i & 7)`); ascending byte
+   * order;
    * **little-endian on every host** (the byte array IS the canonical form);
    * unused tail bits `0`.
    *
@@ -270,12 +273,28 @@ export class Bloom {
   // ---- internal bit ops --------------------------------------------------
 
   private setBit(i: number): void {
-    this.bytes[i >> 3] |= 1 << (i & 7);
+    this.bytes[byteIndex(i)] |= 1 << (i & 7);
   }
 
   private getBit(i: number): boolean {
-    return (this.bytes[i >> 3] & (1 << (i & 7))) !== 0;
+    return (this.bytes[byteIndex(i)] & (1 << (i & 7))) !== 0;
   }
+}
+
+/**
+ * The byte index of bit position `i` in the LSB-first bit array: `floor(i / 8)`.
+ *
+ * `i` is a non-negative `u32` bit position in `[0, m_bits)` and `m_bits` may be
+ * up to `2^32-1`, so `i` can exceed `2^31`. A signed shift (`i >> 3`) would
+ * first coerce `i` to a **32-bit signed** value, turning any `i >= 2^31`
+ * negative and yielding a wrong (negative) index — an out-of-array property
+ * access that silently drops the bit, producing a spec-forbidden false
+ * negative. `Math.floor(i / 8)` stays correct across the full `u32` domain.
+ * (The bit-within-byte mask `1 << (i & 7)` is sign-coercion-safe because the low
+ * 3 bits survive the coercion, so it is kept as-is.)
+ */
+export function byteIndex(i: number): number {
+  return Math.floor(i / 8);
 }
 
 /**
