@@ -2105,6 +2105,19 @@ function buildHll(
     switch (op.op) {
       case "add": {
         if (typeof op.value !== "number") return null;
+        // SKIP (don't coerce) an out-of-i32-range / non-integer value: add()
+        // now validates its i32 input and throws on such values, so a scenario
+        // carrying one is not applicable to this port rather than a failure.
+        if (
+          !Number.isInteger(op.value) ||
+          op.value < -2147483648 ||
+          op.value > 2147483647
+        ) {
+          console.error(
+            "skip: HyperLogLog add value out of i32 range (forward-compat)",
+          );
+          return null;
+        }
         hll.add(op.value);
         break;
       }

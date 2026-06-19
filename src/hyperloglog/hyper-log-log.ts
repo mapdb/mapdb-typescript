@@ -155,6 +155,16 @@ export class HyperLogLog {
    * `register[idx] = max(register[idx], rho)`. **Pure integer.**
    */
   add(item: number): void {
+    // Validate the i32 input rather than silently remapping it: `item | 0`
+    // would coerce 2147483648 -> -2147483648, 1.5 -> 1, NaN/Infinity -> 0.
+    // Mirror the i32 guard used elsewhere (e.g. Range<i32>) and reject
+    // non-integer / out-of-i32-range inputs, so a caller cannot accidentally
+    // feed two distinct logical items that collapse to the same hash.
+    if (!Number.isInteger(item) || item < -2147483648 || item > 2147483647) {
+      throw new HllError(
+        `HyperLogLog.add: item must be a signed 32-bit integer, got ${String(item)}`,
+      );
+    }
     // i32 -> u32 reinterpret -> zero-extend to u64 (high 32 bits always 0).
     const word = encodeI32Word64(item | 0);
     const x = hash64(word, { hi: 0, lo: 0 });
@@ -234,7 +244,15 @@ export class HyperLogLog {
     // Large-range correction near the HASH-SPACE ceiling (2^64, NOT 2^32).
     const two64 = 18446744073709551616; // 2^64, exactly representable.
     if (e > (1 / 30) * two64) {
-      return -two64 * Math.log(1 - e / two64);
+      // Guard the log argument: for all reachable states E < 2^64 so
+      // (1 - E/2^64) > 0. A fully-saturated deserialized state (every register
+      // at the per-p ceiling, constructible via fromBytes but not via add) can
+      // push raw E >= 2^64, making (1 - E/2^64) <= 0 and Math.log(<= 0) = NaN.
+      // Skip the log correction there and return the raw (large, finite) E so
+      // estimate() stays finite as the spec mandates.
+      if (e < two64) {
+        return -two64 * Math.log(1 - e / two64);
+      }
     }
 
     return e;

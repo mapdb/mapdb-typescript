@@ -316,13 +316,33 @@ describe("estimate (quarantined float, native-only)", () => {
     expect(Math.abs(est - n) / n).toBeLessThan(0.05);
   });
 
-  it("large-range correction is finite (registers at ceiling-1)", () => {
+  // Drive a high-register state via fromBytes so raw E exceeds (1/30)*2^64;
+  // estimate() must be finite. ceiling-1 lands E in the large-range band but
+  // below 2^64 (the log correction fires). ceiling (fully saturated, every
+  // register at the per-p max — an add-unreachable state constructible via
+  // fromBytes) reaches/exceeds 2^64; the log-argument guard skips the
+  // correction and returns the raw (large, finite) E. Without the guard,
+  // Math.log(1 - E/2^64) = Math.log(<= 0) = NaN.
+  it.each([
+    ["ceiling-1", (p: number) => rhoCeiling(p) - 1],
+    ["ceiling (fully saturated)", (p: number) => rhoCeiling(p)],
+  ])("large-range correction is finite (registers at %s)", (_label, r) => {
     const p = 4;
-    const nearMax = rhoCeiling(p) - 1;
+    const value = r(p);
     const bytes = HyperLogLog.withPrecision(p).toBytes();
-    for (let i = 5; i < bytes.length; i++) bytes[i] = nearMax;
+    for (let i = 5; i < bytes.length; i++) bytes[i] = value;
     const est = HyperLogLog.fromBytes(bytes).estimate();
     expect(Number.isFinite(est)).toBe(true);
+  });
+
+  it("add rejects non-i32 inputs", () => {
+    const h = HyperLogLog.withPrecision(4);
+    for (const bad of [2147483648, -2147483649, 1.5, NaN, Infinity, -Infinity]) {
+      expect(() => h.add(bad)).toThrow(HllError);
+    }
+    // i32 boundaries are accepted.
+    expect(() => h.add(2147483647)).not.toThrow();
+    expect(() => h.add(-2147483648)).not.toThrow();
   });
 });
 
