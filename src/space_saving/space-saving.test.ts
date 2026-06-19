@@ -115,6 +115,11 @@ describe("SpaceSaving", () => {
     expect(triples(s.topK(4))).toEqual(full);
     expect(triples(s.topK(99))).toEqual(full); // k > size -> all, no padding
     expect(s.topK(0)).toEqual([]);
+    // Witness: k is u32 in the typed ports; a negative or non-integer k has no
+    // counterpart and must throw, not be silently clamped to 0 (returning []).
+    expect(() => s.topK(-1)).toThrow(RangeError);
+    expect(() => s.topK(1.5)).toThrow(RangeError);
+    expect(() => s.topK(NaN)).toThrow(RangeError);
   });
 
   it("count of unmonitored is 0", () => {

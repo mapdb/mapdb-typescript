@@ -218,8 +218,17 @@ export class SpaceSaving {
    * The `k` highest-`count` monitored items in canonical order (the first `k`
    * of {@link SpaceSaving.monitoredSet}). `k > size()` returns all monitored
    * items (no padding); `k = 0` returns the empty list.
+   *
+   * `k` is a count (`u32` in the typed ports); a negative or non-integer `k`
+   * has no typed-port counterpart and throws rather than being silently clamped
+   * to 0 (the old `Math.max(0, k)`) — `topK(-1)` previously returned `[]`.
    */
   topK(k: number): SSEntry[] {
-    return this.monitoredSet().slice(0, Math.max(0, k));
+    if (!Number.isInteger(k) || k < 0) {
+      throw new RangeError(
+        `SpaceSaving.topK requires a non-negative integer k, got ${String(k)}`,
+      );
+    }
+    return this.monitoredSet().slice(0, k);
   }
 }
