@@ -289,6 +289,23 @@ const SPLIT_LOW = (v: number): number => v & 0xffff;
 const JOIN = (high: number, low: number): number =>
   (((high << 16) >>> 0) | low) >>> 0;
 
+/**
+ * Validate a public set value against the `u32` element domain the typed ports
+ * take (`add(value: u32)` / `remove` / `contains`). The dynamically-typed port
+ * must NOT silently coerce a non-`u32` `number` via `>>> 0` — that would map
+ * `1.5 -> 1`, `-1 -> 0xFFFFFFFF`, `2^32 -> 0`, `NaN -> 0`, none of which any
+ * typed port can express. Throw on a non-integer, negative, or out-of-`u32`
+ * value instead; an in-domain value is returned as the unsigned `u32`.
+ */
+function u32Value(value: number): number {
+  if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
+    throw new RangeError(
+      `RoaringU32: value must be an unsigned 32-bit integer, got ${String(value)}`,
+    );
+  }
+  return value >>> 0;
+}
+
 export class RoaringU32 {
   /** Non-empty chunks in unsigned high-key ascending order (strictly). */
   private chunks: Chunk[] = [];
@@ -296,7 +313,7 @@ export class RoaringU32 {
   /** An empty set. */
   constructor() {}
 
-  /** Build a set from an iterable of values (each taken as u32). */
+  /** Build a set from an iterable of values (each a u32; validated by `add`). */
   static fromValues(values: Iterable<number>): RoaringU32 {
     const s = new RoaringU32();
     for (const v of values) s.add(v);
@@ -320,9 +337,9 @@ export class RoaringU32 {
     return -(lo + 1);
   }
 
-  /** Insert `value` (taken as u32). Returns whether the set changed. */
+  /** Insert `value` (a u32). Returns whether the set changed. */
   add(value: number): boolean {
-    const v = value >>> 0;
+    const v = u32Value(value);
     const high = SPLIT_HIGH(v);
     const low = SPLIT_LOW(v);
     const idx = this.find(high);
@@ -346,9 +363,9 @@ export class RoaringU32 {
     return true;
   }
 
-  /** Remove `value` (taken as u32). Returns whether the set changed. */
+  /** Remove `value` (a u32). Returns whether the set changed. */
   remove(value: number): boolean {
-    const v = value >>> 0;
+    const v = u32Value(value);
     const high = SPLIT_HIGH(v);
     const low = SPLIT_LOW(v);
     const idx = this.find(high);
@@ -366,9 +383,9 @@ export class RoaringU32 {
     return true;
   }
 
-  /** Whether `value` (taken as u32) is present. */
+  /** Whether `value` (a u32) is present. */
   contains(value: number): boolean {
-    const v = value >>> 0;
+    const v = u32Value(value);
     const idx = this.find(SPLIT_HIGH(v));
     return idx >= 0 && this.chunks[idx].container.contains(SPLIT_LOW(v));
   }
