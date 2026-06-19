@@ -32,6 +32,7 @@ import {
   ImmutableSortedMap,
   ImmutableSortedSet,
 } from "./immutable_sorted/immutable-sorted-map.js";
+import { HyperLogLog } from "./hyperloglog/hyper-log-log.js";
 import {
   type U64,
   hash32,
@@ -2041,6 +2042,142 @@ function runHashPipeline(scenario: Scenario): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// HyperLogLog runner (spec/features/hyperloglog.md).
+//
+// A stored cardinality sketch. The cross-language oracle is the INTEGER
+// register array (via `register_hex` / `nonzero_registers` / `max_register` /
+// `register_at_N`) — NEVER the float `estimate` (float-quarantine Rule Q1;
+// there is deliberately NO `estimate` assertion key). Exactly one builder op,
+// first: either a `with_precision(p)` (then zero or more `add`/`merge`) OR a
+// single `from_bytes`. Zero/two builders or an `add` before the builder =>
+// malformed => SKIP. A `merge` consumes the scenario's `other` HyperLogLog.
+// Unknown ops/keys/kinds SKIP (forward-compat).
+// ---------------------------------------------------------------------------
+
+// An HLL op carries scalar fields beyond the generic Operation shape.
+type HllOp = Operation & { p?: number; bytes?: unknown };
+
+// Build a HyperLogLog from an op list (used for the primary and the `other`
+// block). Returns `null` (=> caller SKIPs) when the op list is malformed for
+// the harness: not starting with exactly one builder, an `add`/`merge` before
+// the builder, an out-of-range `with_precision`, or a bad `from_bytes`.
+function buildHll(
+  operations: Operation[],
+  other: Scenario["other"] | undefined,
+): HyperLogLog | null {
+  const first = operations[0] as HllOp | undefined;
+  if (first === undefined) return null;
+  let hll: HyperLogLog;
+  try {
+    switch (first.op) {
+      case "with_precision": {
+        if (typeof first.p !== "number") return null;
+        // Out-of-range p is a construction error -> SKIP (the harness cannot
+        // build the probe). The native tests pin the error path itself.
+        hll = HyperLogLog.withPrecision(first.p);
+        break;
+      }
+      case "from_bytes": {
+        // `from_bytes` is the SOLE op when present (full state replacement).
+        if (operations.length !== 1) {
+          console.error(
+            "skip: from_bytes must be the only op (forward-compat)",
+          );
+          return null;
+        }
+        hll = HyperLogLog.fromBytes(parseHexBytes(first.bytes));
+        break;
+      }
+      default:
+        console.error(
+          "skip: HyperLogLog first op must be a builder (forward-compat)",
+        );
+        return null;
+    }
+  } catch {
+    // Construction error (bad p / bad bytes) -> SKIP.
+    return null;
+  }
+
+  for (let i = 1; i < operations.length; i++) {
+    const op = operations[i] as HllOp;
+    switch (op.op) {
+      case "add": {
+        if (typeof op.value !== "number") return null;
+        hll.add(op.value);
+        break;
+      }
+      case "merge": {
+        // Merge the scenario's `other` HyperLogLog (built by its own op list)
+        // by element-wise register max.
+        if (other === undefined) return null;
+        const otherHll = buildHll(other.operations, undefined);
+        if (otherHll === null) return null;
+        try {
+          hll.merge(otherHll);
+        } catch {
+          return null;
+        }
+        break;
+      }
+      default:
+        console.error(
+          `skip: unknown HyperLogLog op (forward-compat): ${op.op}`,
+        );
+        return null;
+    }
+  }
+  return hll;
+}
+
+// Evaluate one assertion key against the built sketch. Returns `undefined` for
+// an unknown key (forward-compat SKIP).
+function evalHllAssertion(key: string, hll: HyperLogLog): string | undefined {
+  // The PRIMARY integer oracle: the full serialized form (HLL1 + p + register
+  // bytes) as a lower-case, 0x-prefixed hex string.
+  if (key === "register_hex") {
+    let s = "0x";
+    for (const b of hll.toBytes()) {
+      s += b.toString(16).padStart(2, "0");
+    }
+    return s;
+  }
+  if (key === "nonzero_registers") return String(hll.nonzeroRegisters());
+  if (key === "max_register") return String(hll.maxRegister());
+  // NOTE: there is deliberately NO `estimate` key (float-quarantine Q1).
+  if (key.startsWith("register_at_")) {
+    const n = Number(key.slice("register_at_".length));
+    if (Number.isInteger(n) && n >= 0 && n < hll.registerCount()) {
+      return String(hll.registers()[n]);
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+function runHyperLogLog(scenario: Scenario): void {
+  const hll = buildHll(scenario.operations, scenario.other);
+  if (hll === null) {
+    console.error("skip: malformed HyperLogLog scenario (forward-compat)");
+    return;
+  }
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalHllAssertion(key, hll);
+    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
+    console.log(`${key}: ${computed}`);
+    const want = String(scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -2108,6 +2245,16 @@ function main(): void {
   // strings (hash32/hash64) or an int[] (positions). Separate dispatch.
   if (scenario.collection === "HashPipeline") {
     runHashPipeline(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // HyperLogLog — a stored cardinality sketch. The oracle is the integer
+  // register array (register_hex / nonzero_registers / max_register /
+  // register_at_N); the float `estimate` is quarantined (no assertion key).
+  // Separate dispatch (built by a single with_precision/from_bytes builder op).
+  if (scenario.collection === "HyperLogLog") {
+    runHyperLogLog(scenario);
     if (anyFail) process.exit(1);
     return;
   }

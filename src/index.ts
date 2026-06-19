@@ -36,6 +36,12 @@ export { NumberInterval } from "./interval/number-interval.js";
 export { Range, BoundType, CutKind } from "./range/range.js";
 export * as hash from "./hash/hash.js";
 export type { U64 } from "./hash/hash.js";
+export {
+  HyperLogLog,
+  HllError,
+  MIN_PRECISION,
+  MAX_PRECISION,
+} from "./hyperloglog/hyper-log-log.js";
 export type { Cut } from "./range/range.js";
 export {
   ImmutableSortedMap,
