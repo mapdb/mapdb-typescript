@@ -399,14 +399,17 @@ describe("ImmutableSorted i32 query / index validation (v1)", () => {
     expect(s.contains(5)).toBe(true);
   });
 
-  test("select/selectKey/selectEntry reject negative or non-integer index", () => {
+  test("select/selectKey/selectEntry return absence (no trap) for out-of-domain index", () => {
+    // spec/features/rank-select.md §"Exact semantics": signed-index ports (TS
+    // `number`) MUST return absence for `i < 0` and MUST NOT trap; out-of-domain
+    // `i` (negative or non-integer) is absence, exactly like `i >= size`.
     const m = ImmutableSortedMap.fromSorted([10, 20, 30], [1, 2, 3]);
     const s = ImmutableSortedSet.fromSorted([10, 20, 30]);
-    expect(() => m.selectKey(-1)).toThrow(RangeError);
-    expect(() => m.selectKey(1.5)).toThrow(RangeError);
-    expect(() => m.selectEntry(-1)).toThrow(RangeError);
-    expect(() => s.select(-1)).toThrow(RangeError);
-    expect(() => s.select(1.5)).toThrow(RangeError);
+    expect(m.selectKey(-1)).toBeUndefined();
+    expect(m.selectKey(1.5)).toBeUndefined();
+    expect(m.selectEntry(-1)).toBeUndefined();
+    expect(s.select(-1)).toBeUndefined();
+    expect(s.select(1.5)).toBeUndefined();
     // in-range and out-of-range (>= size) non-negative integers behave as before
     expect(m.selectKey(0)).toBe(10);
     expect(m.selectKey(99)).toBeUndefined();

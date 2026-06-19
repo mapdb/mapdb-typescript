@@ -84,19 +84,16 @@ function cmpI32(a: number, b: number): number {
 }
 
 /**
- * Validate a 0-based order-statistic index for `selectKey`/`selectEntry`/
- * `select`. The typed ports take a `usize` index (unsigned, integral): a
- * negative or non-integer `i` has no counterpart and throws, rather than being
- * silently treated as "out of range -> undefined". An in-range `i >= size`
- * still returns `undefined` (matching the typed ports' `None`).
+ * Normalize a 0-based order-statistic index for `selectKey`/`selectEntry`/
+ * `select`. The signed-index API ports (Go `int`, TypeScript `number`, Java
+ * `int`) MUST return **absence** for an out-of-domain `i` — `i < 0` or a
+ * non-integer — and MUST NOT trap (spec/features/rank-select.md §"Exact
+ * semantics", adopted verbatim by sorted-table-map.md). Returns the index for a
+ * valid `i`, or `-1` as an out-of-domain sentinel (callers map `< 0` to
+ * `undefined`, exactly as an in-range `i >= size` already maps to `undefined`).
  */
 function selectIndex(i: number): number {
-  if (!Number.isInteger(i) || i < 0) {
-    throw new RangeError(
-      `ImmutableSorted: select index must be a non-negative integer, got ${String(i)}`,
-    );
-  }
-  return i;
+  return Number.isInteger(i) && i >= 0 ? i : -1;
 }
 
 /**
@@ -353,13 +350,15 @@ export class ImmutableSortedMap<
    * Round-trips with {@link rank}: `selectKey(rank(k)) === k` for present `k`.
    */
   selectKey(i: number): K | undefined {
-    return selectIndex(i) < this._keys.length ? (this._keys[i] as K) : undefined;
+    const idx = selectIndex(i);
+    return idx >= 0 && idx < this._keys.length ? (this._keys[idx] as K) : undefined;
   }
 
   /** The `i`-th smallest `[key, value]` entry (0-based), or `undefined`. */
   selectEntry(i: number): [K, V] | undefined {
-    return selectIndex(i) < this._keys.length
-      ? ([this._keys[i], this._values[i]] as [K, V])
+    const idx = selectIndex(i);
+    return idx >= 0 && idx < this._keys.length
+      ? ([this._keys[idx], this._values[idx]] as [K, V])
       : undefined;
   }
 
@@ -549,10 +548,11 @@ export class ImmutableSortedSet<T extends number = number> {
     return lowerBound(this._elems, elem);
   }
 
-  /** The `i`-th smallest element (0-based), or `undefined` if `i >= size`. */
+  /** The `i`-th smallest element (0-based), or `undefined` if `i >= size` or `i < 0`. */
   select(i: number): T | undefined {
-    return selectIndex(i) < this._elems.length
-      ? (this._elems[i] as T)
+    const idx = selectIndex(i);
+    return idx >= 0 && idx < this._elems.length
+      ? (this._elems[idx] as T)
       : undefined;
   }
 
