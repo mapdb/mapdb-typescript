@@ -23,6 +23,7 @@ import {
   encodeBytesWord64,
   positions,
   positionsFromHashes,
+  hllSplit,
 } from "./hash.js";
 
 // ---------------------------------------------------------------------------
@@ -477,5 +478,37 @@ describe("positions", () => {
     expect(positions(new Uint8Array([7, 0, 0, 0]), 16, 4)).toEqual([
       7, 0, 9, 2,
     ]);
+  });
+});
+
+describe("hash input-domain validation (cross-language i32/u32 contract)", () => {
+  it("positionsFromHashes / positions reject m == 0 (typed ports trap on % 0)", () => {
+    // Witness: previously returned [NaN] instead of trapping like the typed ports.
+    expect(() => positionsFromHashes(1, 1, 0, 1)).toThrow(RangeError);
+    expect(() => positions(new Uint8Array([1]), 0, 4)).toThrow(RangeError);
+  });
+
+  it("positionsFromHashes rejects non-u32 m / k", () => {
+    expect(() => positionsFromHashes(1, 1, -1, 1)).toThrow(RangeError);
+    expect(() => positionsFromHashes(1, 1, 1.5, 1)).toThrow(RangeError);
+    expect(() => positionsFromHashes(1, 1, 16, -1)).toThrow(RangeError);
+    expect(() => positionsFromHashes(1, 1, 16, 2.5)).toThrow(RangeError);
+    expect(() => positionsFromHashes(1, 1, 4294967296, 1)).toThrow(RangeError); // 2^32
+  });
+
+  it("k == 0 is valid and yields no positions", () => {
+    expect(positionsFromHashes(1, 1, 16, 0)).toEqual([]);
+  });
+
+  it("hllSplit validates 4 <= p <= 18 (witness: p=0 returned [0,33])", () => {
+    expect(() => hllSplit(new Uint8Array([]), 0)).toThrow(RangeError);
+    expect(() => hllSplit(new Uint8Array([1]), 3)).toThrow(RangeError);
+    expect(() => hllSplit(new Uint8Array([1]), 19)).toThrow(RangeError);
+    expect(() => hllSplit(new Uint8Array([1]), 4.5)).toThrow(RangeError);
+    // boundary p values are accepted and return a valid [idx, rho] pair
+    const [idx4, rho4] = hllSplit(new Uint8Array([1, 2, 3, 4]), 4);
+    expect(Number.isInteger(idx4)).toBe(true);
+    expect(rho4).toBeGreaterThanOrEqual(1);
+    expect(() => hllSplit(new Uint8Array([1, 2, 3, 4]), 18)).not.toThrow();
   });
 });
