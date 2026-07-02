@@ -47,6 +47,9 @@ export {
   MIN_PRECISION,
   MAX_PRECISION,
 } from "./hyperloglog/hyper-log-log.js";
+export { CountMin } from "./count_min/count-min.js";
+export { SpaceSaving } from "./space_saving/space-saving.js";
+export type { SSEntry } from "./space_saving/space-saving.js";
 export type { Cut } from "./range/range.js";
 export {
   ImmutableSortedMap,

@@ -46,6 +46,14 @@
       "types": "./dist/bitset/*.d.ts",
       "import": "./dist/bitset/*.js"
     },
+    "./count_min/*": {
+      "types": "./dist/count_min/*.d.ts",
+      "import": "./dist/count_min/*.js"
+    },
+    "./space_saving/*": {
+      "types": "./dist/space_saving/*.d.ts",
+      "import": "./dist/space_saving/*.js"
+    },
     "./deque/*": {
       "types": "./dist/deque/*.d.ts",
       "import": "./dist/deque/*.js"
