@@ -33,6 +33,7 @@ import {
   ImmutableSortedMap,
   ImmutableSortedSet,
 } from "./immutable_sorted/immutable-sorted-map.js";
+import { HyperLogLog } from "./hyperloglog/hyper-log-log.js";
 import {
   BoundedLruMap,
   type EvictionCause,
@@ -2633,6 +2634,117 @@ function runFenwick(scenario: Scenario): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// HyperLogLog runner (spec/features/hyperloglog.md)
+// ---------------------------------------------------------------------------
+
+type HllOp = Operation & { p?: number; bytes?: unknown };
+
+function buildHll(
+  operations: Operation[],
+  other: Scenario["other"] | undefined,
+): HyperLogLog | null {
+  const first = operations[0] as HllOp | undefined;
+  if (first === undefined) return null;
+  let hll: HyperLogLog;
+  try {
+    switch (first.op) {
+      case "with_precision":
+        if (typeof first.p !== "number") return null;
+        hll = HyperLogLog.withPrecision(first.p);
+        break;
+      case "from_bytes":
+        if (operations.length !== 1) {
+          console.error("skip: from_bytes must be the only op (forward-compat)");
+          return null;
+        }
+        hll = HyperLogLog.fromBytes(parseHexBytes(first.bytes));
+        break;
+      default:
+        console.error(
+          "skip: HyperLogLog first op must be a builder (forward-compat)",
+        );
+        return null;
+    }
+  } catch {
+    return null;
+  }
+
+  for (let i = 1; i < operations.length; i++) {
+    const op = operations[i] as HllOp;
+    switch (op.op) {
+      case "add":
+        if (
+          typeof op.value !== "number" ||
+          !Number.isInteger(op.value) ||
+          op.value < -2147483648 ||
+          op.value > 2147483647
+        ) {
+          console.error(
+            "skip: HyperLogLog add value out of i32 range (forward-compat)",
+          );
+          return null;
+        }
+        hll.add(op.value);
+        break;
+      case "merge": {
+        if (other === undefined) return null;
+        const otherHll = buildHll(other.operations, undefined);
+        if (otherHll === null) return null;
+        try {
+          hll.merge(otherHll);
+        } catch {
+          return null;
+        }
+        break;
+      }
+      default:
+        console.error(
+          `skip: unknown HyperLogLog op (forward-compat): ${op.op}`,
+        );
+        return null;
+    }
+  }
+  return hll;
+}
+
+function evalHllAssertion(key: string, hll: HyperLogLog): string | undefined {
+  if (key === "register_hex") {
+    let s = "0x";
+    for (const b of hll.toBytes()) s += b.toString(16).padStart(2, "0");
+    return s;
+  }
+  if (key === "nonzero_registers") return String(hll.nonzeroRegisters());
+  if (key === "max_register") return String(hll.maxRegister());
+  {
+    const m = key.match(/^register_at_(\d+)$/);
+    if (m) return String(hll.registers()[parseInt(m[1], 10)]);
+  }
+  return undefined;
+}
+
+function runHyperLogLog(scenario: Scenario): void {
+  const hll = buildHll(scenario.operations, scenario.other);
+  if (hll === null) {
+    console.error("skip: malformed HyperLogLog scenario (forward-compat)");
+    return;
+  }
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalHllAssertion(key, hll);
+    if (computed === undefined) continue;
+    console.log(`${key}: ${computed}`);
+    const want = String(scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -2732,6 +2844,15 @@ function main(): void {
   // model is not the normal mutate-an-existing-collection path.
   if (scenario.collection === "FenwickTree") {
     runFenwick(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // HyperLogLog — a stored cardinality sketch. The oracle is the integer
+  // register array (register_hex / nonzero_registers / max_register /
+  // register_at_N); the float estimate is intentionally not asserted here.
+  if (scenario.collection === "HyperLogLog") {
+    runHyperLogLog(scenario);
     if (anyFail) process.exit(1);
     return;
   }

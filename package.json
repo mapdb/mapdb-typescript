@@ -58,6 +58,10 @@
       "types": "./dist/hashset/*.d.ts",
       "import": "./dist/hashset/*.js"
     },
+    "./hyperloglog/*": {
+      "types": "./dist/hyperloglog/*.d.ts",
+      "import": "./dist/hyperloglog/*.js"
+    },
     "./interval/*": {
       "types": "./dist/interval/*.d.ts",
       "import": "./dist/interval/*.js"

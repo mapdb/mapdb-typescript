@@ -38,6 +38,12 @@ export { FenwickTree } from "./fenwick/fenwick.js";
 export * as hash from "./hash/hash.js";
 export type { U64 } from "./hash/hash.js";
 export { Bloom } from "./bloom/bloom.js";
+export {
+  HyperLogLog,
+  HllError,
+  MIN_PRECISION,
+  MAX_PRECISION,
+} from "./hyperloglog/hyper-log-log.js";
 export type { Cut } from "./range/range.js";
 export {
   ImmutableSortedMap,
