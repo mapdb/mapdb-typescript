@@ -62,6 +62,10 @@
       "types": "./dist/interval/*.d.ts",
       "import": "./dist/interval/*.js"
     },
+    "./immutable_sorted/*": {
+      "types": "./dist/immutable_sorted/*.d.ts",
+      "import": "./dist/immutable_sorted/*.js"
+    },
     "./priority_queue/*": {
       "types": "./dist/priority_queue/*.d.ts",
       "import": "./dist/priority_queue/*.js"

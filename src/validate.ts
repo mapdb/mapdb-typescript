@@ -28,6 +28,20 @@ import { NumberNumberTreeMap } from "./treemap/number-number-tree-map.js";
 import { NumberArrayStack } from "./stack/number-array-stack.js";
 import { totalCmpNumber } from "./internal/float-order.js";
 import { Range, BoundType } from "./range/range.js";
+import {
+  ImmutableSortedMap,
+  ImmutableSortedSet,
+} from "./immutable_sorted/immutable-sorted-map.js";
+import {
+  type U64,
+  hash32,
+  hash64,
+  hash32I32,
+  hash64I32,
+  hash32Bytes,
+  hash64Bytes,
+  positions as hashPositions,
+} from "./hash/hash.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,6 +63,11 @@ interface Operation {
   // NavigableMap/Set `remove_range` op carries an inline range-builder object
   // (same shape as the top-level `query` / the 10-range builder ops).
   range?: RangeOp;
+  // ImmutableSortedMap/Set `from_sorted` construction op carries parallel
+  // ascending arrays (`keys`/`values` for a map, `elements` for a set).
+  keys?: number[];
+  values?: number[];
+  elements?: number[];
 }
 
 // A range-builder object: one of the 10-range constructor ops. Used by the
@@ -1618,6 +1637,434 @@ function renderRangeExpected(expected: unknown): string {
   return String(expected); // bound-type strings ("open"/"closed")
 }
 
+// ---------------------------------------------------------------------------
+// ImmutableSortedMap / ImmutableSortedSet (sorted-table-map)
+// ---------------------------------------------------------------------------
+
+// A sorted-table collection is built by a SINGLE `from_sorted` bulk op (it has
+// no incremental mutators). Per spec/features/sorted-table-map.md §"Authoring
+// rules", a scenario with zero or multiple `from_sorted` ops is malformed and
+// the runner SKIPs it (returns false = not-applied) rather than failing or
+// silently applying the first. Returns the built collection, or null to SKIP.
+function buildSortedTable(
+  scenario: Scenario,
+  isMap: boolean,
+): ImmutableSortedMap | ImmutableSortedSet | null {
+  const ops = scenario.operations.filter((o) => o.op === "from_sorted");
+  if (ops.length !== 1 || scenario.operations.length !== 1) {
+    return null; // zero/multiple/unknown ops -> malformed -> SKIP
+  }
+  const op = ops[0];
+  if (isMap) {
+    if (!Array.isArray(op.keys) || !Array.isArray(op.values)) return null;
+    return ImmutableSortedMap.fromSorted(op.keys, op.values);
+  }
+  if (!Array.isArray(op.elements)) return null;
+  return ImmutableSortedSet.fromSorted(op.elements);
+}
+
+// Evaluate one assertion key against the built sorted-table collection. Returns
+// `undefined` for an unknown key (forward-compat SKIP). The key vocabulary is
+// the UNION of the structural/lookup keys, the navigable-map nav/range keys,
+// and the rank-select order-statistic keys — all already in the harness.
+function evalSortedTableAssertion(
+  key: string,
+  coll: ImmutableSortedMap | ImmutableSortedSet,
+  query: Range<number> | null,
+): unknown {
+  const isMap = coll instanceof ImmutableSortedMap;
+  const map = isMap ? (coll as ImmutableSortedMap) : null;
+  const set = isMap ? null : (coll as ImmutableSortedSet);
+
+  // structural
+  if (key === "size") return coll.size;
+  if (key === "is_empty") return coll.isEmpty();
+
+  // get_<k> (map only)
+  {
+    const m = key.match(/^get_(-?\d+)$/);
+    if (m) {
+      if (map === null) return undefined;
+      const v = map.get(parseInt(m[1], 10));
+      return v !== undefined ? v : null;
+    }
+  }
+  // contains_<k>
+  {
+    const m = key.match(/^contains_(-?\d+)$/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      return map !== null ? map.containsKey(n) : set!.contains(n);
+    }
+  }
+  // sorted_keys / sorted_values (map projection); to_sorted_array (set)
+  if (key === "sorted_keys") {
+    if (map === null) return undefined;
+    return map.keys();
+  }
+  if (key === "sorted_values") {
+    if (map === null) return undefined;
+    // Per the harness README, sorted_values is "all values sorted ascending"
+    // (the value multiset sorted) — NOT the key-ordered values() iterator
+    // (that pairing is a native-test obligation). Sort the value snapshot.
+    return map.values().sort((a, b) => a - b);
+  }
+  if (key === "to_sorted_array") {
+    if (set === null) return undefined;
+    return set.elements();
+  }
+
+  // first/last + min/max
+  if (key === "first_key" && map !== null) return map.firstKey() ?? null;
+  if (key === "last_key" && map !== null) return map.lastKey() ?? null;
+  if (key === "first" && set !== null) return set.first() ?? null;
+  if (key === "last" && set !== null) return set.last() ?? null;
+  if (key === "min")
+    return map !== null ? (map.firstKey() ?? null) : (set!.first() ?? null);
+  if (key === "max")
+    return map !== null ? (map.lastKey() ?? null) : (set!.last() ?? null);
+
+  // point-nav: floor/ceiling/lower/higher
+  {
+    const nav = key.match(/^(floor|ceiling|lower|higher)_(-?\d+)$/);
+    if (nav) {
+      const n = parseInt(nav[2], 10);
+      let r: number | undefined;
+      if (map !== null) {
+        r =
+          nav[1] === "floor"
+            ? map.floorKey(n)
+            : nav[1] === "ceiling"
+              ? map.ceilingKey(n)
+              : nav[1] === "lower"
+                ? map.lowerKey(n)
+                : map.higherKey(n);
+      } else {
+        r =
+          nav[1] === "floor"
+            ? set!.floor(n)
+            : nav[1] === "ceiling"
+              ? set!.ceiling(n)
+              : nav[1] === "lower"
+                ? set!.lower(n)
+                : set!.higher(n);
+      }
+      return r === undefined ? null : r;
+    }
+  }
+
+  // descending iteration (required, not optional)
+  if (key === "descending_keys" && map !== null) return map.descendingKeys();
+  if (key === "descending_elements" && set !== null)
+    return set.descendingElements();
+
+  // range_* assertions reference the scenario-level `query`. With no query the
+  // key is unknown for this scenario -> SKIP (forward-compat).
+  if (
+    key === "range_keys" ||
+    key === "range_elements" ||
+    key === "range_keys_desc" ||
+    key === "range_elements_desc" ||
+    key === "range_size"
+  ) {
+    if (query === null) return undefined;
+    if (key === "range_keys" && map !== null) return map.rangeKeys(query);
+    if (key === "range_elements" && set !== null)
+      return set.rangeElements(query);
+    if (key === "range_keys_desc" && map !== null)
+      return map.descendingRangeKeys(query);
+    if (key === "range_elements_desc" && set !== null)
+      return set.descendingRangeElements(query);
+    if (key === "range_size") {
+      return map !== null
+        ? map.rangeKeys(query).length
+        : set!.rangeElements(query).length;
+    }
+    return undefined;
+  }
+
+  // order statistics: rank_<k> (signed) / select_<i> (non-negative)
+  {
+    const m = key.match(/^rank_(-?\d+)$/);
+    if (m) {
+      const k = parseInt(m[1], 10);
+      return map !== null ? map.rank(k) : set!.rank(k);
+    }
+  }
+  {
+    const m = key.match(/^select_(\d+)$/);
+    if (m) {
+      const i = parseInt(m[1], 10);
+      const r = map !== null ? map.selectKey(i) : set!.select(i);
+      return r === undefined ? null : r;
+    }
+  }
+
+  return undefined; // unknown assertion key -> SKIP (forward-compat)
+}
+
+function runSortedTable(scenario: Scenario, isMap: boolean): void {
+  const coll = buildSortedTable(scenario, isMap);
+  if (coll === null) {
+    // Malformed (zero/multiple from_sorted ops or missing arrays) -> SKIP.
+    console.error(
+      `skip: malformed sorted-table scenario (need exactly one from_sorted op): ${scenario.name}`,
+    );
+    return;
+  }
+  const query: Range<number> | null = scenario.query
+    ? buildRangeObj(scenario.query)
+    : null;
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalSortedTableAssertion(key, coll, query);
+    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
+    emit(
+      scenario.name,
+      key,
+      formatValue(computed),
+      scenario.assertions[key],
+      false,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HashPipeline (spec/features/hash-pipeline.md)
+//
+// A stateless probe (not a stored collection): exactly ONE hash op carries the
+// input + seed under test; the assertions read the deterministic hash output.
+// Outputs are serialized as fixed-width, lower-case, `0x`-prefixed hex strings
+// (8 digits for a u32, 16 for a u64) so a 64-bit hash survives the JSON `2^53`
+// ceiling. `positions` is an int[] in derivation order (NOT sorted). Unknown
+// ops/keys SKIP (forward-compat).
+// ---------------------------------------------------------------------------
+
+// Parse a `seed` operand: a DECIMAL STRING parsed straight to a U64 lane pair
+// via BigInt, NEVER through a JS number/float (which would collapse seeds above
+// 2^53). A bare JSON number is accepted only for small (safe-integer) seeds.
+function parseSeedU64(v: unknown): U64 {
+  let n: bigint;
+  if (typeof v === "string") {
+    // Decimal-only grammar, matching the Rust runner's `s.parse::<u64>()`.
+    // BigInt() would otherwise also accept 0x.. / 0o.. / 0b.. forms, diverging
+    // from the reference (which requires a plain decimal seed string).
+    if (!/^[0-9]+$/.test(v)) {
+      throw new Error(`invalid u64 decimal-string seed: ${v}`);
+    }
+    n = BigInt(v);
+  } else if (typeof v === "number") {
+    if (!Number.isSafeInteger(v)) {
+      throw new Error(
+        `bare seed number ${v} is not a safe integer; encode large seeds as a decimal string`,
+      );
+    }
+    n = BigInt(v);
+  } else {
+    throw new Error(`expected u64 seed (decimal string or number)`);
+  }
+  if (n < 0n || n > 0xffffffffffffffffn) {
+    throw new Error(`seed out of u64 range [0, 2^64-1]: ${v}`);
+  }
+  return {
+    hi: Number((n >> 32n) & 0xffffffffn) >>> 0,
+    lo: Number(n & 0xffffffffn) >>> 0,
+  };
+}
+
+// Parse a `0x`-prefixed hex word operand to a U64 lane pair (the caller narrows
+// to a u32 number where the op needs a 32-bit word).
+function parseHexWordU64(v: unknown): U64 {
+  if (typeof v !== "string") {
+    throw new Error("hash-pipeline `word` must be a 0x-hex string");
+  }
+  if (!/^0x[0-9a-fA-F]+$/.test(v) || v.length > 18) {
+    throw new Error(`invalid hex word (must be 0x + <=16 hex digits): ${v}`);
+  }
+  const n = BigInt(v);
+  return {
+    hi: Number((n >> 32n) & 0xffffffffn) >>> 0,
+    lo: Number(n & 0xffffffffn) >>> 0,
+  };
+}
+
+// Parse a `0x`-hex byte string (e.g. "0x01020304") to a Uint8Array.
+function parseHexBytes(v: unknown): Uint8Array {
+  if (typeof v !== "string") {
+    throw new Error("hash-pipeline `bytes` must be a 0x-hex string");
+  }
+  const body = v.replace(/^0[xX]/, "");
+  if (body === v || body.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(body)) {
+    throw new Error(`invalid 0x-hex byte string: ${v}`);
+  }
+  const out = new Uint8Array(body.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(body.slice(2 * i, 2 * i + 2), 16);
+  }
+  return out;
+}
+
+function u32Hex(h: number): string {
+  return "0x" + (h >>> 0).toString(16).padStart(8, "0");
+}
+function u64Hex(h: U64): string {
+  return (
+    "0x" +
+    (h.hi >>> 0).toString(16).padStart(8, "0") +
+    (h.lo >>> 0).toString(16).padStart(8, "0")
+  );
+}
+
+// The probe a hash op builds. Word32/Word64 carry an already-computed hash;
+// I32/Bytes carry the logical input so EITHER the 32- or 64-bit form (incl.
+// lanes) can be asserted; Positions carries the derived-position array.
+type HashProbe =
+  | { kind: "word32"; h: number }
+  | { kind: "word64"; h: U64 }
+  | { kind: "i32"; value: number; seed: U64 }
+  | { kind: "bytes"; bytes: Uint8Array; seed: U64 }
+  | { kind: "positions"; p: number[] };
+
+// Evaluate one assertion key against the probe; returns undefined for an
+// unknown/unsupported key (forward-compat SKIP).
+function evalHashProbe(probe: HashProbe, key: string): string | undefined {
+  switch (probe.kind) {
+    case "word32":
+      return key === "hash32" ? u32Hex(probe.h) : undefined;
+    case "word64":
+      return evalH64(probe.h, key);
+    case "positions":
+      // Emitted in DERIVATION order (p_0 … p_{k-1}), NOT sorted.
+      return key === "positions"
+        ? `[${probe.p.map((x) => String(x)).join(",")}]`
+        : undefined;
+    case "i32":
+      if (key === "hash32") return u32Hex(hash32I32(probe.value, probe.seed));
+      if (key === "hash64" || key === "hash64_hi" || key === "hash64_lo") {
+        return evalH64(hash64I32(probe.value, probe.seed), key);
+      }
+      return undefined;
+    case "bytes":
+      if (key === "hash32") return u32Hex(hash32Bytes(probe.bytes, probe.seed));
+      if (key === "hash64" || key === "hash64_hi" || key === "hash64_lo") {
+        return evalH64(hash64Bytes(probe.bytes, probe.seed), key);
+      }
+      return undefined;
+  }
+}
+
+function evalH64(h: U64, key: string): string | undefined {
+  if (key === "hash64") return u64Hex(h);
+  if (key === "hash64_hi") return u32Hex(h.hi);
+  if (key === "hash64_lo") return u32Hex(h.lo);
+  return undefined;
+}
+
+// Render an expected hash-pipeline assertion value (a hex string for the hash
+// keys, an int[] for positions) into the runner's canonical string.
+function renderHashExpected(key: string, expected: unknown): string {
+  if (key === "positions" && Array.isArray(expected)) {
+    return `[${expected.map((e) => String(e)).join(",")}]`;
+  }
+  if (typeof expected === "string") return expected;
+  return String(expected);
+}
+
+function runHashPipeline(scenario: Scenario): void {
+  // Authoring rule: exactly ONE hash op. Zero or multiple => malformed => SKIP
+  // (like the sorted-table `from_sorted` rule). An unrecognised op kind also
+  // makes the scenario un-runnable here => SKIP (forward-compat).
+  if (scenario.operations.length !== 1) {
+    console.error(
+      `skip: hash-pipeline scenario must have exactly one op (forward-compat): got ${scenario.operations.length}`,
+    );
+    return;
+  }
+  const op = scenario.operations[0] as Operation & {
+    word?: unknown;
+    seed?: unknown;
+    bytes?: unknown;
+    m?: number;
+    k?: number;
+  };
+  let probe: HashProbe;
+  switch (op.op) {
+    case "hash_word32": {
+      const word = parseHexWordU64(op.word);
+      if (word.hi !== 0) {
+        throw new Error(`hash_word32 word exceeds 32 bits: ${op.word}`);
+      }
+      probe = {
+        kind: "word32",
+        h: hash32(word.lo >>> 0, parseSeedU64(op.seed)),
+      };
+      break;
+    }
+    case "hash_word64": {
+      probe = {
+        kind: "word64",
+        h: hash64(parseHexWordU64(op.word), parseSeedU64(op.seed)),
+      };
+      break;
+    }
+    case "hash_i32": {
+      probe = {
+        kind: "i32",
+        value: op.value as number,
+        seed: parseSeedU64(op.seed),
+      };
+      break;
+    }
+    case "hash_bytes": {
+      probe = {
+        kind: "bytes",
+        bytes: parseHexBytes(op.bytes),
+        seed: parseSeedU64(op.seed),
+      };
+      break;
+    }
+    case "positions": {
+      // The byte encoding of an i32 element drives positions: encode the i32 to
+      // its little-endian 4-byte form, then derive. No op-level seed (the scheme
+      // fixes the internal seeds 0 and SALT2).
+      const value = (op.value as number) >>> 0;
+      const bytes = new Uint8Array([
+        value & 0xff,
+        (value >>> 8) & 0xff,
+        (value >>> 16) & 0xff,
+        (value >>> 24) & 0xff,
+      ]);
+      probe = {
+        kind: "positions",
+        p: hashPositions(bytes, op.m as number, op.k as number),
+      };
+      break;
+    }
+    default:
+      console.error(
+        `skip: unknown hash-pipeline op (forward-compat): ${op.op}`,
+      );
+      return;
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalHashProbe(probe, key);
+    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
+    console.log(`${key}: ${computed}`);
+    const want = renderHashExpected(key, scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -1660,6 +2107,31 @@ function main(): void {
   // value type, not in the number-keyed Collection union).
   if (scenario.collection === "Range<i32>") {
     runRange(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // ImmutableSortedMap<i32, i32> / ImmutableSortedSet<i32> — the compact
+  // sorted-table-map types, built by a single `from_sorted` op and probed by
+  // the union of structural / navigable-map / rank-select assertion keys.
+  // Separate dispatch (the `from_sorted` op is a bulk construction, not in the
+  // mutate-an-existing-collection applyOperation model).
+  if (scenario.collection === "ImmutableSortedMap<i32, i32>") {
+    runSortedTable(scenario, true);
+    if (anyFail) process.exit(1);
+    return;
+  }
+  if (scenario.collection === "ImmutableSortedSet<i32>") {
+    runSortedTable(scenario, false);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // HashPipeline — the deterministic, byte-exact named hash (hash-pipeline.md).
+  // A stateless probe built by exactly one hash op; outputs are fixed-width hex
+  // strings (hash32/hash64) or an int[] (positions). Separate dispatch.
+  if (scenario.collection === "HashPipeline") {
+    runHashPipeline(scenario);
     if (anyFail) process.exit(1);
     return;
   }

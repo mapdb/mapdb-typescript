@@ -6,6 +6,22 @@
 
 
 /**
+ * The word index of bit position `bit` in the Uint32Array backing store:
+ * `floor(bit / 32)`.
+ *
+ * A bit index can range across the full u32 domain (`0 .. 2^32-1`), so `bit`
+ * can exceed `2^31`. A signed/unsigned shift (`bit >> 5` / `bit >>> 5`) first
+ * coerces `bit` to a 32-bit integer: for `bit >= 2^32` it wraps (e.g. `2^32`
+ * becomes `0`, aliasing word 0), and for `bit` in `[2^31, 2^32)` a signed `>>`
+ * goes negative. `Math.floor(bit / 32)` stays correct across the whole u32
+ * domain. (The bit-within-word mask `1 << (bit & 31)` is coercion-safe because
+ * the low 5 bits survive the int32 truncation unchanged.)
+ */
+export function wordIndex(bit: number): number {
+  return Math.floor(bit / 32);
+}
+
+/**
  * Compact bit-packed storage for booleans, backed by a Uint32Array
  * (JavaScript bitwise operators work on 32-bit integers).
  *
@@ -34,10 +50,29 @@ export class BitSet {
   }
 
   private wordIndex(bit: number): number {
-    return bit >>> 5;
+    return wordIndex(bit);
   }
   private wordMask(bit: number): number {
     return 1 << (bit & 31);
+  }
+
+  /**
+   * Validate a bit index against the cross-language bit-index domain: a
+   * non-negative integer (the typed ports take a `usize`, which is unsigned and
+   * has no fractional values). The `floor(bit / 32)` word index keeps the full
+   * non-negative integer range correct, so there is no u32 ceiling here —
+   * `set(2^32)` lands at its real word, not aliased to bit 0. What has no typed
+   * counterpart, and so must throw rather than be silently mis-handled, is a
+   * NON-INTEGER index (`set(1.5)` aliases bit 1 via `1.5 & 31 == 1`) or a
+   * NEGATIVE index (`set(-1)` writes to a negative TypedArray slot — a silent
+   * no-op). `Number.isSafeInteger` also rejects `NaN`/`±Infinity`.
+   */
+  private static validateBit(bit: number): void {
+    if (!Number.isSafeInteger(bit) || bit < 0) {
+      throw new RangeError(
+        `BitSet: bit index must be a non-negative safe integer, got ${String(bit)}`,
+      );
+    }
   }
 
   private ensure(bit: number): void {
@@ -52,12 +87,14 @@ export class BitSet {
 
   /** Sets the bit at `index` to 1. */
   set(bit: number): void {
+    BitSet.validateBit(bit);
     this.ensure(bit);
     this.words[this.wordIndex(bit)] |= this.wordMask(bit);
   }
 
   /** Clears the bit at `index`. Out-of-range indices are no-ops. */
   clearBit(bit: number): void {
+    BitSet.validateBit(bit);
     const wi = this.wordIndex(bit);
     if (wi >= this.words.length) return;
     this.words[wi] &= ~this.wordMask(bit);
@@ -65,12 +102,14 @@ export class BitSet {
 
   /** Flips the bit at `index`. */
   flip(bit: number): void {
+    BitSet.validateBit(bit);
     this.ensure(bit);
     this.words[this.wordIndex(bit)] ^= this.wordMask(bit);
   }
 
   /** Returns true if the bit at `index` is 1. Out-of-range returns false. */
   get(bit: number): boolean {
+    BitSet.validateBit(bit);
     const wi = this.wordIndex(bit);
     if (wi >= this.words.length) return false;
     return (this.words[wi] & this.wordMask(bit)) !== 0;
@@ -89,7 +128,7 @@ export class BitSet {
   /** Number of set bits. */
   get cardinality(): number {
     if (this._bitLength === 0) return 0;
-    const lastIdx = (this._bitLength - 1) >>> 5;
+    const lastIdx = this.wordIndex(this._bitLength - 1);
     let count = 0;
     for (let i = 0; i < this.words.length; i++) {
       let w = this.words[i];
@@ -167,7 +206,8 @@ export class BitSet {
 
   /** Returns the index of the next set bit at or after `from`, or -1. */
   nextSetBit(from: number): number {
-    let wi = from >>> 5;
+    BitSet.validateBit(from);
+    let wi = this.wordIndex(from);
     if (wi >= this.words.length) return -1;
     const offset = from & 31;
     let word = (this.words[wi] & (0xffffffff << offset)) >>> 0;
