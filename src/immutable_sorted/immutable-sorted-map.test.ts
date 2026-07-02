@@ -367,3 +367,52 @@ test("nav strictness on {10,20,30}", () => {
   expect(m.firstEntry()).toEqual([10, 1]);
   expect(m.lastEntry()).toEqual([30, 3]);
 });
+
+describe("ImmutableSorted i32 query / index validation (v1)", () => {
+  test("map key queries reject non-i32 keys (witness: get(1.5))", () => {
+    const m = ImmutableSortedMap.fromSorted([10, 20, 30], [1, 2, 3]);
+    // The typed ports take an i32 key; 1.5 would silently binary-search to a miss.
+    expect(() => m.get(1.5)).toThrow(RangeError);
+    expect(() => m.containsKey(1.5)).toThrow(RangeError);
+    expect(() => m.hasKey(NaN)).toThrow(RangeError);
+    expect(() => m.floorKey(1.5)).toThrow(RangeError);
+    expect(() => m.ceilingKey(1.5)).toThrow(RangeError);
+    expect(() => m.lowerKey(1.5)).toThrow(RangeError);
+    expect(() => m.higherKey(1.5)).toThrow(RangeError);
+    expect(() => m.rank(1.5)).toThrow(RangeError);
+    expect(() => m.get(2147483648)).toThrow(RangeError); // INT32_MAX + 1
+    expect(() => m.get(-2147483649)).toThrow(RangeError); // INT32_MIN - 1
+    // valid i32 keys still answer
+    expect(m.get(20)).toBe(2);
+    expect(m.floorKey(25)).toBe(20);
+  });
+
+  test("set element queries reject non-i32 elements", () => {
+    const s = ImmutableSortedSet.fromSorted([1, 5, 9]);
+    expect(() => s.contains(2.5)).toThrow(RangeError);
+    expect(() => s.has(2.5)).toThrow(RangeError);
+    expect(() => s.floor(2.5)).toThrow(RangeError);
+    expect(() => s.ceiling(2.5)).toThrow(RangeError);
+    expect(() => s.lower(2.5)).toThrow(RangeError);
+    expect(() => s.higher(2.5)).toThrow(RangeError);
+    expect(() => s.rank(2.5)).toThrow(RangeError);
+    expect(s.contains(5)).toBe(true);
+  });
+
+  test("select/selectKey/selectEntry return absence (no trap) for out-of-domain index", () => {
+    // spec/features/rank-select.md §"Exact semantics": signed-index ports (TS
+    // `number`) MUST return absence for `i < 0` and MUST NOT trap; out-of-domain
+    // `i` (negative or non-integer) is absence, exactly like `i >= size`.
+    const m = ImmutableSortedMap.fromSorted([10, 20, 30], [1, 2, 3]);
+    const s = ImmutableSortedSet.fromSorted([10, 20, 30]);
+    expect(m.selectKey(-1)).toBeUndefined();
+    expect(m.selectKey(1.5)).toBeUndefined();
+    expect(m.selectEntry(-1)).toBeUndefined();
+    expect(s.select(-1)).toBeUndefined();
+    expect(s.select(1.5)).toBeUndefined();
+    // in-range and out-of-range (>= size) non-negative integers behave as before
+    expect(m.selectKey(0)).toBe(10);
+    expect(m.selectKey(99)).toBeUndefined();
+    expect(s.select(99)).toBeUndefined();
+  });
+});
