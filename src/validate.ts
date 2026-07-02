@@ -42,6 +42,7 @@ import {
   hash64Bytes,
   positions as hashPositions,
 } from "./hash/hash.js";
+import { Bloom } from "./bloom/bloom.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,6 +58,10 @@ interface Operation {
   value?: number | string | { bits?: string };
   index?: number;
   delta?: number;
+  // Bloom `with_params` op + hash-pipeline `positions` op operands: the bit
+  // count `m` and hash count `k` (spec/features/bloom.md, hash-pipeline.md).
+  m?: number;
+  k?: number;
   // Range<i32> constructor operands (spec/features/bound-range.md).
   lower?: number;
   upper?: number;
@@ -2065,6 +2070,144 @@ function runHashPipeline(scenario: Scenario): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Bloom (spec/features/bloom.md)
+//
+// A new collection kind: "Bloom". A scenario's `operations` array begins with
+// EXACTLY ONE `with_params` op carrying the explicit (m, k) (never `optimal` —
+// the float trap is quarantined to native tests), then zero or more `add` ops.
+// Zero or multiple `with_params` ⇒ malformed ⇒ SKIP (the from_sorted /
+// HashPipeline rule). A `union` scenario carries a second filter in the
+// top-level `other` block (same with_params + add shape); the `union_*`
+// assertions then describe the union's bits.
+//
+// Assertion keys: bytes/union_bytes (0x-hex, byte 0 first), set_bits/
+// union_set_bits (sorted ascending), contains_<v>/union_contains_<v> (signed
+// i32 suffix), bit_count/union_bit_count, m_bits, k, is_empty. Unknown ops/keys
+// SKIP (forward-compat). m=0 / m,k out of range / union-param-mismatch guard to
+// SKIP.
+// ---------------------------------------------------------------------------
+
+// Build a Bloom filter from a scenario's (or `other` block's) operations:
+// exactly one `with_params` (else malformed → null → SKIP), then `add` ops.
+// Returns null on malformed structure or an out-of-range / m=0 construction
+// (guarded so the runner SKIPs rather than crashing).
+function buildBloom(ops: Operation[]): Bloom | null {
+  const withParams = ops.filter((o) => o.op === "with_params");
+  if (withParams.length !== 1 || ops[0]?.op !== "with_params") {
+    return null; // zero/multiple/misplaced with_params -> malformed -> SKIP
+  }
+  const wp = withParams[0];
+  const m = wp.m;
+  const k = wp.k;
+  if (typeof m !== "number" || typeof k !== "number") return null;
+  try {
+    const bloom = Bloom.withParams(m, k);
+    for (const op of ops) {
+      if (op.op === "with_params") continue;
+      if (op.op === "add") {
+        if (typeof op.value !== "number") return null;
+        bloom.add(op.value); // throws on a non-i32 value -> SKIP below
+      } else {
+        return null; // unknown op -> malformed -> SKIP (forward-compat)
+      }
+    }
+    return bloom;
+  } catch {
+    // m=0 / out-of-range construction, or a non-i32 add value -> malformed -> SKIP.
+    return null;
+  }
+}
+
+// Evaluate one Bloom assertion key. `self` is the primary filter; `other` is the
+// union partner (or null when the scenario has no `other` block). Returns
+// `undefined` for an unknown key (forward-compat SKIP).
+function evalBloomAssertion(
+  key: string,
+  self: Bloom,
+  other: Bloom | null,
+): unknown {
+  if (key === "m_bits") return self.mBits();
+  if (key === "k") return self.k();
+  if (key === "bit_count") return self.bitCount();
+  if (key === "is_empty") return self.isEmpty();
+  if (key === "set_bits") return self.setBits(); // already sorted ascending
+  if (key === "bytes") return self.toHex();
+
+  {
+    const m = key.match(/^contains_(-?\d+)$/);
+    if (m) return self.mightContain(parseInt(m[1], 10));
+  }
+
+  // union_* keys require the `other` partner; absent it the key is unknown for
+  // this scenario -> SKIP (forward-compat). union() throws on a param mismatch.
+  if (key.startsWith("union_")) {
+    if (other === null) return undefined;
+    const u = self.union(other);
+    if (key === "union_bit_count") return u.bitCount();
+    if (key === "union_set_bits") return u.setBits();
+    if (key === "union_bytes") return u.toHex();
+    const m = key.match(/^union_contains_(-?\d+)$/);
+    if (m) return u.mightContain(parseInt(m[1], 10));
+  }
+
+  return undefined; // unknown assertion key -> SKIP (forward-compat)
+}
+
+function runBloom(scenario: Scenario): void {
+  const self = buildBloom(scenario.operations);
+  if (self === null) {
+    console.error(
+      `skip: malformed Bloom scenario (need exactly one with_params op): ${scenario.name}`,
+    );
+    return;
+  }
+  let other: Bloom | null = null;
+  if (scenario.other) {
+    other = buildBloom(scenario.other.operations);
+    if (other === null) {
+      console.error(`skip: malformed Bloom 'other' filter: ${scenario.name}`);
+      return;
+    }
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    let computed: unknown;
+    try {
+      computed = evalBloomAssertion(key, self, other);
+    } catch {
+      // union param-mismatch (or similar) -> SKIP rather than crash the runner.
+      continue;
+    }
+    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
+    const got = formatValue(computed);
+    console.log(`${key}: ${got}`);
+    const want = renderBloomExpected(scenario.assertions[key]);
+    if (got !== want) {
+      console.log(`FAIL ${scenario.name} ${key}: expected=${want} got=${got}`);
+      anyFail = true;
+    }
+  }
+}
+
+// Render an expected Bloom assertion value into the runner's canonical string.
+// Bloom outputs are plain: a `0x`-hex byte STRING (bytes/union_bytes, compared
+// verbatim — NOT reinterpreted as an f32 like the generic renderExpected does),
+// a boolean (contains/is_empty), an int (bit_count/m_bits/k), or an int[]
+// (set_bits/union_set_bits).
+function renderBloomExpected(expected: unknown): string {
+  if (expected === null || expected === undefined) return "null";
+  if (typeof expected === "boolean") return expected ? "true" : "false";
+  if (typeof expected === "string") return expected; // 0x-hex byte string, verbatim
+  if (typeof expected === "number") return String(expected);
+  if (Array.isArray(expected)) {
+    return `[${expected.map((e) => String(e)).join(",")}]`;
+  }
+  return String(expected);
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -2132,6 +2275,16 @@ function main(): void {
   // strings (hash32/hash64) or an int[] (positions). Separate dispatch.
   if (scenario.collection === "HashPipeline") {
     runHashPipeline(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // Bloom — approximate set membership on the hash pipeline (bloom.md). A new
+  // collection kind, built by exactly one `with_params` op + `add` ops and
+  // probed by the bytes/set_bits/bit_count/contains_/union_* keys. Separate
+  // dispatch (the Bloom filter is not in the number-keyed Collection union).
+  if (scenario.collection === "Bloom") {
+    runBloom(scenario);
     if (anyFail) process.exit(1);
     return;
   }
