@@ -28,6 +28,7 @@ import { NumberNumberTreeMap } from "./treemap/number-number-tree-map.js";
 import { NumberArrayStack } from "./stack/number-array-stack.js";
 import { totalCmpNumber } from "./internal/float-order.js";
 import { Range, BoundType } from "./range/range.js";
+import { FenwickTree } from "./fenwick/fenwick.js";
 import {
   ImmutableSortedMap,
   ImmutableSortedSet,
@@ -2511,6 +2512,127 @@ function renderBloomExpected(expected: unknown): string {
   return String(expected);
 }
 
+// ---------------------------------------------------------------------------
+// FenwickTree runner (spec/features/fenwick.md)
+// ---------------------------------------------------------------------------
+
+function evalFenwickAssertion(
+  key: string,
+  tree: FenwickTree,
+): string | undefined {
+  if (key === "size") return String(tree.size());
+  if (key === "is_empty") return String(tree.isEmpty());
+  if (key === "total") return tree.total().toString();
+  if (key === "tree") {
+    return `[${tree
+      .canonicalTree()
+      .map((v) => v.toString())
+      .join(",")}]`;
+  }
+
+  const parseI32Index = (s: string): number | undefined => {
+    if (!/^[0-9]+$/.test(s)) return undefined;
+    const v = Number(s);
+    if (!Number.isInteger(v) || v < 0 || v > 2147483647) return undefined;
+    return v;
+  };
+
+  if (key.startsWith("get_")) {
+    const i = parseI32Index(key.slice(4));
+    return i === undefined ? undefined : tree.get(i).toString();
+  }
+  if (key.startsWith("prefix_sum_")) {
+    const i = parseI32Index(key.slice("prefix_sum_".length));
+    return i === undefined ? undefined : tree.prefixSum(i).toString();
+  }
+  if (key.startsWith("range_sum_")) {
+    const rest = key.slice("range_sum_".length);
+    const us = rest.indexOf("_");
+    if (us < 0) return undefined;
+    const lo = parseI32Index(rest.slice(0, us));
+    const hi = parseI32Index(rest.slice(us + 1));
+    if (lo === undefined || hi === undefined) return undefined;
+    return tree.rangeSum(lo, hi).toString();
+  }
+  return undefined;
+}
+
+function renderFenwickExpected(expected: unknown): string {
+  if (Array.isArray(expected)) {
+    return `[${expected.map((e) => String(e)).join(",")}]`;
+  }
+  return String(expected);
+}
+
+function runFenwick(scenario: Scenario): void {
+  const ops = scenario.operations;
+  if (ops.length === 0) {
+    console.error(
+      `skip: fenwick scenario must begin with a construction op (forward-compat): ${scenario.name}`,
+    );
+    return;
+  }
+
+  const first = ops[0] as Operation & { n?: number; values?: number[] };
+  let tree: FenwickTree;
+  if (first.op === "with_size") {
+    const n = typeof first.n === "number" ? first.n : -1;
+    if (!Number.isInteger(n) || n < 0) {
+      console.error(
+        `skip: fenwick with_size negative/invalid n (malformed): ${first.n}`,
+      );
+      return;
+    }
+    tree = FenwickTree.withSize(n);
+  } else if (first.op === "from_values") {
+    const vals = first.values;
+    if (!Array.isArray(vals)) {
+      console.error("skip: fenwick from_values needs a values array");
+      return;
+    }
+    tree = FenwickTree.fromValues(vals);
+  } else {
+    console.error(
+      `skip: fenwick first op must be with_size/from_values (forward-compat): ${first.op}`,
+    );
+    return;
+  }
+
+  for (let k = 1; k < ops.length; k++) {
+    const op = ops[k] as Operation & {
+      index?: number;
+      delta?: number;
+      value?: number;
+    };
+    if (op.op === "update") {
+      tree.update(op.index as number, op.delta as number);
+    } else if (op.op === "set") {
+      tree.set(op.index as number, op.value as number);
+    } else if (op.op === "with_size" || op.op === "from_values") {
+      console.error("skip: fenwick has a non-first construction op (malformed)");
+      return;
+    } else {
+      console.error(`skip: unknown fenwick op (forward-compat): ${op.op}`);
+      return;
+    }
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalFenwickAssertion(key, tree);
+    if (computed === undefined) continue;
+    console.log(`${key}: ${computed}`);
+    const want = renderFenwickExpected(scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   if (args.length < 1) {
@@ -2600,6 +2722,16 @@ function main(): void {
   // dispatch (the Bloom filter is not in the number-keyed Collection union).
   if (scenario.collection === "Bloom") {
     runBloom(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // FenwickTree — the fixed-size i32-element / i64-accumulator Binary Indexed
+  // Tree (spec/features/fenwick.md). Built by exactly one construction op
+  // first, then point updates/sets. Separate dispatch because its construction
+  // model is not the normal mutate-an-existing-collection path.
+  if (scenario.collection === "FenwickTree") {
+    runFenwick(scenario);
     if (anyFail) process.exit(1);
     return;
   }

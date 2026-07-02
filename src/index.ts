@@ -34,6 +34,7 @@ export { NumberNumberPair } from "./tuple/number-number-pair.js";
 export { BigIntBigIntPair } from "./tuple/bigint-bigint-pair.js";
 export { NumberInterval } from "./interval/number-interval.js";
 export { Range, BoundType, CutKind } from "./range/range.js";
+export { FenwickTree } from "./fenwick/fenwick.js";
 export * as hash from "./hash/hash.js";
 export type { U64 } from "./hash/hash.js";
 export { Bloom } from "./bloom/bloom.js";

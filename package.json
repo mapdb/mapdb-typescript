@@ -66,6 +66,10 @@
       "types": "./dist/bounded_lru/*.d.ts",
       "import": "./dist/bounded_lru/*.js"
     },
+    "./fenwick/*": {
+      "types": "./dist/fenwick/*.d.ts",
+      "import": "./dist/fenwick/*.js"
+    },
     "./immutable_sorted/*": {
       "types": "./dist/immutable_sorted/*.d.ts",
       "import": "./dist/immutable_sorted/*.js"
