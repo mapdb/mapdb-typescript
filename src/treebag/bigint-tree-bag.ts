@@ -51,7 +51,12 @@ export class BigIntTreeBag {
     }));
     bag._distinctSize = keys.length;
     let total = 0;
-    for (const c of counts) total += c;
+    for (const c of counts) {
+      total += c;
+      if (total > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError("bag count overflow during pump");
+      }
+    }
     bag._size = total;
     return bag;
   }

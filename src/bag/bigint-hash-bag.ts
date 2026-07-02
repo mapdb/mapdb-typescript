@@ -37,11 +37,6 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
   static bulkLoad(entries: Iterable<readonly [bigint, number]>): BigIntHashBag {
     const bag = new BigIntHashBag();
     for (const [value, count] of entries) {
-      if (count < 0) throw new RangeError("Occurrences must not be negative");
-      if (count === 0) continue;
-      if (bag._size + count > Number.MAX_SAFE_INTEGER) {
-        throw new RangeError("bag count overflow during pump");
-      }
       bag.addOccurrences(value, count);
     }
     return bag;
@@ -55,11 +50,20 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
 
   /** Adds the specified number of occurrences of the value. */
   addOccurrences(value: bigint, occurrences: number): void {
+    if (!Number.isSafeInteger(occurrences)) {
+      throw new RangeError("Occurrences must be a safe integer");
+    }
     if (occurrences < 0) {
       throw new RangeError("Occurrences must not be negative");
     }
     if (occurrences === 0) return;
     const current = this.counts.get(value) ?? 0;
+    if (current + occurrences > Number.MAX_SAFE_INTEGER) {
+      throw new RangeError("bag count overflow during pump");
+    }
+    if (this._size + occurrences > Number.MAX_SAFE_INTEGER) {
+      throw new RangeError("bag count overflow during pump");
+    }
     this.counts.set(value, current + occurrences);
     this._size += occurrences;
   }

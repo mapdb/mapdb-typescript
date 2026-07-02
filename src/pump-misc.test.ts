@@ -13,8 +13,6 @@ import { NumberNumberSetMultimap } from "./multimap/number-number-set-multimap.j
 import { BigIntBigIntListMultimap } from "./multimap/bigint-bigint-list-multimap.js";
 import { Int32ArrayList } from "./typed/arraylist/int32-array-list.js";
 import { Int32ArrayStack } from "./typed/stack/int32-array-stack.js";
-import { HashMap } from "./object/hashmap.js";
-import { HashSet } from "./object/hashset.js";
 import { PumpNotSortedError } from "./internal/pump.js";
 
 describe("Multimap pump (fromSorted)", () => {
@@ -205,20 +203,5 @@ describe("List / Stack pump (one allocation)", () => {
     const s = Int32ArrayStack.bulkLoad([1, 2, 3]);
     expect(s.size).toBe(3);
     expect(s.pop()).toBe(3);
-  });
-});
-
-describe("Object collections pump (native, convenience)", () => {
-  it("HashMap.bulkLoad delegates to Map", () => {
-    const m = HashMap.bulkLoad([
-      ["a", 1],
-      ["b", 2],
-    ]);
-    expect(m.get("a")).toBe(1);
-    expect(m.size).toBe(2);
-  });
-  it("HashSet.bulkLoad dedups", () => {
-    const s = HashSet.bulkLoad(["a", "a", "b"]);
-    expect(s.size).toBe(2);
   });
 });

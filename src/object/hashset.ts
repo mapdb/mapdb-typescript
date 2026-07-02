@@ -21,17 +21,6 @@ export class HashSet<T> implements MapDbMutableSet<T> {
     return new HashSet<T>(values);
   }
 
-  /**
-   * Bulk-loads a fresh set from `values`. This set is backed by a native `Set`,
-   * which has no caller-controllable capacity, so there is no pre-sized-table
-   * structural pump here — this is a convenience that delegates to the (already
-   * O(n)) `Set` constructor for API symmetry with the open-addressing
-   * collections. Duplicate values are deduplicated, matching `Set` semantics.
-   */
-  static bulkLoad<T>(values: Iterable<T>): HashSet<T> {
-    return new HashSet<T>(values);
-  }
-
   // ── MapDbMutableSet ─────────────────────────────────────────────────
 
   add(value: T): this {

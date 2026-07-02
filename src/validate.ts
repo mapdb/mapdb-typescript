@@ -1739,8 +1739,12 @@ function runI64Multimap(scenario: Scenario, m: I64Multimap): void {
   if (scenario.construction === "fromSortedKeyValues") {
     m =
       m instanceof BigIntNumberListMultimap
-        ? BigIntNumberListMultimap.fromSortedKeyValues(i64Pairs(scenario.operations))
-        : BigIntNumberSetMultimap.fromSortedKeyValues(i64Pairs(scenario.operations));
+        ? BigIntNumberListMultimap.fromSortedKeyValues(
+            i64Pairs(scenario.operations),
+          )
+        : BigIntNumberSetMultimap.fromSortedKeyValues(
+            i64Pairs(scenario.operations),
+          );
   } else {
     for (const op of scenario.operations) {
       switch (op.op) {
@@ -2480,6 +2484,31 @@ function runBloom(scenario: Scenario): void {
     other = buildBloom(scenario.other.operations);
     if (other === null) {
       console.error(`skip: malformed Bloom 'other' filter: ${scenario.name}`);
+      return;
+    }
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    let computed: unknown;
+    try {
+      computed = evalBloomAssertion(key, self, other);
+    } catch {
+      // union param-mismatch (or similar) -> SKIP rather than crash the runner.
+      continue;
+    }
+    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
+    const got = formatValue(computed);
+    console.log(`${key}: ${got}`);
+    const want = renderBloomExpected(scenario.assertions[key]);
+    if (got !== want) {
+      console.log(`FAIL ${scenario.name} ${key}: expected=${want} got=${got}`);
+      anyFail = true;
+    }
+  }
+}
+
 // RoaringU32 (spec/features/roaring-u32.md)
 //
 // A sparse, compressed u32 set. Scenario element values arrive as JSON i32
@@ -2642,17 +2671,6 @@ function runRoaring(scenario: Scenario): void {
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment") continue;
-    let computed: unknown;
-    try {
-      computed = evalBloomAssertion(key, self, other);
-    } catch {
-      // union param-mismatch (or similar) -> SKIP rather than crash the runner.
-      continue;
-    }
-    if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
-    const got = formatValue(computed);
-    console.log(`${key}: ${got}`);
-    const want = renderBloomExpected(scenario.assertions[key]);
     const computed = evalRoaringAssertion(key, s, other);
     if (computed === undefined) continue; // unknown key -> SKIP
     const got = formatValue(computed);
@@ -2781,7 +2799,9 @@ function runFenwick(scenario: Scenario): void {
     } else if (op.op === "set") {
       tree.set(op.index as number, op.value as number);
     } else if (op.op === "with_size" || op.op === "from_values") {
-      console.error("skip: fenwick has a non-first construction op (malformed)");
+      console.error(
+        "skip: fenwick has a non-first construction op (malformed)",
+      );
       return;
     } else {
       console.error(`skip: unknown fenwick op (forward-compat): ${op.op}`);
@@ -2826,7 +2846,9 @@ function buildHll(
         break;
       case "from_bytes":
         if (operations.length !== 1) {
-          console.error("skip: from_bytes must be the only op (forward-compat)");
+          console.error(
+            "skip: from_bytes must be the only op (forward-compat)",
+          );
           return null;
         }
         hll = HyperLogLog.fromBytes(parseHexBytes(first.bytes));
@@ -2907,6 +2929,15 @@ function runHyperLogLog(scenario: Scenario): void {
     if (computed === undefined) continue;
     console.log(`${key}: ${computed}`);
     const want = String(scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 // RangeSet<i32> / RangeMap<i32, i32> runners (spec/features/range-set-map.md).
 //
 // The auto-coalescing RangeSet / piecewise RangeMap. Routed through the
@@ -3107,6 +3138,15 @@ function runRangeSet(scenario: Scenario): void {
     if (computed === undefined) continue;
     console.log(`${key}: ${computed}`);
     const want = renderRangeExpected(expected);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 // CountMin (spec/features/count-min.md)
 //
 // A d×w integer counter matrix. Built by exactly ONE leading `with_params` op
@@ -3349,6 +3389,15 @@ function runRangeMap(scenario: Scenario): void {
     if (computed === undefined) continue;
     console.log(`${key}: ${computed}`);
     const want = renderRangeExpected(expected);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
 // Render an expected CountMin assertion value into the runner's canonical
 // string. `counters` is an array of decimal strings; scalar u64 keys
 // (total/estimate_<v>) arrive as a JSON string and render UNQUOTED;
@@ -3587,6 +3636,10 @@ function main(): void {
   // dispatch (the Bloom filter is not in the number-keyed Collection union).
   if (scenario.collection === "Bloom") {
     runBloom(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
   // CountMin — a d×w integer counter matrix (spec/features/count-min.md). Built
   // by exactly one leading `with_params` op; u64 counters/estimate/total are
   // decimal strings (the 2^64 range exceeds 2^53). Separate dispatch.
@@ -3611,12 +3664,20 @@ function main(): void {
   // register_at_N); the float estimate is intentionally not asserted here.
   if (scenario.collection === "HyperLogLog") {
     runHyperLogLog(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
   // RoaringU32 — the sparse compressed u32 set (roaring-u32.md). A standalone
   // dispatch: elements are unsigned u32 (reinterpreted from i32), serialized to
   // a byte-exact canonical image, and the set-algebra keys consume an optional
   // `other` RoaringU32. Separate from the number-keyed Collection union.
   if (scenario.collection === "RoaringU32") {
     runRoaring(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
   // SpaceSaving — a bounded heavy-hitters summary (spec/features/count-min.md).
   // Built by exactly one leading `with_capacity` op; adds applied IN LISTED
   // ORDER (order-dependent). Separate dispatch.

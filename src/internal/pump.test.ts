@@ -125,7 +125,7 @@ describe("hashCapacityFor", () => {
     }
   });
 
-  it("matches the spec formula nextPow2(floor(4n/3)+1)", () => {
+  it("matches the spec formula with the 16-slot hash floor", () => {
     const nextPow2 = (x: number) => {
       if (x <= 0) return 16;
       x--;
@@ -137,7 +137,9 @@ describe("hashCapacityFor", () => {
       return x + 1;
     };
     for (const n of [1, 2, 3, 6, 12, 24, 48, 96, 100, 1000]) {
-      expect(hashCapacityFor(n)).toBe(nextPow2(Math.floor((4 * n) / 3) + 1));
+      expect(hashCapacityFor(n)).toBe(
+        Math.max(16, nextPow2(Math.floor((4 * n) / 3) + 1)),
+      );
     }
   });
 });

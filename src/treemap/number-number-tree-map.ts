@@ -77,7 +77,14 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
       right: null,
       parent: null,
       color: BLACK,
+      size: 1,
     }));
+    const computeSize = (node: NumberNumberTreeMapNode | null): number => {
+      if (node === null) return 0;
+      node.size = 1 + computeSize(node.left) + computeSize(node.right);
+      return node.size;
+    };
+    computeSize(map.root);
     map._size = keys.length;
     return map;
   }

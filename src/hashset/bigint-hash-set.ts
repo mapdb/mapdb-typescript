@@ -99,9 +99,29 @@ export class BigIntHashSet implements MapDbMutableSet<bigint> {
   ): BigIntHashSet {
     const sized = values as { length?: number; size?: number };
     const hint = opts?.size ?? sized.length ?? sized.size;
-    const buffer = Array.from(values);
     if (hint !== undefined) checkExpectedSize(hint);
-    return BigIntHashSet.bulkLoadExact(buffer, buffer.length, opts);
+    const onDuplicate = opts?.onDuplicate ?? "error";
+    const set = new BigIntHashSet(hashCapacityFor(hint ?? 0));
+    let i = 0;
+    for (const value of values) {
+      if (set.needsResize()) set.resize();
+      let idx = set.hash(value) & (set.data.length - 1);
+      while (true) {
+        if (!set.occupied[idx]) {
+          set.data[idx] = value;
+          set.occupied[idx] = true;
+          set._size++;
+          break;
+        }
+        if (Object.is(set.data[idx], value)) {
+          if (onDuplicate === "error") throw new PumpDuplicateError(i);
+          break;
+        }
+        idx = (idx + 1) & (set.data.length - 1);
+      }
+      i++;
+    }
+    return set;
   }
 
   /** Adds a value to the set. Returns the set for chaining, like JS Set.add. */

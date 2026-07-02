@@ -52,7 +52,7 @@ describe("Hash pump (typed Int32Int32HashMap)", () => {
         const m = Int32Int32HashMap.bulkLoadExact(pairs, n);
         return capacityOf(m);
       })();
-      // nextPow2(floor(4n/3)+1)
+      // max(16, nextPow2(floor(4n/3)+1))
       const nextPow2 = (x: number) => {
         x--;
         x |= x >> 1;
@@ -62,7 +62,9 @@ describe("Hash pump (typed Int32Int32HashMap)", () => {
         x |= x >> 16;
         return x + 1;
       };
-      expect(capBefore).toBe(nextPow2(Math.floor((4 * n) / 3) + 1));
+      expect(capBefore).toBe(
+        Math.max(16, nextPow2(Math.floor((4 * n) / 3) + 1)),
+      );
       // re-run and confirm capacity is unchanged after the full load (no resize)
       const m = Int32Int32HashMap.bulkLoadExact(pairs, n);
       expect(capacityOf(m)).toBe(capBefore);

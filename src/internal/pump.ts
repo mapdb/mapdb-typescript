@@ -117,7 +117,7 @@ export function hashCapacityFor(n: number): number {
   if (required > MAX_POW2_CAPACITY) {
     throw new RangeError(`pump capacity for ${n} entries exceeds array limit`);
   }
-  return nextPow2(required);
+  return Math.max(16, nextPow2(required));
 }
 
 /**
@@ -161,7 +161,7 @@ export function buildRedBlack<N extends RbBuildNode>(
     level: number,
     parent: N | null,
   ): N => {
-    const mid = (lo + hi) >>> 1;
+    const mid = lo + Math.floor((hi - lo) / 2);
     const node = makeNode(mid);
     node.parent = parent;
     node.color = level === redLevel ? RED : BLACK;
