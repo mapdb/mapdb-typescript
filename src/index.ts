@@ -4,7 +4,6 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-
 export * from "./api/index.js";
 export * as object from "./object/index.js";
 export {
@@ -34,6 +33,8 @@ export { BigIntBigIntTreeMap } from "./treemap/bigint-bigint-tree-map.js";
 export { NumberNumberPair } from "./tuple/number-number-pair.js";
 export { BigIntBigIntPair } from "./tuple/bigint-bigint-pair.js";
 export { NumberInterval } from "./interval/number-interval.js";
+export { Range, BoundType, CutKind } from "./range/range.js";
+export type { Cut } from "./range/range.js";
 
 // Data pump (bulk import) shared surface: the thrown error classes, the
 // duplicate/size option types. Per-collection entry points are the static

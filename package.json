@@ -66,6 +66,10 @@
       "types": "./dist/priority_queue/*.d.ts",
       "import": "./dist/priority_queue/*.js"
     },
+    "./range/*": {
+      "types": "./dist/range/*.d.ts",
+      "import": "./dist/range/*.js"
+    },
     "./stack/*": {
       "types": "./dist/stack/*.d.ts",
       "import": "./dist/stack/*.js"
