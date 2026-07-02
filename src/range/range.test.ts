@@ -272,4 +272,17 @@ describe("Range i32 endpoint validation / canonicalization (v1)", () => {
   it("accepts the int32 boundaries", () => {
     expect(Range.closed(-2147483648, 2147483647).contains(0)).toBe(true);
   });
+
+  it("rejects non-i32 query points in contains (witness: open(1,2).contains(1.5))", () => {
+    // The four typed ports take an i32 query point and cannot express 1.5;
+    // answering `true` (1 < 1.5 < 2) would be a cross-language divergence.
+    expect(() => Range.open(1, 2).contains(1.5)).toThrow(RangeError);
+    expect(() => Range.closed(0, 10).contains(NaN)).toThrow(RangeError);
+    expect(() => Range.closed(0, 10).contains(Infinity)).toThrow(RangeError);
+    expect(() => Range.all().contains(2147483648)).toThrow(RangeError); // INT32_MAX + 1
+    expect(() => Range.all().contains(-2147483649)).toThrow(RangeError); // INT32_MIN - 1
+    // valid i32 points still answer
+    expect(Range.open(1, 3).contains(2)).toBe(true);
+    expect(Range.open(1, 2).contains(1)).toBe(false);
+  });
 });

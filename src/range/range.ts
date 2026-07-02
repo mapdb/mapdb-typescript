@@ -84,6 +84,19 @@ export type Cut<T> =
 const BELOW_ALL: Cut<never> = { kind: CutKind.BelowAll };
 const ABOVE_ALL: Cut<never> = { kind: CutKind.AboveAll };
 
+/**
+ * The `-∞` lower-cut sentinel, exported for the cut-region structures
+ * ({@link RangeSet} complement) that build ranges directly from cuts. Only ever
+ * a lower cut.
+ */
+export const BELOW_ALL_CUT: Cut<never> = BELOW_ALL;
+
+/**
+ * The `+∞` upper-cut sentinel, exported for the cut-region structures
+ * ({@link RangeSet} complement). Only ever an upper cut.
+ */
+export const ABOVE_ALL_CUT: Cut<never> = ABOVE_ALL;
+
 function below<T>(value: T): Cut<T> {
   return { kind: CutKind.Below, value };
 }
@@ -117,6 +130,35 @@ function i32Endpoint(v: number): number {
     );
   }
   return v === 0 ? 0 : v; // -0 === 0 is true → canonicalize -0 to +0
+}
+
+/**
+ * Validate a v1 `number` **query point** (the argument of `contains` /
+ * `rangeContaining` / RangeMap `get`/`getEntry`) against the signed-int32
+ * universe the four typed ports (Rust i32, Go int32, Zig i32, Java boxed
+ * Integer) share. The typed ports cannot even *express* a non-i32 point query —
+ * the parameter is statically `i32` — so `Range.open(1, 2).contains(1.5)` has no
+ * cross-language counterpart and must throw rather than silently answer (it
+ * would wrongly report `true` since `1 < 1.5 < 2` numerically, whereas no `i32`
+ * lies in `(1, 2)`). Mirrors {@link i32Endpoint}; throws on non-integer,
+ * non-finite, or out-of-int32-range. Float-point queries are a later widening.
+ */
+function i32Point(v: number): void {
+  if (!Number.isInteger(v) || v < -2147483648 || v > 2147483647) {
+    throw new RangeError(
+      `Range<i32>: query point must be a signed 32-bit integer, got ${String(v)}`,
+    );
+  }
+}
+
+/**
+ * Validate a v1 point-query argument for the {@link RangeSet}/{@link RangeMap}
+ * point queries, so the i32 check fires even when the structure is empty (and so
+ * never reaches a {@link Range.contains} call). Mirrors the in-range check in
+ * {@link Range.contains}; non-`number` `T` is left for the later widening.
+ */
+export function validateI32Point<T>(v: T): void {
+  if (typeof v === "number") i32Point(v);
 }
 
 /**
@@ -263,10 +305,56 @@ export class Range<T> {
     return Range.fromCuts(below(e), above(e));
   }
 
+  /**
+   * Construct a `Range` directly from two already-valid cuts (`lower <= upper`),
+   * **bypassing endpoint re-validation**. This is the cut-algebra constructor the
+   * {@link RangeSet} / {@link RangeMap} split / complement / clip paths use: the
+   * cuts they pass are derived from *existing* (already-validated) ranges via
+   * {@link lowerCut} / {@link upperCut} and {@link Cut} comparisons, never from
+   * `±1` endpoint arithmetic — so the `i32Endpoint` factory check is neither
+   * needed nor desired (it would reject the `BelowAll`/`AboveAll` sentinels that
+   * have no numeric endpoint). The `lower <= upper` invariant is still asserted.
+   *
+   * Mirrors the Rust reference's `Range::from_cuts_internal`. Not part of the
+   * public Guava-parity factory surface; it exists for the cut-region structures
+   * that own this file's cut model.
+   */
+  static fromCutsInternal<T>(lower: Cut<T>, upper: Cut<T>): Range<T> {
+    // The structures only ever pass i32 cuts (cmpNumber), and the cuts come
+    // from existing valid ranges, so the comparator is the numeric one.
+    if (compareCuts(lower, upper, cmpNumber as (a: T, b: T) => number) > 0) {
+      throw new RangeError("Range: lower cut must not exceed upper cut");
+    }
+    return new Range<T>(lower, upper, cmpNumber as (a: T, b: T) => number);
+  }
+
+  /**
+   * Total order on two cuts under the v1 `number`/i32 comparator — the single
+   * cut comparator the {@link RangeSet}/{@link RangeMap} cut algebra needs
+   * (coalescing position, complement gaps, clip boundaries). Returns
+   * negative / zero / positive. Exposed here so those structures reuse this
+   * file's one cut-order definition rather than re-deriving it (and never emit a
+   * bare `a < b`). For the float widening this routes through the IEEE-754
+   * total-order comparator, exactly as the factories will.
+   */
+  static compareCutsNumeric<T>(a: Cut<T>, b: Cut<T>): number {
+    return compareCuts(a, b, cmpNumber as (x: T, y: T) => number);
+  }
+
   // ---- queries ------------------------------------------------------------
 
-  /** Whether `x` falls within the range (normative `contains`). */
+  /**
+   * Whether `x` falls within the range (normative `contains`).
+   *
+   * In the v1 `number`/i32 specialisation, `x` is validated to be a signed
+   * 32-bit integer (the only point the four typed ports can express): a
+   * non-i32 such as `1.5` throws rather than silently answering, since the
+   * cross-language contract has no non-i32 query point. This is the single
+   * point-query choke point — {@link RangeSet.contains}/`rangeContaining` and
+   * {@link RangeMap.get}/`getEntry` all reduce to it.
+   */
   contains(x: T): boolean {
+    if (typeof x === "number") i32Point(x);
     const lo = this._lower;
     const lowerOk =
       lo.kind === CutKind.BelowAll

@@ -29,6 +29,8 @@ import { NumberArrayStack } from "./stack/number-array-stack.js";
 import { totalCmpNumber } from "./internal/float-order.js";
 import { Range, BoundType } from "./range/range.js";
 import { FenwickTree } from "./fenwick/fenwick.js";
+import { RangeSet } from "./range/range-set.js";
+import { RangeMap } from "./range/range-map.js";
 import {
   ImmutableSortedMap,
   ImmutableSortedSet,
@@ -2736,6 +2738,308 @@ function runHyperLogLog(scenario: Scenario): void {
     if (computed === undefined) continue;
     console.log(`${key}: ${computed}`);
     const want = String(scenario.assertions[key]);
+// RangeSet<i32> / RangeMap<i32, i32> runners (spec/features/range-set-map.md).
+//
+// The auto-coalescing RangeSet / piecewise RangeMap. Routed through the
+// PRODUCTION RangeSet / RangeMap — every assertion is proved against the real
+// cut-algebra coalescing/split/complement code, not re-derived here.
+//
+// A RangeSet/RangeMap is a STATEFUL structure built by a SEQUENCE of mutating
+// ops (unlike the single-op Range / sorted-table / hash-pipeline kinds):
+//   RangeSet: {"op":"add","range":{...}} / {"op":"remove_range","range":{...}}
+//             / {"op":"clear"}
+//   RangeMap: {"op":"put","range":{...},"value":N}
+//             / {"op":"put_coalescing","range":{...},"value":N}
+//             / {"op":"remove_range","range":{...}} / {"op":"clear"}
+// The optional top-level `query` (range-builder shape) supplies the range for
+// encloses_query / intersects_query / sub_range_set_ranges /
+// sub_range_map_entries. Unknown ops/keys/kinds SKIP (forward-compat).
+//
+// The as_ranges / complement_ranges / sub_range_set_ranges / as_map_of_ranges /
+// sub_range_map_entries arrays are EXPLICIT-ORDER (ascending by lower cut), each
+// carrying its own canonical order (NOT subject to the README "sort all arrays"
+// rule). Object-shaped assertions go through emitRangeJSON (compact-JSON
+// comparison) since the expected value is a nested object / array of objects.
+// ---------------------------------------------------------------------------
+
+// Serialise a Range as the fixed-shape assertion object
+// {"lower":..,"lower_type":..,"upper":..,"upper_type":..} — endpoints are the
+// i32 value or null when unbounded; *_type is "open"/"closed"/null. The key
+// order matches the scenario JSON so the compact-JSON comparison agrees.
+function rangeObjJSON(r: Range<number>): string {
+  return (
+    `{"lower":${optIntStr(r.lowerEndpoint())},` +
+    `"lower_type":${boundTypeJSONStr(r.lowerBoundType())},` +
+    `"upper":${optIntStr(r.upperEndpoint())},` +
+    `"upper_type":${boundTypeJSONStr(r.upperBoundType())}}`
+  );
+}
+
+// Serialise a (range, value) RangeMap entry: the range object plus a trailing
+// "value":<i32>.
+function entryObjJSON(r: Range<number>, value: number): string {
+  return (
+    `{"lower":${optIntStr(r.lowerEndpoint())},` +
+    `"lower_type":${boundTypeJSONStr(r.lowerBoundType())},` +
+    `"upper":${optIntStr(r.upperEndpoint())},` +
+    `"upper_type":${boundTypeJSONStr(r.upperBoundType())},` +
+    `"value":${String(value)}}`
+  );
+}
+
+// A bound type as a quoted JSON "open"/"closed" or null.
+function boundTypeJSONStr(bt: BoundType | null): string {
+  if (bt === BoundType.Open) return '"open"';
+  if (bt === BoundType.Closed) return '"closed"';
+  return "null";
+}
+
+function rangeArrayJSON(ranges: Range<number>[]): string {
+  return `[${ranges.map(rangeObjJSON).join(",")}]`;
+}
+
+function entryArrayJSON(entries: [Range<number>, number][]): string {
+  return `[${entries.map(([r, v]) => entryObjJSON(r, v)).join(",")}]`;
+}
+
+// Print and compare a computed range-object (or array-of-objects) assertion
+// against the COMPACTED expected JSON. The standard emit path is bypassed
+// because the expected value is a nested object; compacting it (via
+// JSON.stringify, which preserves source key order, matching rangeObjJSON's
+// fixed order) is the byte-for-byte oracle the Rust runner gets from
+// serde_json::to_string().
+function compareRangeJSON(
+  name: string,
+  key: string,
+  computed: string,
+  expected: unknown,
+): void {
+  console.log(`${key}: ${computed}`);
+  // Re-serialise the expected JSON value to its compact form (no whitespace),
+  // preserving source key order so the byte comparison matches rangeObjJSON.
+  const want = JSON.stringify(expected);
+  if (computed !== want) {
+    console.log(`FAIL ${name} ${key}: expected=${want} got=${computed}`);
+    anyFail = true;
+  }
+}
+
+// Parse a signed base-10 i32 suffix (leading '-' allowed, rejects '+') from a
+// <prefix><N> key — the contains_<v> / get_<v> / range_containing_<v> /
+// get_entry_<v> convention. Returns the i32 or null on no match.
+function signedI32Suffix(key: string, prefix: string): number | null {
+  if (!key.startsWith(prefix)) return null;
+  const rest = key.slice(prefix.length);
+  // Reject '+' and any non-[-,0-9] form; the suffix is a signed base-10 int.
+  if (!/^-?\d+$/.test(rest)) return null;
+  const n = parseInt(rest, 10);
+  if (n < -2147483648 || n > 2147483647) return null;
+  return n;
+}
+
+function runRangeSet(scenario: Scenario): void {
+  const set = new RangeSet<number>();
+  for (const op of scenario.operations) {
+    switch (op.op) {
+      case "add":
+        if (op.range) set.add(buildRangeObj(op.range));
+        break;
+      case "remove_range":
+        if (op.range) set.remove(buildRangeObj(op.range));
+        break;
+      case "clear":
+        set.clear();
+        break;
+      default:
+        // Forward-compat: unknown op kinds skip (do not crash the runner).
+        break;
+    }
+  }
+  const query: Range<number> | null = scenario.query
+    ? buildRangeObj(scenario.query)
+    : null;
+  const span = set.span();
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const expected = scenario.assertions[key];
+
+    // Object-shaped / explicit-order assertions go through compareRangeJSON.
+    if (key === "as_ranges") {
+      compareRangeJSON(
+        scenario.name,
+        key,
+        rangeArrayJSON(set.asRanges()),
+        expected,
+      );
+      continue;
+    }
+    if (key === "complement_ranges") {
+      compareRangeJSON(
+        scenario.name,
+        key,
+        rangeArrayJSON(set.complement().asRanges()),
+        expected,
+      );
+      continue;
+    }
+    if (key === "sub_range_set_ranges") {
+      if (query === null) continue; // no query -> skip
+      compareRangeJSON(
+        scenario.name,
+        key,
+        rangeArrayJSON(set.subRangeSet(query).asRanges()),
+        expected,
+      );
+      continue;
+    }
+    {
+      const n = signedI32Suffix(key, "range_containing_");
+      if (n !== null) {
+        const r = set.rangeContaining(n);
+        compareRangeJSON(
+          scenario.name,
+          key,
+          r === undefined ? "null" : rangeObjJSON(r),
+          expected,
+        );
+        continue;
+      }
+    }
+
+    // Scalar assertions go through the standard emit path.
+    const computed: string | undefined = (() => {
+      switch (key) {
+        case "is_empty":
+          return String(set.isEmpty());
+        case "span_lower":
+          return span === undefined ? "null" : optIntStr(span.lowerEndpoint());
+        case "span_upper":
+          return span === undefined ? "null" : optIntStr(span.upperEndpoint());
+        case "span_lower_type":
+          return span === undefined
+            ? "null"
+            : boundTypeStr(span.lowerBoundType());
+        case "span_upper_type":
+          return span === undefined
+            ? "null"
+            : boundTypeStr(span.upperBoundType());
+        case "encloses_query":
+          return query === null ? undefined : String(set.encloses(query));
+        case "intersects_query":
+          return query === null ? undefined : String(set.intersects(query));
+      }
+      const n = signedI32Suffix(key, "contains_");
+      if (n !== null) return String(set.contains(n));
+      return undefined; // unknown key -> skip
+    })();
+    if (computed === undefined) continue;
+    console.log(`${key}: ${computed}`);
+    const want = renderRangeExpected(expected);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
+function runRangeMap(scenario: Scenario): void {
+  const map = new RangeMap<number, number>();
+  for (const op of scenario.operations) {
+    switch (op.op) {
+      case "put":
+        if (op.range) map.put(buildRangeObj(op.range), op.value as number);
+        break;
+      case "put_coalescing":
+        if (op.range)
+          map.putCoalescing(buildRangeObj(op.range), op.value as number);
+        break;
+      case "remove_range":
+        if (op.range) map.remove(buildRangeObj(op.range));
+        break;
+      case "clear":
+        map.clear();
+        break;
+      default:
+        break;
+    }
+  }
+  const query: Range<number> | null = scenario.query
+    ? buildRangeObj(scenario.query)
+    : null;
+  const span = map.span();
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const expected = scenario.assertions[key];
+
+    if (key === "as_map_of_ranges") {
+      compareRangeJSON(
+        scenario.name,
+        key,
+        entryArrayJSON(map.asMapOfRanges()),
+        expected,
+      );
+      continue;
+    }
+    if (key === "sub_range_map_entries") {
+      if (query === null) continue;
+      compareRangeJSON(
+        scenario.name,
+        key,
+        entryArrayJSON(map.subRangeMap(query).asMapOfRanges()),
+        expected,
+      );
+      continue;
+    }
+    {
+      // get_entry_<v> MUST be checked before get_<v> ("get_" is a prefix of it).
+      const n = signedI32Suffix(key, "get_entry_");
+      if (n !== null) {
+        const e = map.getEntry(n);
+        compareRangeJSON(
+          scenario.name,
+          key,
+          e === undefined ? "null" : entryObjJSON(e[0], e[1]),
+          expected,
+        );
+        continue;
+      }
+    }
+
+    const computed: string | undefined = (() => {
+      switch (key) {
+        case "is_empty":
+          return String(map.isEmpty());
+        case "span_lower":
+          return span === undefined ? "null" : optIntStr(span.lowerEndpoint());
+        case "span_upper":
+          return span === undefined ? "null" : optIntStr(span.upperEndpoint());
+        case "span_lower_type":
+          return span === undefined
+            ? "null"
+            : boundTypeStr(span.lowerBoundType());
+        case "span_upper_type":
+          return span === undefined
+            ? "null"
+            : boundTypeStr(span.upperBoundType());
+      }
+      const n = signedI32Suffix(key, "get_");
+      if (n !== null) {
+        const v = map.get(n);
+        return v === undefined ? "null" : String(v);
+      }
+      return undefined;
+    })();
+    if (computed === undefined) continue;
+    console.log(`${key}: ${computed}`);
+    const want = renderRangeExpected(expected);
     if (computed !== want) {
       console.log(
         `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
@@ -2787,6 +3091,21 @@ function main(): void {
   // value type, not in the number-keyed Collection union).
   if (scenario.collection === "Range<i32>") {
     runRange(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // RangeSet<i32> / RangeMap<i32, i32> — the auto-coalescing interval set /
+  // piecewise interval->value map (spec/features/range-set-map.md). Stateful
+  // structures built by a SEQUENCE of mutating ops; separate dispatch (they
+  // own the cut-region algebra, not in the number-keyed Collection union).
+  if (scenario.collection === "RangeSet<i32>") {
+    runRangeSet(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+  if (scenario.collection === "RangeMap<i32, i32>") {
+    runRangeMap(scenario);
     if (anyFail) process.exit(1);
     return;
   }

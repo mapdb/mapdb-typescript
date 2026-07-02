@@ -4,5 +4,14 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-export { Range, BoundType, CutKind } from "./range.js";
+export {
+  Range,
+  BoundType,
+  CutKind,
+  BELOW_ALL_CUT,
+  ABOVE_ALL_CUT,
+} from "./range.js";
 export type { Cut } from "./range.js";
+export { RangeSet } from "./range-set.js";
+export { RangeMap } from "./range-map.js";
+export type { RangeMapEntry } from "./range-map.js";
