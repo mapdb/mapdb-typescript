@@ -251,7 +251,10 @@ export class BigIntTreeSet implements MapDbMutableSet<bigint> {
     yield* this.values();
   }
 
-  select(pred: (v: bigint) => boolean): BigIntTreeSet {
+  // Functional filtering. Named `selectWhere` (not `select`) because the bare
+  // `select` name is reserved for the order-statistic select (i-th smallest)
+  // per spec/features/rank-select.md.
+  selectWhere(pred: (v: bigint) => boolean): BigIntTreeSet {
     const r = new BigIntTreeSet();
     for (const v of this.values()) if (pred(v)) r.add(v);
     return r;

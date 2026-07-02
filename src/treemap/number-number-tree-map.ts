@@ -24,6 +24,18 @@ interface NumberNumberTreeMapNode {
   right: NumberNumberTreeMapNode | null;
   parent: NumberNumberTreeMapNode | null;
   color: boolean;
+  /**
+   * Number of nodes in the subtree rooted here (this node plus both children's
+   * subtrees), maintained in O(1) on every structural change — insert, remove,
+   * and all rotations — so order-statistic rank/select run in O(log n).
+   * Invariant after any operation: `size === 1 + size(left) + size(right)`.
+   */
+  size: number;
+}
+
+/** Subtree size of a node link (`0` if null). */
+function nodeSize(n: NumberNumberTreeMapNode | null): number {
+  return n === null ? 0 : n.size;
 }
 
 /**
@@ -80,6 +92,7 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
         right: null,
         parent: null,
         color: BLACK,
+        size: 1,
       };
       this._size++;
       return this;
@@ -96,7 +109,9 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
             right: null,
             parent: node,
             color: RED,
+            size: 1,
           };
+          this.incSizeToRoot(node);
           this.fixAfterInsert(node.left);
           this._size++;
           return this;
@@ -111,7 +126,9 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
             right: null,
             parent: node,
             color: RED,
+            size: 1,
           };
+          this.incSizeToRoot(node);
           this.fixAfterInsert(node.right);
           this._size++;
           return this;
@@ -417,6 +434,93 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
     return result;
   }
 
+  // ── order statistics (rank / select) ────────────────────────────────
+  //
+  // Backed by the per-node subtree-size augmentation; both run in O(log n) on
+  // the balanced tree. Comparisons go through the production totalCmpNumber,
+  // so the order is exactly in-order traversal order. Pure queries.
+
+  /**
+   * Returns the number of keys strictly less than `key` (the 0-based
+   * lower-bound index the key occupies if present, or would occupy if absent).
+   * Defined for present and absent keys alike; result is in `0..=size`.
+   */
+  rank(key: number): number {
+    let rank = 0;
+    let node = this.root;
+    while (node) {
+      const cmp = totalCmpNumber(key, node.key);
+      if (cmp < 0) {
+        node = node.left;
+      } else if (cmp > 0) {
+        rank += 1 + nodeSize(node.left);
+        node = node.right;
+      } else {
+        return rank + nodeSize(node.left);
+      }
+    }
+    return rank;
+  }
+
+  /**
+   * Returns the `i`-th smallest key (0-based), or `undefined` if `i >= size`
+   * (including on an empty map) or `i < 0`. No trap. Round-trips with
+   * {@link rank}: `selectKey(rank(k)) === k` for present `k`, and
+   * `rank(selectKey(i)) === i` for every `0 <= i < size`.
+   */
+  selectKey(i: number): number | undefined {
+    return this.selectNode(i)?.key;
+  }
+
+  /**
+   * Returns the `i`-th smallest `[key, value]` entry (0-based), or `undefined`
+   * if `i >= size` or `i < 0`. Same index domain as {@link selectKey}.
+   */
+  selectEntry(i: number): [number, number] | undefined {
+    const n = this.selectNode(i);
+    return n === null ? undefined : [n.key, n.value];
+  }
+
+  /**
+   * Walks to the node at 0-based sorted index `i`, or `null` if out of range
+   * (`i < 0` or `i >= size`). O(log n) via the subtree-size augmentation.
+   */
+  private selectNode(i: number): NumberNumberTreeMapNode | null {
+    if (i < 0) return null;
+    let node = this.root;
+    while (node) {
+      const left = nodeSize(node.left);
+      if (i < left) {
+        node = node.left;
+      } else if (i === left) {
+        return node;
+      } else {
+        i -= left + 1;
+        node = node.right;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Test-only: assert the subtree-size invariant `size === 1 + left + right`
+   * at every node and that the root total equals {@link size}.
+   */
+  checkSizeInvariant(): void {
+    const check = (n: NumberNumberTreeMapNode | null): number => {
+      if (n === null) return 0;
+      const l = check(n.left);
+      const r = check(n.right);
+      if (n.size !== 1 + l + r) {
+        throw new Error("subtree-size invariant violated");
+      }
+      return n.size;
+    };
+    if (check(this.root) !== this._size) {
+      throw new Error("root size mismatch with size");
+    }
+  }
+
   toString(): string {
     const parts: string[] = [];
     for (const [k, v] of this.entries()) parts.push(`${k}: ${v}`);
@@ -456,6 +560,10 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
     else x.parent.right = y;
     y.left = x;
     x.parent = y;
+    // `y` takes `x`'s former position so it inherits `x`'s old subtree size;
+    // recompute the demoted `x` from its children, then carry the total up.
+    y.size = x.size;
+    x.size = 1 + nodeSize(x.left) + nodeSize(x.right);
   }
 
   private rotateRight(x: NumberNumberTreeMapNode): void {
@@ -468,6 +576,24 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
     else x.parent.left = y;
     y.right = x;
     x.parent = y;
+    y.size = x.size;
+    x.size = 1 + nodeSize(x.left) + nodeSize(x.right);
+  }
+
+  /** Adds one to the subtree size of `node` and every ancestor. */
+  private incSizeToRoot(node: NumberNumberTreeMapNode | null): void {
+    for (let p = node; p !== null; p = p.parent) p.size++;
+  }
+
+  /**
+   * Recomputes the subtree size of `node` and every ancestor from their
+   * children. Used after a delete splice (rotations inside
+   * {@link fixAfterDelete} maintain their own sizes).
+   */
+  private fixSizeToRoot(node: NumberNumberTreeMapNode | null): void {
+    for (let p = node; p !== null; p = p.parent) {
+      p.size = 1 + nodeSize(p.left) + nodeSize(p.right);
+    }
   }
 
   private fixAfterInsert(z: NumberNumberTreeMapNode): void {
@@ -516,22 +642,30 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
       z.value = succ.value;
       z = succ;
     }
+    // `z` is now the node physically spliced out. `fixSizeFrom` is the lowest
+    // node whose cached subtree size must be refreshed; recomputing that path
+    // to the root once the structure is final restores the invariant.
+    let fixSizeFrom: NumberNumberTreeMapNode | null = null;
     const child = z.left ?? z.right;
     if (child) {
       child.parent = z.parent;
       if (!z.parent) this.root = child;
       else if (z === z.parent.left) z.parent.left = child;
       else z.parent.right = child;
+      fixSizeFrom = child;
       if (z.color === BLACK) this.fixAfterDelete(child);
     } else if (!z.parent) {
       this.root = null;
     } else {
       if (z.color === BLACK) this.fixAfterDelete(z);
+      // fixAfterDelete may have rotated `z` to a new parent; read it now.
+      fixSizeFrom = z.parent;
       if (z.parent) {
         if (z === z.parent.left) z.parent.left = null;
         else z.parent.right = null;
       }
     }
+    this.fixSizeToRoot(fixSizeFrom);
   }
 
   private fixAfterDelete(x: NumberNumberTreeMapNode): void {

@@ -147,6 +147,32 @@ export class TreeSet<T> {
     return this.tree.removeRange(range);
   }
 
+  // ── order statistics (rank / select) ────────────────────────────────
+
+  /**
+   * Returns the number of elements strictly less than `x` under the set's
+   * comparator — the 0-based lower-bound index `x` occupies (if present) or
+   * would occupy (if absent). Result is in `0..=size`. Pure query.
+   */
+  rank(x: T): number {
+    return this.tree.rank(x);
+  }
+
+  /**
+   * Returns the `i`-th smallest element (0-based), or `undefined` if
+   * `i >= size` (no trap on an empty set) or `i < 0`. Round-trips with
+   * {@link rank}: `select(rank(x)) === x` for present `x`, and
+   * `rank(select(i)) === i` for every `0 <= i < size`.
+   */
+  select(i: number): T | undefined {
+    return this.tree.selectKey(i);
+  }
+
+  /** Test-only: assert the subtree-size invariant of the backing tree. */
+  checkSizeInvariant(): void {
+    this.tree.checkSizeInvariant();
+  }
+
   // ── functional ──────────────────────────────────────────────────────
 
   forEach(fn: (value: T) => void): void {
@@ -159,7 +185,14 @@ export class TreeSet<T> {
     return result;
   }
 
-  select(predicate: (value: T) => boolean): TreeSet<T> {
+  /**
+   * Returns a new set of the elements matching the predicate.
+   *
+   * Named `selectWhere` (not `select`) so the bare `select` name is reserved
+   * for the order-statistic {@link select} (i-th smallest by 0-based rank),
+   * per `spec/features/rank-select.md`.
+   */
+  selectWhere(predicate: (value: T) => boolean): TreeSet<T> {
     const result = new TreeSet<T>(this.tree.cmp);
     this.forEach((v) => {
       if (predicate(v)) result.add(v);

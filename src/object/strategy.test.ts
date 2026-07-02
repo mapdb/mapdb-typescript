@@ -364,7 +364,7 @@ describe("TreeSet", () => {
   it("select and reject", () => {
     const s = new TreeSet<number>(naturalComparator());
     for (let i = 1; i <= 5; i++) s.add(i);
-    const evens = s.select((v) => v % 2 === 0);
+    const evens = s.selectWhere((v) => v % 2 === 0);
     expect(evens.toArray()).toEqual([2, 4]);
   });
 
