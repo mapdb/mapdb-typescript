@@ -70,6 +70,7 @@ export {
   type PumpOptions,
   type BulkLoadOptions,
 } from "./internal/pump.js";
+export { RoaringU32 } from "./roaring/roaring-u32.js";
 
 // Full typed primitive collection surface (mutable + immutable; all six
 // element types and 36 key×value hash-map pairs). See src/typed/index.ts.

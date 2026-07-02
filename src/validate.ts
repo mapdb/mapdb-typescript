@@ -40,6 +40,7 @@ import {
   BoundedLruMap,
   type EvictionCause,
 } from "./bounded_lru/bounded-lru-map.js";
+import { RoaringU32 } from "./roaring/roaring-u32.js";
 import {
   type U64,
   hash32,
@@ -484,7 +485,10 @@ function formatValue(v: unknown): string {
   if (Array.isArray(v)) {
     // Canonical no-space-after-comma format -- matches validate.rs,
     // cmd/validate/main.go, and validate.zig so harness diffs line up.
-    return `[${v.map((x) => formatValue(x)).join(",")}]`;
+    // String elements (e.g. container_types ["array","bitmap"]) are JSON-quoted
+    // by every other port's array formatter, so quote them here too; a bare
+    // top-level scalar string (serialized_hex "0x...") stays unquoted to match.
+    return `[${v.map((x) => (typeof x === "string" ? JSON.stringify(x) : formatValue(x))).join(",")}]`;
   }
   return String(v);
 }
@@ -2474,6 +2478,161 @@ function runBloom(scenario: Scenario): void {
     other = buildBloom(scenario.other.operations);
     if (other === null) {
       console.error(`skip: malformed Bloom 'other' filter: ${scenario.name}`);
+// RoaringU32 (spec/features/roaring-u32.md)
+//
+// A sparse, compressed u32 set. Scenario element values arrive as JSON i32
+// numbers and are bit-reinterpreted to u32 via `>>> 0` (NOT sign-extended), so
+// i32 -1 becomes 0xFFFFFFFF and sorts last under the set's unsigned ordering.
+// to_sorted_array / min / max / contains_<v> are emitted back as i32 (the u32
+// reinterpret narrowed via `| 0`) to match the scenario oracle, while the chunk
+// split / serialized order stay unsigned.
+//
+// Ops: add / remove / clear / add_range / remove_range / deserialize. A reversed
+// range, a `deserialize` op mixed with other ops, or a malformed hex `bytes`
+// SKIPs the whole scenario (authoring-rule posture, like from_sorted). Unknown
+// ops/keys SKIP (forward-compat).
+// ---------------------------------------------------------------------------
+
+// Parse a `0x`-hex byte string for a `deserialize` op; returns null on any
+// malformed input so the caller SKIPs the scenario.
+function parseRoaringHex(v: unknown): Uint8Array | null {
+  if (typeof v !== "string") return null;
+  const m = /^0[xX]([0-9a-fA-F]*)$/.exec(v);
+  if (m === null || m[1].length % 2 !== 0) return null;
+  const body = m[1];
+  const out = new Uint8Array(body.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(body.slice(2 * i, 2 * i + 2), 16);
+  }
+  return out;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  let s = "0x";
+  for (let i = 0; i < bytes.length; i++) {
+    s += bytes[i].toString(16).padStart(2, "0");
+  }
+  return s;
+}
+
+// Apply the scenario ops to a fresh RoaringU32. Returns the set, or null to
+// SKIP the scenario (reversed range / malformed deserialize / bad hex / a
+// `deserialize` op that is not the sole op).
+function buildRoaring(ops: Operation[]): RoaringU32 | null {
+  // A `deserialize` op must be the sole op in its scenario (authoring rule).
+  const hasDeserialize = ops.some((o) => o.op === "deserialize");
+  if (hasDeserialize && ops.length !== 1) return null;
+
+  const s = new RoaringU32();
+  for (const op of ops) {
+    const o = op as Operation & { from?: number; to?: number; bytes?: unknown };
+    switch (o.op) {
+      case "add":
+        s.add((o.value as number) >>> 0);
+        break;
+      case "remove":
+        s.remove((o.value as number) >>> 0);
+        break;
+      case "clear":
+        s.clear();
+        break;
+      case "add_range":
+      case "remove_range": {
+        const from = (o.from as number) >>> 0;
+        const to = (o.to as number) >>> 0;
+        // Reversed (unsigned) range -> malformed authoring -> SKIP.
+        if (from > to) return null;
+        if (o.op === "add_range") {
+          for (let v = from; v <= to; v++) s.add(v);
+        } else {
+          for (let v = from; v <= to; v++) s.remove(v);
+        }
+        break;
+      }
+      case "deserialize": {
+        const bytes = parseRoaringHex(o.bytes);
+        if (bytes === null) return null; // bad hex -> SKIP
+        try {
+          return RoaringU32.deserialize(bytes);
+        } catch {
+          // A malformed image inside a round-trip scenario is an authoring
+          // error (the JSON suite never deserializes a deliberately-corrupt
+          // image; rejection is a native-test obligation) -> SKIP.
+          return null;
+        }
+      }
+      default:
+        // Unknown op -> forward-compat SKIP of the whole scenario.
+        return null;
+    }
+  }
+  return s;
+}
+
+// Evaluate one assertion key against a RoaringU32 (and optional `other` set for
+// the set-algebra keys). Returns undefined for an unknown key (forward-compat
+// SKIP). Scalar element outputs (`min`/`max`/`contains_<v>`/`to_sorted_array`)
+// are narrowed to i32 via `| 0` to match the scenario oracle.
+function evalRoaringAssertion(
+  key: string,
+  s: RoaringU32,
+  other: RoaringU32 | null,
+): unknown {
+  if (key === "cardinality") return s.cardinality();
+  if (key === "is_empty") return s.isEmpty();
+  if (key === "chunk_count") return s.chunkCount();
+  if (key === "container_types") return s.containerTypes();
+  if (key === "serialized_len") return s.serialize().length;
+  if (key === "serialized_hex") return bytesToHex(s.serialize());
+  if (key === "to_sorted_array") return s.toSortedArray().map((v) => v | 0);
+  if (key === "min") {
+    const m = s.min();
+    return m === undefined ? null : m | 0;
+  }
+  if (key === "max") {
+    const m = s.max();
+    return m === undefined ? null : m | 0;
+  }
+  {
+    const m = /^contains_(-?\d+)$/.exec(key);
+    if (m) return s.contains(parseInt(m[1], 10) >>> 0);
+  }
+
+  // Set-algebra keys require `other`. Without it the key is unknown for this
+  // scenario -> SKIP.
+  if (other !== null) {
+    const algebra: Record<string, () => RoaringU32> = {
+      union: () => s.or(other),
+      intersect: () => s.and(other),
+      and_not: () => s.andNot(other),
+      xor: () => s.xor(other),
+    };
+    for (const name of Object.keys(algebra)) {
+      if (key === `${name}_serialized_hex`) {
+        return bytesToHex(algebra[name]().serialize());
+      }
+      if (key === `${name}_cardinality`) {
+        return algebra[name]().cardinality();
+      }
+    }
+  }
+
+  return undefined; // unknown key -> SKIP
+}
+
+function runRoaring(scenario: Scenario): void {
+  const s = buildRoaring(scenario.operations);
+  if (s === null) {
+    console.error(
+      `skip: malformed/forward-compat RoaringU32 scenario: ${scenario.name}`,
+    );
+    return;
+  }
+  let other: RoaringU32 | null = null;
+  if (scenario.other) {
+    other = buildRoaring(scenario.other.operations);
+    if (other === null) {
+      console.error(`skip: malformed RoaringU32 'other' set: ${scenario.name}`);
       return;
     }
   }
@@ -2492,6 +2651,14 @@ function runBloom(scenario: Scenario): void {
     const got = formatValue(computed);
     console.log(`${key}: ${got}`);
     const want = renderBloomExpected(scenario.assertions[key]);
+    const computed = evalRoaringAssertion(key, s, other);
+    if (computed === undefined) continue; // unknown key -> SKIP
+    const got = formatValue(computed);
+    console.log(`${key}: ${got}`);
+    // Roaring assertions are plain (hex/int strings, int arrays, ints, bools) —
+    // render expected with the same plain formatter, NOT the f32 string path in
+    // renderExpected (which would reinterpret serialized_hex as an f32 label).
+    const want = formatValue(scenario.assertions[key]);
     if (got !== want) {
       console.log(`FAIL ${scenario.name} ${key}: expected=${want} got=${got}`);
       anyFail = true;
@@ -3172,6 +3339,12 @@ function main(): void {
   // register_at_N); the float estimate is intentionally not asserted here.
   if (scenario.collection === "HyperLogLog") {
     runHyperLogLog(scenario);
+  // RoaringU32 — the sparse compressed u32 set (roaring-u32.md). A standalone
+  // dispatch: elements are unsigned u32 (reinterpreted from i32), serialized to
+  // a byte-exact canonical image, and the set-algebra keys consume an optional
+  // `other` RoaringU32. Separate from the number-keyed Collection union.
+  if (scenario.collection === "RoaringU32") {
+    runRoaring(scenario);
     if (anyFail) process.exit(1);
     return;
   }
