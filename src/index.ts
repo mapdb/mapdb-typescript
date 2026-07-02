@@ -42,6 +42,12 @@ export {
   ImmutableSortedMap,
   ImmutableSortedSet,
 } from "./immutable_sorted/immutable-sorted-map.js";
+export { BoundedLruMap } from "./bounded_lru/bounded-lru-map.js";
+export type {
+  EvictionCause,
+  EvictCallback,
+  BoundedLruMapOptions,
+} from "./bounded_lru/bounded-lru-map.js";
 
 // Data pump (bulk import) shared surface: the thrown error classes, the
 // duplicate/size option types. Per-collection entry points are the static

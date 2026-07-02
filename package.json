@@ -62,6 +62,10 @@
       "types": "./dist/interval/*.d.ts",
       "import": "./dist/interval/*.js"
     },
+    "./bounded_lru/*": {
+      "types": "./dist/bounded_lru/*.d.ts",
+      "import": "./dist/bounded_lru/*.js"
+    },
     "./immutable_sorted/*": {
       "types": "./dist/immutable_sorted/*.d.ts",
       "import": "./dist/immutable_sorted/*.js"

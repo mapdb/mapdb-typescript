@@ -33,6 +33,10 @@ import {
   ImmutableSortedSet,
 } from "./immutable_sorted/immutable-sorted-map.js";
 import {
+  BoundedLruMap,
+  type EvictionCause,
+} from "./bounded_lru/bounded-lru-map.js";
+import {
   type U64,
   hash32,
   hash64,
@@ -1267,6 +1271,305 @@ function looseNanMatch(
 }
 
 // ---------------------------------------------------------------------------
+// BoundedLruMap<i32, i32> runner — routes through the PRODUCTION BoundedLruMap
+// + a recording eviction callback (the load-bearing eviction LOG oracle). The
+// callback appends each (key, value, cause) triple in invocation order.
+//
+// Config (on the scenario object): `max_size` (required, non-negative) and
+// `ttl` (a logical-tick TTL, or null/absent for a pure max-size map). `now`/
+// `ttl` are decimal STRINGS if they exceed 2^53 (the i64-suite discipline) and
+// are carried as bigint — NEVER via a JS number (u64 ticks can exceed 2^53).
+//
+// Operations: put / put_at (put with `now`) / get / get_or_default /
+// contains_key / remove / clear / expire_entries / snapshot_keys /
+// snapshot_values / snapshot_entries, applied in listed order. The runner
+// records each op's result (put_results, get_results, get_or_default_results,
+// contains_results, remove_results, expired_counts) and each snapshot
+// (snapshot_keys_log, snapshot_values_log, snapshot_entries_log).
+//
+// Explicit-order assertion keys (emitted in LRU / invocation order, NEVER
+// re-sorted): lru_order_keys, lru_order_values, eviction_log, and the inner
+// arrays of the snapshot logs. The eviction_log element shape is
+// [key, value, "cause"] with cause the lower-case string "size"/"expired".
+// Assertion-time get_<k>/contains_<k>/lru_order_* reads are READ-ONLY (no
+// recency refresh): get_<k> is computed from the LRU-order snapshot, NOT
+// map.get (which WOULD refresh). Unknown ops / assertion keys SKIP.
+// ---------------------------------------------------------------------------
+
+// Parse a `now`/`ttl` tick operand into a u64 bigint: a decimal STRING (parsed
+// straight to bigint, never via a JS number/float) or a plain JSON number for
+// small values. Mirrors the i64-suite decimal-string discipline. Range-checked
+// to [0, 2^64-1] (the spec/Rust reference carries ticks as u64; an out-of-range
+// operand is a value no other port can represent).
+function parseLruTick(v: unknown): bigint {
+  let tick: bigint;
+  if (typeof v === "string") {
+    try {
+      tick = BigInt(v);
+    } catch {
+      throw new Error(`invalid u64 decimal-string tick: ${v}`);
+    }
+  } else if (typeof v === "number") {
+    if (!Number.isSafeInteger(v)) {
+      throw new Error(
+        `bare tick ${v} is not a safe integer; encode large ticks as a decimal string`,
+      );
+    }
+    tick = BigInt(v);
+  } else {
+    throw new Error(
+      `expected u64 tick (decimal string or number), got ${typeof v}`,
+    );
+  }
+  const U64_MAX = (1n << 64n) - 1n;
+  if (tick < 0n || tick > U64_MAX) {
+    throw new Error(`u64 tick out of range [0, 2^64-1]: ${tick}`);
+  }
+  return tick;
+}
+
+// Result logs accumulated while applying bounded-LRU operations, in execution
+// order — exactly as the NavigableMap runner records poll/remove_range.
+interface LruLog {
+  putResults: (number | undefined)[];
+  getResults: (number | undefined)[];
+  getOrDefaultResults: number[];
+  containsResults: boolean[];
+  removeResults: (number | undefined)[];
+  expiredCounts: number[];
+  snapshotKeysLog: number[][];
+  snapshotValuesLog: number[][];
+  snapshotEntriesLog: [number, number][][];
+}
+
+function runBoundedLru(scenario: Scenario): void {
+  // `max_size` / `ttl` live on the scenario object outside the typed Scenario
+  // fields; read them via a loose view.
+  const obj = scenario as unknown as {
+    max_size?: unknown;
+    ttl?: unknown;
+  };
+  if (typeof obj.max_size !== "number" || !Number.isInteger(obj.max_size)) {
+    throw new Error("BoundedLruMap scenario needs a non-negative max_size");
+  }
+  const maxSize = obj.max_size;
+  // ttl: null/absent => pure max-size map; otherwise a u64 logical tick.
+  const ttl: bigint | null =
+    obj.ttl === undefined || obj.ttl === null ? null : parseLruTick(obj.ttl);
+
+  // The recording eviction callback appends each (key, value, cause) triple to
+  // the shared eviction LOG — the load-bearing oracle.
+  const evictLog: [number, number, EvictionCause][] = [];
+  const map = new BoundedLruMap<number, number>({
+    maxSize,
+    ttl,
+    onEvict: (k, v, c) => evictLog.push([k, v, c]),
+  });
+
+  const log: LruLog = {
+    putResults: [],
+    getResults: [],
+    getOrDefaultResults: [],
+    containsResults: [],
+    removeResults: [],
+    expiredCounts: [],
+    snapshotKeysLog: [],
+    snapshotValuesLog: [],
+    snapshotEntriesLog: [],
+  };
+
+  for (const op of scenario.operations) {
+    const o = op as unknown as {
+      op: string;
+      key?: number;
+      value?: number;
+      now?: unknown;
+      default?: number;
+    };
+    switch (o.op) {
+      case "put": {
+        const k = o.key as number;
+        const v = o.value as number;
+        // An optional `now` makes this a put_at; absent => plain put (which is
+        // put_at(k, v, 0) — no hidden clock).
+        const prev =
+          o.now !== undefined && o.now !== null
+            ? map.putAt(k, v, parseLruTick(o.now))
+            : map.put(k, v);
+        log.putResults.push(prev);
+        break;
+      }
+      case "put_at": {
+        const k = o.key as number;
+        const v = o.value as number;
+        log.putResults.push(map.putAt(k, v, parseLruTick(o.now)));
+        break;
+      }
+      case "get":
+        log.getResults.push(map.get(o.key as number));
+        break;
+      case "get_or_default":
+        log.getOrDefaultResults.push(
+          map.getOrDefault(o.key as number, o.default as number),
+        );
+        break;
+      case "contains_key":
+        log.containsResults.push(map.containsKey(o.key as number));
+        break;
+      case "remove":
+        log.removeResults.push(map.remove(o.key as number));
+        break;
+      case "clear":
+        map.clear();
+        break;
+      case "expire_entries":
+        log.expiredCounts.push(map.expireEntries(parseLruTick(o.now)));
+        break;
+      // Mid-sequence read-only LRU-order snapshots: record the current contents
+      // WITHOUT refreshing recency or evicting.
+      case "snapshot_keys":
+        log.snapshotKeysLog.push(map.keys());
+        break;
+      case "snapshot_values":
+        log.snapshotValuesLog.push(map.values());
+        break;
+      case "snapshot_entries":
+        log.snapshotEntriesLog.push(map.entries());
+        break;
+      // Forward-compat: an unknown op must not crash; skip it.
+      default:
+        break;
+    }
+  }
+
+  console.log(`=== scenario: ${scenario.name} ===`);
+
+  for (const key of Object.keys(scenario.assertions)) {
+    if (key === "comment") continue;
+    const computed = evalLruAssertion(key, map, log, evictLog);
+    if (computed === undefined) continue; // unknown key -> skip (forward-compat)
+    console.log(`${key}: ${computed}`);
+    const want = renderLruExpected(key, scenario.assertions[key]);
+    if (computed !== want) {
+      console.log(
+        `FAIL ${scenario.name} ${key}: expected=${want} got=${computed}`,
+      );
+      anyFail = true;
+    }
+  }
+}
+
+// Render a `(number|undefined)[]` array, `null` for absence, explicit order.
+function lruOptArray(v: (number | undefined)[]): string {
+  return `[${v.map((x) => (x === undefined ? "null" : String(x))).join(",")}]`;
+}
+
+// Render an array-of-int-arrays (the snapshot key/value logs), inner arrays in
+// their recorded explicit (LRU) order, NOT sorted.
+function lruArrayOfArrays(v: number[][]): string {
+  return `[${v.map((inner) => `[${inner.join(",")}]`).join(",")}]`;
+}
+
+// Render the snapshot_entries log: an array of LRU-order [[k,v],...] arrays.
+function lruArrayOfPairArrays(v: [number, number][][]): string {
+  return `[${v
+    .map((inner) => `[${inner.map(([k, val]) => `[${k},${val}]`).join(",")}]`)
+    .join(",")}]`;
+}
+
+function evalLruAssertion(
+  key: string,
+  map: BoundedLruMap<number, number>,
+  log: LruLog,
+  evictLog: [number, number, EvictionCause][],
+): string | undefined {
+  switch (key) {
+    case "size":
+      return String(map.size());
+    case "is_empty":
+      return String(map.isEmpty());
+    // Post-sequence contents in LRU order (least-recently-used first).
+    // Explicit-order keys: NEVER re-sorted.
+    case "lru_order_keys":
+      return `[${map.keys().join(",")}]`;
+    case "lru_order_values":
+      return `[${map.values().join(",")}]`;
+    // The load-bearing oracle: the ordered eviction LOG, each element a fixed
+    // 3-tuple [key, value, "cause"], in invocation order (NOT sorted).
+    case "eviction_log":
+      return `[${evictLog.map(([k, v, c]) => `[${k},${v},"${c}"]`).join(",")}]`;
+    // Per-op result logs, in execution order.
+    case "put_results":
+      return lruOptArray(log.putResults);
+    case "get_results":
+      return lruOptArray(log.getResults);
+    case "get_or_default_results":
+      return `[${log.getOrDefaultResults.join(",")}]`;
+    case "contains_results":
+      return `[${log.containsResults.map((b) => String(b)).join(",")}]`;
+    case "remove_results":
+      return lruOptArray(log.removeResults);
+    case "expired_counts":
+      return `[${log.expiredCounts.join(",")}]`;
+    case "snapshot_keys_log":
+      return lruArrayOfArrays(log.snapshotKeysLog);
+    case "snapshot_values_log":
+      return lruArrayOfArrays(log.snapshotValuesLog);
+    case "snapshot_entries_log":
+      return lruArrayOfPairArrays(log.snapshotEntriesLog);
+    default:
+      break;
+  }
+  // Post-op out-of-band reads: MUST NOT refresh recency, evict, or mutate.
+  // get_<k> is computed READ-ONLY via the LRU-order snapshot (NOT map.get,
+  // which WOULD refresh recency); contains_<k> is read-only already.
+  if (key.startsWith("get_")) {
+    const k = Number(key.slice(4));
+    const found = map.entries().find(([ek]) => ek === k);
+    return found === undefined ? "null" : String(found[1]);
+  }
+  if (key.startsWith("contains_")) {
+    return String(map.containsKey(Number(key.slice(9))));
+  }
+  return undefined; // unknown assertion key -> skip
+}
+
+// Render an expected bounded-LRU assertion value into the same canonical string
+// the runner emits. Explicit-order arrays (eviction_log, lru_order_*, snapshot
+// logs) are NEVER re-sorted; null marks absence in the *_results arrays.
+function renderLruExpected(key: string, expected: unknown): string {
+  if (expected === null || expected === undefined) return "null";
+  if (typeof expected === "boolean") return expected ? "true" : "false";
+  if (typeof expected === "number") return String(expected);
+  if (typeof expected === "string") return expected;
+  if (Array.isArray(expected)) {
+    if (key === "eviction_log") {
+      // [[k, v, "cause"], ...]
+      return `[${(expected as [number, number, string][])
+        .map(([k, v, c]) => `[${k},${v},"${c}"]`)
+        .join(",")}]`;
+    }
+    if (key === "snapshot_entries_log") {
+      // [[[k, v], ...], ...]
+      return `[${(expected as [number, number][][])
+        .map((inner) => `[${inner.map(([k, v]) => `[${k},${v}]`).join(",")}]`)
+        .join(",")}]`;
+    }
+    if (key === "snapshot_keys_log" || key === "snapshot_values_log") {
+      // [[...], ...]
+      return `[${(expected as number[][])
+        .map((inner) => `[${inner.join(",")}]`)
+        .join(",")}]`;
+    }
+    // Flat arrays (lru_order_*, *_results, expired_counts): null for absence.
+    return `[${expected
+      .map((e) => (e === null || e === undefined ? "null" : String(e)))
+      .join(",")}]`;
+  }
+  return String(expected);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -2266,6 +2569,18 @@ function main(): void {
   }
   if (scenario.collection === "ImmutableSortedSet<i32>") {
     runSortedTable(scenario, false);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // BoundedLruMap<i32, i32> — the bounded LRU map (spec/features/bounded-lru.md).
+  // Production BoundedLruMap + a recording eviction callback (the eviction LOG
+  // oracle). Separate dispatch: it carries `max_size`/`ttl` config and a
+  // bounded-LRU op/assertion vocabulary not in the number-keyed model. `now`/
+  // `ttl` are u64 logical ticks (decimal strings above 2^53), carried as
+  // bigint — never via a JS number.
+  if (scenario.collection === "BoundedLruMap<i32, i32>") {
+    runBoundedLru(scenario);
     if (anyFail) process.exit(1);
     return;
   }
