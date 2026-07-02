@@ -46,6 +46,18 @@ interface Operation {
   // Range<i32> constructor operands (spec/features/bound-range.md).
   lower?: number;
   upper?: number;
+  // NavigableMap/Set `remove_range` op carries an inline range-builder object
+  // (same shape as the top-level `query` / the 10-range builder ops).
+  range?: RangeOp;
+}
+
+// A range-builder object: one of the 10-range constructor ops. Used by the
+// scenario-level `query` field and the `remove_range` op's `range` field.
+interface RangeOp {
+  op: string;
+  lower?: number;
+  upper?: number;
+  value?: number;
 }
 
 // Scratch views to reinterpret an f32 bit pattern <-> JS number. A JS
@@ -161,6 +173,9 @@ interface Scenario {
     collection: string;
     operations: Operation[];
   };
+  // Optional single range (10-range builder-op shape) naming the range that
+  // the scenario's range_* assertions refer to (spec/features/navigable-map.md).
+  query?: RangeOp;
   assertions: Record<string, unknown>;
 }
 
@@ -256,10 +271,33 @@ function createCollection(type: string): Collection {
   }
 }
 
+// NavigableMap/Set result-log: the runner records each poll/remove_range
+// return value in execution order while applying operations, then exposes
+// them through the poll_*/remove_range_counts assertion keys (see README
+// §NavigableMap). null marks an absent poll on an empty collection.
+interface NavLog {
+  pollFirstKeys: (number | null)[];
+  pollLastKeys: (number | null)[];
+  pollFirstValues: (number | null)[];
+  pollLastValues: (number | null)[];
+  removeRangeCounts: number[];
+}
+
+function newNavLog(): NavLog {
+  return {
+    pollFirstKeys: [],
+    pollLastKeys: [],
+    pollFirstValues: [],
+    pollLastValues: [],
+    removeRangeCounts: [],
+  };
+}
+
 function applyOperation(
   coll: Collection,
   op: Operation,
   f32Mode: boolean,
+  log: NavLog,
 ): void {
   const k = (): number =>
     f32Mode ? parseF32Value(op.key) : (op.key as number);
@@ -352,7 +390,52 @@ function applyOperation(
         coll.pop();
       }
       break;
+    case "poll_first":
+      // Map: record key + value; set: record element as the key (no value).
+      if (coll instanceof NumberNumberTreeMap) {
+        const e = coll.pollFirstEntry();
+        log.pollFirstKeys.push(e ? e[0] : null);
+        log.pollFirstValues.push(e ? e[1] : null);
+      } else if (coll instanceof NumberTreeSet) {
+        const e = coll.pollFirst();
+        log.pollFirstKeys.push(e ?? null);
+      }
+      break;
+    case "poll_last":
+      if (coll instanceof NumberNumberTreeMap) {
+        const e = coll.pollLastEntry();
+        log.pollLastKeys.push(e ? e[0] : null);
+        log.pollLastValues.push(e ? e[1] : null);
+      } else if (coll instanceof NumberTreeSet) {
+        const e = coll.pollLast();
+        log.pollLastKeys.push(e ?? null);
+      }
+      break;
+    case "remove_range":
+      if (op.range === undefined) {
+        throw new Error("remove_range op requires a range");
+      }
+      {
+        const range = buildRangeObj(op.range);
+        if (
+          coll instanceof NumberNumberTreeMap ||
+          coll instanceof NumberTreeSet
+        ) {
+          log.removeRangeCounts.push(coll.removeRange(range));
+        }
+      }
+      break;
     default:
+      // Forward-compat (per spec/features/navigable-map.md + README): on the
+      // ordered tree collections an unknown op is SKIPPED so a newer scenario
+      // never breaks an older runner. Other collections still fail loudly so a
+      // genuine typo surfaces.
+      if (
+        coll instanceof NumberNumberTreeMap ||
+        coll instanceof NumberTreeSet
+      ) {
+        break;
+      }
       throw new Error(`Unknown operation: ${op.op}`);
   }
 }
@@ -492,6 +575,8 @@ function evaluateAssertion(
   coll: Collection,
   other: Collection | null,
   f32Mode: boolean,
+  log: NavLog,
+  query: Range<number> | null,
 ): unknown {
   // f32 dispatch: scenarios in 05-float-edge-cases/* use string-labelled
   // probes (get_NaN, contains_pos_zero, ...) and quoted-string outputs
@@ -552,6 +637,95 @@ function evaluateAssertion(
       return m !== undefined ? m[0] : null;
     }
     throw new Error(`max not supported for ${coll.constructor.name}`);
+  }
+
+  // --- NavigableMap / NavigableSet (ordered navigation) ---
+  // Point-nav and *_keys/*_elements assertions reflect the POST-operation
+  // state (the harness applies all ops, then evaluates). Result-log keys
+  // (poll_*, remove_range_counts) replay values recorded during execution.
+  {
+    const navMap = coll instanceof NumberNumberTreeMap ? coll : null;
+    const navSet = coll instanceof NumberTreeSet ? coll : null;
+    if (navMap !== null || navSet !== null) {
+      // floor_<k>/ceiling_<k>/lower_<k>/higher_<k>: <k> is a signed base-10
+      // i32 suffix (leading `-` and the full i32 range allowed).
+      const nav = key.match(/^(floor|ceiling|lower|higher)_(-?\d+)$/);
+      if (nav) {
+        const kind = nav[1];
+        const n = parseInt(nav[2], 10);
+        let r: number | undefined;
+        if (navMap !== null) {
+          r =
+            kind === "floor"
+              ? navMap.floorKey(n)
+              : kind === "ceiling"
+                ? navMap.ceilingKey(n)
+                : kind === "lower"
+                  ? navMap.lowerKey(n)
+                  : navMap.higherKey(n);
+        } else {
+          r =
+            kind === "floor"
+              ? navSet!.floor(n)
+              : kind === "ceiling"
+                ? navSet!.ceiling(n)
+                : kind === "lower"
+                  ? navSet!.lower(n)
+                  : navSet!.higher(n);
+        }
+        return r === undefined ? null : r;
+      }
+
+      // first/last (map: first_key/last_key; set: first/last).
+      if (key === "first_key" && navMap !== null)
+        return navMap.firstKey() ?? null;
+      if (key === "last_key" && navMap !== null)
+        return navMap.lastKey() ?? null;
+      if (key === "first" && navSet !== null) return navSet.first() ?? null;
+      if (key === "last" && navSet !== null) return navSet.last() ?? null;
+
+      // descending iteration over ALL keys/elements (emitted DESCENDING).
+      if (key === "descending_keys" && navMap !== null)
+        return navMap.descendingKeys();
+      if (key === "descending_elements" && navSet !== null)
+        return navSet.descending();
+
+      // range_* assertions reference the scenario-level `query` range. With no
+      // query the key is unknown for this scenario -> skip (forward-compat).
+      if (
+        key === "range_keys" ||
+        key === "range_elements" ||
+        key === "range_keys_desc" ||
+        key === "range_elements_desc" ||
+        key === "range_size"
+      ) {
+        if (query === null) {
+          throw new Error(`Unknown assertion key: ${key}`);
+        }
+        if (key === "range_keys" && navMap !== null)
+          return navMap.rangeKeysIn(query);
+        if (key === "range_elements" && navSet !== null)
+          return navSet.rangeElements(query);
+        if (key === "range_keys_desc" && navMap !== null)
+          return navMap.descendingRangeKeys(query);
+        if (key === "range_elements_desc" && navSet !== null)
+          return navSet.descendingRangeElements(query);
+        if (key === "range_size") {
+          return navMap !== null
+            ? navMap.rangeKeysIn(query).length
+            : navSet!.rangeElements(query).length;
+        }
+      }
+
+      // Result-log keys (replayed from execution order).
+      if (key === "poll_first_keys") return log.pollFirstKeys;
+      if (key === "poll_last_keys") return log.pollLastKeys;
+      if (key === "poll_first_values" && navMap !== null)
+        return log.pollFirstValues;
+      if (key === "poll_last_values" && navMap !== null)
+        return log.pollLastValues;
+      if (key === "remove_range_counts") return log.removeRangeCounts;
+    }
   }
 
   // --- get_N (maps) ---
@@ -1289,11 +1463,10 @@ function renderI64MultimapExpected(key: string, expected: unknown): string {
 // real cut algebra, not re-derived here.
 // ---------------------------------------------------------------------------
 
-function buildRange(ops: Operation[]): Range<number> {
-  if (ops.length !== 1) {
-    throw new Error("Range<i32> scenario must have exactly one constructor op");
-  }
-  const op = ops[0];
+// Build a Range<i32> from a single range-builder object (the 10-range op
+// shape). Shared by the Range<i32> runner and the NavigableMap/Set
+// `range`/`query` fields.
+function buildRangeObj(op: RangeOp): Range<number> {
   const lower = (): number => op.lower as number;
   const upper = (): number => op.upper as number;
   switch (op.op) {
@@ -1320,6 +1493,21 @@ function buildRange(ops: Operation[]): Range<number> {
     default:
       throw new Error(`unknown range op: ${op.op}`);
   }
+}
+
+function buildRange(ops: Operation[]): Range<number> {
+  if (ops.length !== 1) {
+    throw new Error("Range<i32> scenario must have exactly one constructor op");
+  }
+  const op = ops[0];
+  // A Range<i32> scenario op carries numeric lower/upper/value operands; the
+  // wider Operation.value (string in f32 mode) never appears here.
+  return buildRangeObj({
+    op: op.op,
+    lower: op.lower,
+    upper: op.upper,
+    value: op.value as number | undefined,
+  });
 }
 
 function boundTypeStr(bt: BoundType | null): string {
@@ -1480,30 +1668,47 @@ function main(): void {
   // bit pattern".
   const f32Mode = scenario.collection.includes("<f32");
 
-  // Create and populate main collection
-  const coll =
+  // Create and populate main collection. The NavLog records poll/remove_range
+  // return values in execution order for the result-log assertion keys.
+  const log = newNavLog();
+  let coll: Collection;
+  if (scenario.construction === undefined) {
+    coll = createCollection(scenario.collection);
+    for (const op of scenario.operations) {
+      applyOperation(coll, op, f32Mode, log);
+    }
+  } else if (
     scenario.collection === "HashMap<i32, i32>" &&
     scenario.construction === "bulkLoadExact"
-      ? Int32Int32HashMap.bulkLoadExact(
-          numberPairs(scenario.operations),
-          scenario.operations.length,
-        )
-      : scenario.collection === "TreeMap<i32, i32>" &&
-          scenario.construction === "fromSorted"
-        ? NumberNumberTreeMap.fromSorted(numberPairs(scenario.operations))
-        : createCollection(scenario.collection);
-  if (scenario.construction === undefined) {
-    for (const op of scenario.operations) {
-      applyOperation(coll, op, f32Mode);
-    }
+  ) {
+    coll = Int32Int32HashMap.bulkLoadExact(
+      numberPairs(scenario.operations),
+      scenario.operations.length,
+    );
+  } else if (
+    scenario.collection === "TreeMap<i32, i32>" &&
+    scenario.construction === "fromSorted"
+  ) {
+    coll = NumberNumberTreeMap.fromSorted(numberPairs(scenario.operations));
+  } else {
+    throw new Error(
+      `unsupported construction ${scenario.construction} for ${scenario.collection}`,
+    );
   }
+
+  // The optional scenario-level `query` range names the range that range_*
+  // assertions refer to (same builder-op shape as 10-range / remove_range).
+  const query: Range<number> | null = scenario.query
+    ? buildRangeObj(scenario.query)
+    : null;
 
   // Create and populate "other" collection if present
   let other: Collection | null = null;
   if (scenario.other) {
     other = createCollection(scenario.other.collection);
+    const otherLog = newNavLog();
     for (const op of scenario.other.operations) {
-      applyOperation(other, op, f32Mode);
+      applyOperation(other, op, f32Mode, otherLog);
     }
   }
 
@@ -1517,7 +1722,7 @@ function main(): void {
     if (key === "comment") continue;
     let actual: unknown;
     try {
-      actual = evaluateAssertion(key, coll, other, f32Mode);
+      actual = evaluateAssertion(key, coll, other, f32Mode, log, query);
     } catch (e) {
       // Unrecognised assertion key for this collection -> skip silently,
       // per the README unknown-assertion-skip rule. ONLY skip the specific
