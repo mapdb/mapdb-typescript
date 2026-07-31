@@ -9,11 +9,21 @@
  * {@link Range}s to values (v1 ships the `number`/i32 → `number`/i32
  * specialisation).
  *
- * Unlike {@link RangeSet}, a `RangeMap` does **NOT** coalesce across different
- * values. {@link RangeMap.put} is last-writer-wins: it clips/splits every
- * overlapping prior entry and inserts the new `(range, value)`, but leaves
- * adjacent equal-valued entries distinct. {@link RangeMap.putCoalescing} is the
- * variant that merges connected neighbours holding an **equal** value.
+ * Like {@link RangeSet}, a `RangeMap` is **always maximally merged** — but per
+ * value: {@link RangeMap.put} is last-writer-wins (it clips/splits every
+ * overlapping prior entry) and then **coalesces** the inserted entry with
+ * connected neighbours holding an **equal** value. A **different** value is a
+ * barrier and is never absorbed or crossed. The normal form therefore carries a
+ * global invariant: no two connected entries hold an equal value.
+ *
+ * ## Divergence from Guava
+ *
+ * `TreeRangeMap.put` does not coalesce; coalescing lives in a separate
+ * `putCoalescing`. We fold it into `put` and do **not** expose `putCoalescing`.
+ * Guava's split is a compatibility retrofit (`RangeMap` is `@since 14.0`,
+ * `putCoalescing` `@since 22.0`, by which point `put`'s behaviour was observable
+ * through `asMapOfRanges()` and could not be changed); we have no such
+ * constraint. See `spec/features/range-set-map.md` §Coalescing.
  *
  * Every clip / split / merge / ordering decision reduces to the side-aware cut
  * comparisons of {@link Range}; there is no `±1` endpoint arithmetic (the
@@ -53,38 +63,41 @@ export class RangeMap<T, V> {
    * Assign `value` to every point of `range`, last-writer-wins over any prior
    * overlap. Existing entries are clipped to the parts outside `range` (a
    * straddling entry splits into two, both keeping the old value); the new
-   * `(range, value)` is then inserted. A cut-empty `range` is a **no-op**.
-   * `put` does **NOT** coalesce — an adjacent equal value stays a distinct
-   * entry.
+   * `(range, value)` is then **coalesced** with any connected neighbour holding
+   * an **equal** value and inserted. A **different** value is a barrier. A
+   * cut-empty `range` is a **no-op**, decided before any clipping.
    */
   put(range: Range<T>, value: V): void {
     if (range.isEmpty()) return;
     this.clipOut(range);
-    this.insertEntry(range, value);
-  }
 
-  /**
-   * Like {@link RangeMap.put}, then merges the inserted entry with any connected
-   * (overlapping or abutting) neighbour whose value **equals** `value`,
-   * producing one entry spanning the union. Neighbours with a **different**
-   * value are left untouched (clipped by the `put` step as usual). A cut-empty
-   * `range` is a **no-op**.
-   */
-  putCoalescing(range: Range<T>, value: V): void {
-    if (range.isEmpty()) return;
-    this.clipOut(range);
-    // Span over every connected entry with an EQUAL value, dropping them.
+    // Coalesce outward from the insertion position. Because the normal form is
+    // maintained by every put, AT MOST ONE entry per side is absorbable: if the
+    // neighbour is absorbed, the entry beyond it was already either
+    // disconnected from it or differently-valued, and stays so against the
+    // grown range. Each loop therefore runs at most once. They are loops rather
+    // than ifs so a normal form violated by a bug elsewhere degrades into a
+    // correct (if slower) result instead of a malformed map.
+    const pos = this.insertionPoint(range);
     let merged = range;
-    const out: { range: Range<T>; value: V }[] = [];
-    for (const e of this.entries) {
-      if (e.value === value && e.range.isConnected(merged)) {
-        merged = e.range.span(merged);
-      } else {
-        out.push(e);
-      }
+
+    let lo = pos;
+    while (lo > 0) {
+      const e = this.entries[lo - 1];
+      if (e.value !== value || !e.range.isConnected(merged)) break;
+      merged = e.range.span(merged);
+      lo--;
     }
-    this.entries = out;
-    this.insertEntry(merged, value);
+
+    let hi = pos;
+    while (hi < this.entries.length) {
+      const e = this.entries[hi];
+      if (e.value !== value || !e.range.isConnected(merged)) break;
+      merged = e.range.span(merged);
+      hi++;
+    }
+
+    this.entries.splice(lo, hi - lo, { range: merged, value });
   }
 
   /** The value mapped at `value`, or `undefined` if uncovered. */
@@ -200,12 +213,13 @@ export class RangeMap<T, V> {
   }
 
   /**
-   * Insert `(range, value)` at its ascending-by-lower-cut position. Callers
-   * must have already cleared the overlap (via {@link RangeMap.clipOut}); the
-   * range is disjoint from every remaining entry.
+   * The ascending-by-lower-cut index at which `range` belongs: the first index
+   * whose lower cut is above `range`'s. Callers must have already cleared the
+   * overlap (via {@link RangeMap.clipOut}), so `range` is disjoint from every
+   * remaining entry and every entry below the returned index lies strictly to
+   * its left.
    */
-  private insertEntry(range: Range<T>, value: V): void {
-    let pos = this.entries.length;
+  private insertionPoint(range: Range<T>): number {
     for (let i = 0; i < this.entries.length; i++) {
       if (
         Range.compareCutsNumeric(
@@ -213,10 +227,9 @@ export class RangeMap<T, V> {
           range.lowerCut(),
         ) > 0
       ) {
-        pos = i;
-        break;
+        return i;
       }
     }
-    this.entries.splice(pos, 0, { range, value });
+    return this.entries.length;
   }
 }

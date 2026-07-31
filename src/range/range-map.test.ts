@@ -65,15 +65,13 @@ describe("RangeMap put (last-writer-wins, no coalesce)", () => {
     expect(m.get(6)).toBe(100);
   });
 
-  it("put does NOT coalesce equal abutting values", () => {
+  it("put COALESCES equal abutting values", () => {
     const m = new RangeMap<number, number>();
     m.put(Range.closedOpen(1, 5), 100);
     m.put(Range.closedOpen(5, 9), 100);
-    // TWO entries, equal value, NOT merged.
-    expectEntries(m, [
-      [Range.closedOpen(1, 5), 100],
-      [Range.closedOpen(5, 9), 100],
-    ]);
+    // ONE entry: equal value and abutting, so plain put merges them.
+    // Guava's TreeRangeMap leaves two here; this is the divergence.
+    expectEntries(m, [[Range.closedOpen(1, 9), 100]]);
     expect(m.get(5)).toBe(100);
   });
 
@@ -85,18 +83,11 @@ describe("RangeMap put (last-writer-wins, no coalesce)", () => {
   });
 });
 
-describe("RangeMap putCoalescing (equal-value merge)", () => {
-  it("merges an equal-valued abutting neighbour", () => {
+describe("RangeMap put coalescing (equal-value merge)", () => {
+  it("does NOT merge a different-valued neighbour", () => {
     const m = new RangeMap<number, number>();
     m.put(Range.closedOpen(1, 5), 100);
-    m.putCoalescing(Range.closedOpen(5, 9), 100);
-    expectEntries(m, [[Range.closedOpen(1, 9), 100]]);
-  });
-
-  it("does NOT merge a different-valued neighbour (same as plain put)", () => {
-    const m = new RangeMap<number, number>();
-    m.put(Range.closedOpen(1, 5), 100);
-    m.putCoalescing(Range.closedOpen(5, 9), 200);
+    m.put(Range.closedOpen(5, 9), 200);
     expectEntries(m, [
       [Range.closedOpen(1, 5), 100],
       [Range.closedOpen(5, 9), 200],
@@ -107,14 +98,69 @@ describe("RangeMap putCoalescing (equal-value merge)", () => {
     const m = new RangeMap<number, number>();
     m.put(Range.closedOpen(1, 5), 100);
     m.put(Range.closedOpen(9, 12), 100);
-    m.putCoalescing(Range.closedOpen(5, 9), 100);
+    m.put(Range.closedOpen(5, 9), 100);
     expectEntries(m, [[Range.closedOpen(1, 12), 100]]);
   });
 
-  it("putCoalescing(emptyRange) is a no-op", () => {
+  it("a chain never forms — each put merges as it lands", () => {
     const m = new RangeMap<number, number>();
-    m.putCoalescing(Range.closedOpen(5, 5), 100);
-    expect(m.isEmpty()).toBe(true);
+    m.put(Range.closedOpen(1, 2), 7);
+    m.put(Range.closedOpen(2, 3), 7);
+    expectEntries(m, [[Range.closedOpen(1, 3), 7]]);
+    m.put(Range.closedOpen(3, 4), 7);
+    expectEntries(m, [[Range.closedOpen(1, 4), 7]]);
+  });
+
+  it("is order-independent (mirror of the chain case)", () => {
+    const m = new RangeMap<number, number>();
+    m.put(Range.closedOpen(2, 3), 7);
+    m.put(Range.closedOpen(3, 4), 7);
+    m.put(Range.closedOpen(1, 2), 7);
+    expectEntries(m, [[Range.closedOpen(1, 4), 7]]);
+  });
+
+  it("a different value is a hard barrier, never absorbed or crossed", () => {
+    const m = new RangeMap<number, number>();
+    m.put(Range.closedOpen(1, 2), 7);
+    m.put(Range.closedOpen(2, 3), 8);
+    m.put(Range.closedOpen(3, 4), 7);
+    expectEntries(m, [
+      [Range.closedOpen(1, 2), 7],
+      [Range.closedOpen(2, 3), 8],
+      [Range.closedOpen(3, 4), 7],
+    ]);
+  });
+
+  it("split fragments do not rejoin across the inserted entry", () => {
+    const m = new RangeMap<number, number>();
+    m.put(Range.closedOpen(1, 9), 100);
+    m.put(Range.closedOpen(3, 5), 200);
+    expectEntries(m, [
+      [Range.closedOpen(1, 3), 100],
+      [Range.closedOpen(3, 5), 200],
+      [Range.closedOpen(5, 9), 100],
+    ]);
+  });
+
+  it("normal form: no two connected entries hold an equal value", () => {
+    // The global invariant the old put/putCoalescing split could not state.
+    const m = new RangeMap<number, number>();
+    m.put(Range.closedOpen(1, 2), 7);
+    m.put(Range.closedOpen(2, 3), 7);
+    m.put(Range.closedOpen(3, 4), 8);
+    m.put(Range.closedOpen(4, 5), 8);
+    m.put(Range.closedOpen(5, 6), 7);
+    const v = m.asMapOfRanges();
+    for (let i = 0; i + 1 < v.length; i++) {
+      expect(v[i][0].isConnected(v[i + 1][0]) && v[i][1] === v[i + 1][1]).toBe(
+        false,
+      );
+    }
+    expectEntries(m, [
+      [Range.closedOpen(1, 3), 7],
+      [Range.closedOpen(3, 5), 8],
+      [Range.closedOpen(5, 6), 7],
+    ]);
   });
 });
 

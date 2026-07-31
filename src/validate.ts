@@ -2949,7 +2949,6 @@ function runHyperLogLog(scenario: Scenario): void {
 //   RangeSet: {"op":"add","range":{...}} / {"op":"remove_range","range":{...}}
 //             / {"op":"clear"}
 //   RangeMap: {"op":"put","range":{...},"value":N}
-//             / {"op":"put_coalescing","range":{...},"value":N}
 //             / {"op":"remove_range","range":{...}} / {"op":"clear"}
 // The optional top-level `query` (range-builder shape) supplies the range for
 // encloses_query / intersects_query / sub_range_set_ranges /
@@ -3302,10 +3301,6 @@ function runRangeMap(scenario: Scenario): void {
     switch (op.op) {
       case "put":
         if (op.range) map.put(buildRangeObj(op.range), op.value as number);
-        break;
-      case "put_coalescing":
-        if (op.range)
-          map.putCoalescing(buildRangeObj(op.range), op.value as number);
         break;
       case "remove_range":
         if (op.range) map.remove(buildRangeObj(op.range));
