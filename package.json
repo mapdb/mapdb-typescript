@@ -46,6 +46,10 @@
       "types": "./dist/bitset/*.d.ts",
       "import": "./dist/bitset/*.js"
     },
+    "./bloom/*": {
+      "types": "./dist/bloom/*.d.ts",
+      "import": "./dist/bloom/*.js"
+    },
     "./count_min/*": {
       "types": "./dist/count_min/*.d.ts",
       "import": "./dist/count_min/*.js"
@@ -65,6 +69,10 @@
     "./hashset/*": {
       "types": "./dist/hashset/*.d.ts",
       "import": "./dist/hashset/*.js"
+    },
+    "./hash/*": {
+      "types": "./dist/hash/*.d.ts",
+      "import": "./dist/hash/*.js"
     },
     "./hyperloglog/*": {
       "types": "./dist/hyperloglog/*.d.ts",
@@ -93,6 +101,10 @@
     "./range/*": {
       "types": "./dist/range/*.d.ts",
       "import": "./dist/range/*.js"
+    },
+    "./roaring/*": {
+      "types": "./dist/roaring/*.d.ts",
+      "import": "./dist/roaring/*.js"
     },
     "./stack/*": {
       "types": "./dist/stack/*.d.ts",

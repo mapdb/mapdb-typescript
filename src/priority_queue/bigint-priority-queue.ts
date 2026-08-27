@@ -96,7 +96,7 @@ export class BigIntPriorityQueue {
   private siftUp(start: number): void {
     let i = start;
     while (i > 0) {
-      const parent = (i - 1) >> 1;
+      const parent = (i - 1) >>> 1;
       if (this.data[i] < this.data[parent]) {
         const tmp = this.data[i];
         this.data[i] = this.data[parent];

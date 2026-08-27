@@ -115,8 +115,8 @@ function assertStrictlyAscending(xs: readonly number[]): void {
 /**
  * Binary-search `key` in a strictly-ascending slice. Returns the index of the
  * hit, or `~insertionPoint` (a negative number) for an absent key — mirroring
- * the family's lower-bound convention. The midpoint is `lo + ((hi - lo) >> 1)`,
- * never `(lo + hi) / 2`, so it is overflow-safe at the signed extremes.
+ * the family's lower-bound convention. The midpoint is `lo + ((hi - lo) >>> 1)`,
+ * never `(lo + hi) / 2`, so it stays in range for the full JS array-length domain.
  */
 function binarySearch(sorted: readonly number[], key: number): number {
   // The query key is an i32 in every typed port (`get`/`contains_key`/
@@ -130,7 +130,7 @@ function binarySearch(sorted: readonly number[], key: number): number {
   let lo = 0;
   let hi = sorted.length - 1;
   while (lo <= hi) {
-    const mid = lo + ((hi - lo) >> 1);
+    const mid = lo + ((hi - lo) >>> 1);
     const c = cmpI32(sorted[mid], key);
     if (c < 0) {
       lo = mid + 1;

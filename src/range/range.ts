@@ -609,10 +609,9 @@ export class Range<T> {
 /**
  * First index `i` in `[0, len]` for which `pred(sorted[i])` is false, given a
  * `pred` that partitions the slice (all true then all false). The midpoint is
- * `lo + ((hi - lo) >> 1)`, never `(lo + hi) / 2`, so the search is
- * overflow-safe — relevant when ports compute indices from i32 keys at the
- * signed extremes (the brackets here index into the slice, not into the key
- * domain, but the overflow-safe midpoint is kept as the shared convention).
+ * `lo + ((hi - lo) >>> 1)`, never `(lo + hi) / 2`. `>>>` keeps the midpoint
+ * in range for the full JS array-length domain (up to 2^32-1); `>>` is a
+ * signed 32-bit shift and wraps once `hi - lo >= 2^31`.
  */
 function partitionPoint<T>(
   sorted: readonly T[],
@@ -621,7 +620,7 @@ function partitionPoint<T>(
   let lo = 0;
   let hi = sorted.length;
   while (lo < hi) {
-    const mid = lo + ((hi - lo) >> 1);
+    const mid = lo + ((hi - lo) >>> 1);
     if (pred(sorted[mid])) {
       lo = mid + 1;
     } else {
