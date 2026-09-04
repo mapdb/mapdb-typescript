@@ -72,7 +72,7 @@ export class NumberArrayDeque {
   /** Returns true if the deque contains the given value. */
   has(value: number): boolean {
     for (let i = 0; i < this.data.length; i++) {
-      if (this.data[i] === value) return true;
+      if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }

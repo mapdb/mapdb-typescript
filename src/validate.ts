@@ -589,13 +589,10 @@ function evaluateF32Assertion(key: string, coll: Collection): unknown {
   }
   if (key === "min" || key === "max") {
     if (coll instanceof NumberArrayList) {
-      const vals = coll.toArray();
-      if (vals.length === 0) return null;
-      let best = vals[0];
-      const cmp = key === "min" ? -1 : 1;
-      for (let i = 1; i < vals.length; i++) {
-        if (totalCmpFloat(vals[i], best) === cmp) best = vals[i];
-      }
+      // Call production min/max — the assertion must exercise the library,
+      // not a runner-local loop (iso2 E3).
+      const best = key === "min" ? coll.min() : coll.max();
+      if (best === undefined) return null;
       return new F32Value(best);
     }
   }

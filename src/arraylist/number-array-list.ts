@@ -169,22 +169,22 @@ export class NumberArrayList implements MapDbMutableList<number> {
     return s;
   }
 
-  /** Returns the minimum element, or undefined if empty. */
+  /** Minimum by IEEE 754 total order (-0 < +0, NaN above +inf), or undefined if empty. */
   min(): number | undefined {
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] < m) m = this.data[i];
+      if (totalCmpNumber(this.data[i], m) < 0) m = this.data[i];
     }
     return m;
   }
 
-  /** Returns the maximum element, or undefined if empty. */
+  /** Maximum by IEEE 754 total order (-0 < +0, NaN above +inf), or undefined if empty. */
   max(): number | undefined {
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] > m) m = this.data[i];
+      if (totalCmpNumber(this.data[i], m) > 0) m = this.data[i];
     }
     return m;
   }

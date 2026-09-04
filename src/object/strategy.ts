@@ -4,6 +4,8 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
+import { f64HashSeed } from "../internal/float-order.js";
+
 // ── HashingStrategy ─────────────────────────────────────────────────
 
 /**
@@ -36,10 +38,14 @@ function hashString(s: string): number {
   return hash >>> 0;
 }
 
-/** Simple hash for numbers — bit-mix via integer multiplication. */
+/**
+ * Hash for numbers: avalanche-mix the full f64 bit pattern. `n | 0` truncated
+ * every fraction, +-0 and NaN into bucket 0, so 0.1/0.9/1.5 all collided.
+ * `-0` is normalized to `+0` first because these strategies compare with `===`,
+ * under which `-0 === 0`; equal keys must hash equal.
+ */
 function hashNumber(n: number): number {
-  // Convert to 32-bit integer and mix
-  let h = n | 0;
+  let h = f64HashSeed(n === 0 ? 0 : n);
   h = (((h >>> 16) ^ h) * 0x45d9f3b) | 0;
   h = (((h >>> 16) ^ h) * 0x45d9f3b) | 0;
   h = (h >>> 16) ^ h;
