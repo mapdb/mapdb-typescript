@@ -281,6 +281,39 @@ describe("RangeSet normal-form invariant", () => {
   });
 });
 
+describe("RangeSet add coalesces chains (single ascending pass)", () => {
+  it("add coalesces whole run from either direction", () => {
+    // Ascending: [1,2),[2,3),[3,4) — each add merges as it lands.
+    const asc = rs([
+      Range.closedOpen(1, 2),
+      Range.closedOpen(2, 3),
+      Range.closedOpen(3, 4),
+    ]);
+    expectRanges(asc, [Range.closedOpen(1, 4)]);
+    // Same three, the leftmost slot added last: [1,2) bridges nothing on the
+    // left and the already-merged [2,4) on the right — identical result.
+    const last = rs([
+      Range.closedOpen(2, 3),
+      Range.closedOpen(3, 4),
+      Range.closedOpen(1, 2),
+    ]);
+    expectRanges(last, [Range.closedOpen(1, 4)]);
+    // A middle add bridges BOTH sides in one pass.
+    const s = rs([Range.closedOpen(1, 3), Range.closedOpen(5, 7)]);
+    expect(s.asRanges().length).toBe(2);
+    s.add(Range.closedOpen(3, 5));
+    expectRanges(s, [Range.closedOpen(1, 7)]);
+  });
+
+  it("add rejoins fragments left behind by remove", () => {
+    const s = rs([Range.closedOpen(0, 10)]);
+    s.remove(Range.closedOpen(3, 7));
+    expectRanges(s, [Range.closedOpen(0, 3), Range.closedOpen(7, 10)]);
+    s.add(Range.closedOpen(3, 7));
+    expectRanges(s, [Range.closedOpen(0, 10)]);
+  });
+});
+
 describe("RangeSet point-query i32 validation (v1)", () => {
   it("contains / rangeContaining reject non-i32 query points", () => {
     const s = new RangeSet<number>();
