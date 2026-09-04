@@ -58,6 +58,9 @@ export interface MapDbMutableList<T>
   extends MapDbList<T>, MapDbMutableCollection<T> {
   add(value: T): this;
   set(index: number, value: T): T;
+  /** Removes the first occurrence of the value. Returns true if a value was
+   *  removed. Equality matches `indexOf` (`Object.is` for numeric ports). */
+  remove(value: T): boolean;
 }
 
 /** Read-only set marker (uniqueness implied; no extra methods). */

@@ -380,7 +380,13 @@ function applyOperation(
       }
       break;
     case "remove":
-      if (
+      if (coll instanceof NumberArrayList) {
+        // Drive the PRODUCTION remove-by-value (first occurrence, Object.is
+        // equality) — never indexOf + removeAtIndex here, which would make
+        // 01-basic-crud/arraylist_remove green without exercising the library
+        // operation the scenario names (G5).
+        coll.remove(v());
+      } else if (
         coll instanceof NumberNumberHashMap ||
         coll instanceof Int32Int32HashMap ||
         coll instanceof NumberNumberTreeMap

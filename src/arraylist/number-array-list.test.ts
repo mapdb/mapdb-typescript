@@ -45,4 +45,69 @@ describe("NumberArrayList", () => {
       [2, 30],
     ]);
   });
+  describe("remove (by value)", () => {
+    it("removes only the first occurrence", () => {
+      const l = NumberArrayList.of([1, 2, 1]);
+      expect(l.remove(1)).toBe(true);
+      expect(l.toArray()).toEqual([2, 1]);
+      expect(l.size).toBe(2);
+    });
+
+    it("returns false and leaves the list unchanged for an absent value", () => {
+      const l = NumberArrayList.of([1, 2, 1]);
+      expect(l.remove(99)).toBe(false);
+      expect(l.toArray()).toEqual([1, 2, 1]);
+      expect(l.size).toBe(3);
+    });
+
+    it("returns false on an empty list", () => {
+      const l = new NumberArrayList();
+      expect(l.remove(0)).toBe(false);
+      expect(l.isEmpty()).toBe(true);
+      expect(l.size).toBe(0);
+    });
+
+    it("removes the last element and empties the list", () => {
+      const l = NumberArrayList.of([7]);
+      expect(l.remove(7)).toBe(true);
+      expect(l.isEmpty()).toBe(true);
+      expect(l.toArray()).toEqual([]);
+      expect(l.remove(7)).toBe(false);
+    });
+
+    it("removes a tail element without disturbing the head", () => {
+      const l = NumberArrayList.of([1, 2, 3]);
+      expect(l.remove(3)).toBe(true);
+      expect(l.toArray()).toEqual([1, 2]);
+    });
+
+    it("matches NaN like indexOf does (Object.is equality)", () => {
+      const l = NumberArrayList.of([1, NaN, NaN]);
+      expect(l.indexOf(NaN)).toBe(1);
+      expect(l.remove(NaN)).toBe(true);
+      expect(l.size).toBe(2);
+      expect(Number.isNaN(l.get(1))).toBe(true);
+      expect(l.remove(NaN)).toBe(true);
+      expect(l.toArray()).toEqual([1]);
+      expect(l.remove(NaN)).toBe(false);
+    });
+
+    it("keeps -0 and +0 distinct, like indexOf", () => {
+      const l = NumberArrayList.of([0, -0]);
+      expect(l.indexOf(-0)).toBe(1);
+      expect(l.remove(-0)).toBe(true);
+      expect(l.toArray()).toEqual([0]);
+      expect(Object.is(l.get(0), 0)).toBe(true);
+      expect(l.remove(-0)).toBe(false);
+      expect(l.remove(0)).toBe(true);
+      expect(l.isEmpty()).toBe(true);
+    });
+
+    it("appends after a removal without resurrecting the removed value", () => {
+      const l = NumberArrayList.of([5, 6]);
+      expect(l.remove(5)).toBe(true);
+      l.add(9);
+      expect(l.toArray()).toEqual([6, 9]);
+    });
+  });
 });

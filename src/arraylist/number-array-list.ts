@@ -64,6 +64,18 @@ export class NumberArrayList implements MapDbMutableList<number> {
     return old;
   }
 
+  /**
+   * Removes the first occurrence of the value, comparing with `Object.is`
+   * (so `NaN` matches `NaN` and `-0` does not match `+0`), exactly like
+   * `indexOf` / `has`. Returns true if a value was removed.
+   */
+  remove(value: number): boolean {
+    const idx = this.indexOf(value);
+    if (idx === -1) return false;
+    this.removeAtIndex(idx);
+    return true;
+  }
+
   /** Returns true if the list contains the given value. */
   has(value: number): boolean {
     for (let i = 0; i < this._size; i++) {

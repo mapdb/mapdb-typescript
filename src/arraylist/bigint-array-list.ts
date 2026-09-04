@@ -63,6 +63,17 @@ export class BigIntArrayList implements MapDbMutableList<bigint> {
     return old;
   }
 
+  /**
+   * Removes the first occurrence of the value, using the same equality as
+   * `indexOf` / `has`. Returns true if a value was removed.
+   */
+  remove(value: bigint): boolean {
+    const idx = this.indexOf(value);
+    if (idx === -1) return false;
+    this.removeAtIndex(idx);
+    return true;
+  }
+
   /** Returns true if the list contains the given value. */
   has(value: bigint): boolean {
     for (let i = 0; i < this._size; i++) {
