@@ -69,6 +69,8 @@ interface Operation {
   value?: number | string | { bits?: string };
   index?: number;
   delta?: number;
+  // HashBag `add_occurrences` operand (integer count).
+  count?: number;
   // Bloom `with_params` op + hash-pipeline `positions` op operands: the bit
   // count `m` and hash count `k` (spec/features/bloom.md, hash-pipeline.md).
   m?: number;
@@ -360,6 +362,13 @@ function applyOperation(
         coll.add(v());
       } else if (coll instanceof NumberArrayStack) {
         coll.push(v());
+      }
+      break;
+    case "add_occurrences":
+      // {"op":"add_occurrences","value":v,"count":n}: the production bulk
+      // add on the bag (count 0 is a no-op, never creates the item).
+      if (coll instanceof NumberHashBag) {
+        coll.addOccurrences(v(), op.count as number);
       }
       break;
     case "add_at":
