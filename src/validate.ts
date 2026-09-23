@@ -11,6 +11,7 @@
  *   npx tsx src/validate.ts <scenario.json>
  */
 
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -54,6 +55,7 @@ import {
 import { Bloom } from "./bloom/bloom.js";
 import { CountMin } from "./count_min/count-min.js";
 import { SpaceSaving, type SSEntry } from "./space_saving/space-saving.js";
+import { NumberInterval } from "./interval/number-interval.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,6 +80,10 @@ interface Operation {
   // Range<i32> constructor operands (spec/features/bound-range.md).
   lower?: number;
   upper?: number;
+  // Interval<i32> `from_to_by` operands.
+  from?: number;
+  to?: number;
+  step?: number;
   // NavigableMap/Set `remove_range` op carries an inline range-builder object
   // (same shape as the top-level `query` / the 10-range builder ops).
   range?: RangeOp;
@@ -1467,7 +1473,7 @@ function runBoundedLru(scenario: Scenario): void {
   console.log(`=== scenario: ${scenario.name} ===`);
 
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalLruAssertion(key, map, log, evictLog);
     if (computed === undefined) continue; // unknown key -> skip (forward-compat)
     console.log(`${key}: ${computed}`);
@@ -1671,7 +1677,7 @@ function runI64HashMap(scenario: Scenario): void {
   console.log(`=== scenario: ${scenario.name} ===`);
 
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalI64MapAssertion(key, m);
     if (computed === undefined) continue; // unknown key -> skip
     console.log(`${key}: ${computed}`);
@@ -1775,7 +1781,7 @@ function runI64Multimap(scenario: Scenario, m: I64Multimap): void {
   console.log(`=== scenario: ${scenario.name} ===`);
 
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalI64MultimapAssertion(key, m);
     if (computed === undefined) continue; // unknown key -> skip
     console.log(`${key}: ${computed}`);
@@ -1947,7 +1953,7 @@ function runRange(scenario: Scenario): void {
   console.log(`=== scenario: ${scenario.name} ===`);
 
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalRangeAssertion(key, range, other);
     if (computed === undefined) continue; // unknown key -> skip (forward-compat)
     console.log(`${key}: ${computed}`);
@@ -2152,7 +2158,7 @@ function runSortedTable(scenario: Scenario, isMap: boolean): void {
 
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalSortedTableAssertion(key, coll, query);
     if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
     emit(
@@ -2385,7 +2391,7 @@ function runHashPipeline(scenario: Scenario): void {
 
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalHashProbe(probe, key);
     if (computed === undefined) continue; // unknown key -> SKIP (forward-compat)
     console.log(`${key}: ${computed}`);
@@ -2502,7 +2508,7 @@ function runBloom(scenario: Scenario): void {
 
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     let computed: unknown;
     try {
       computed = evalBloomAssertion(key, self, other);
@@ -2682,7 +2688,7 @@ function runRoaring(scenario: Scenario): void {
 
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalRoaringAssertion(key, s, other);
     if (computed === undefined) continue; // unknown key -> SKIP
     const got = formatValue(computed);
@@ -2823,7 +2829,7 @@ function runFenwick(scenario: Scenario): void {
 
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalFenwickAssertion(key, tree);
     if (computed === undefined) continue;
     console.log(`${key}: ${computed}`);
@@ -2936,7 +2942,7 @@ function runHyperLogLog(scenario: Scenario): void {
   }
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const computed = evalHllAssertion(key, hll);
     if (computed === undefined) continue;
     console.log(`${key}: ${computed}`);
@@ -3074,7 +3080,7 @@ function runRangeSet(scenario: Scenario): void {
   console.log(`=== scenario: ${scenario.name} ===`);
 
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const expected = scenario.assertions[key];
 
     // Object-shaped / explicit-order assertions go through compareRangeJSON.
@@ -3278,7 +3284,7 @@ function runCountMin(scenario: Scenario): void {
 
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     let computed: string;
     if (key === "counters") {
       computed = `[${cms
@@ -3332,7 +3338,7 @@ function runRangeMap(scenario: Scenario): void {
   console.log(`=== scenario: ${scenario.name} ===`);
 
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     const expected = scenario.assertions[key];
 
     if (key === "as_map_of_ranges") {
@@ -3492,7 +3498,7 @@ function runSpaceSaving(scenario: Scenario): void {
 
   console.log(`=== scenario: ${scenario.name} ===`);
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     let computed: string;
     let isTriple = false;
     if (key === "monitored_set") {
@@ -3791,26 +3797,224 @@ function runTrace(filePath: string, outPath: string): void {
   writeObservationsAtomic(outPath, body);
 }
 
-function main(): void {
-  const args = process.argv.slice(2);
-  if (args.some((a) => a.startsWith("--"))) {
-    const parsed = parseTraceArgs(args);
-    if (parsed === undefined) {
-      console.error(TRACE_USAGE);
-      process.exit(2);
+// Q2 expect_panic judge. A sentinel is the scenario banner or a `key: value`
+// assertion line. PASS/FAIL/SKIP/ERROR lines are not sentinels.
+function stdoutHasSentinel(stdout: string): boolean {
+  for (const raw of stdout.split("\n")) {
+    const line = raw.replace(/\r+$/, "");
+    if (line.startsWith("=== scenario:")) return true;
+    if (isPanicStatusLine(line)) continue;
+    // Space after the colon is required. `boom:detail` is not a sentinel.
+    if (/^[A-Za-z0-9_+-]+: /.test(line)) return true;
+  }
+  return false;
+}
+
+function isPanicStatusLine(line: string): boolean {
+  for (const key of ["PASS", "FAIL", "SKIP", "ERROR", "SUMMARY"]) {
+    if (line === key || line.startsWith(key + " ") || line.startsWith(key + ":")) {
+      return true;
     }
-    runTrace(path.resolve(parsed.trace), parsed.out);
+  }
+  return false;
+}
+
+function panicPassed(
+  exitCode: number,
+  stdout: string,
+  timedOut: boolean,
+): boolean {
+  return !timedOut && exitCode !== 0 && !stdoutHasSentinel(stdout);
+}
+
+function runPanicJudgeSelftest(): void {
+  const cases: ReadonlyArray<{
+    exitCode: number;
+    stdout: string;
+    timedOut: boolean;
+    want: boolean;
+  }> = [
+    { exitCode: 0, stdout: "", timedOut: false, want: false },
+    {
+      exitCode: 0,
+      stdout: "=== scenario: x ===\n",
+      timedOut: false,
+      want: false,
+    },
+    { exitCode: 1, stdout: "size: 1\n", timedOut: false, want: false },
+    { exitCode: 1, stdout: "", timedOut: false, want: true },
+    { exitCode: 101, stdout: "boom\n", timedOut: false, want: true },
+    { exitCode: 1, stdout: "", timedOut: true, want: false },
+    {
+      exitCode: 1,
+      stdout: "FAIL name expect_panic\n",
+      timedOut: false,
+      want: true,
+    },
+    {
+      exitCode: 1,
+      stdout: "expect_panic: true\n",
+      timedOut: false,
+      want: false,
+    },
+    { exitCode: 1, stdout: "SUMMARY: 1\n", timedOut: false, want: true },
+    { exitCode: 1, stdout: "boom:detail\n", timedOut: false, want: true },
+    { exitCode: 1, stdout: "FAIL-count: 1\n", timedOut: false, want: false },
+  ];
+  for (let i = 0; i < cases.length; i++) {
+    const c = cases[i]!;
+    const got = panicPassed(c.exitCode, c.stdout, c.timedOut);
+    if (got !== c.want) {
+      console.error(
+        `panic-judge selftest case ${i + 1} failed: exit=${c.exitCode} timedOut=${c.timedOut} got=${got} want=${c.want}`,
+      );
+      process.exit(1);
+    }
+  }
+  process.exit(0);
+}
+
+function isIntervalI32(v: unknown): v is number {
+  return (
+    typeof v === "number" &&
+    Number.isSafeInteger(v) &&
+    v >= I32_MIN &&
+    v <= I32_MAX
+  );
+}
+
+function intervalOperandBail(name: string): never {
+  console.log(`=== scenario: ${name} ===`);
+  process.exit(1);
+}
+
+function runInterval(scenario: Scenario): void {
+  let current: NumberInterval | undefined;
+  const ops = scenario.operations;
+  if (!Array.isArray(ops)) intervalOperandBail(scenario.name);
+  for (const op of ops) {
+    if (op === null || typeof op !== "object") {
+      intervalOperandBail(scenario.name);
+    }
+    if (op.op === "from_to_by") {
+      if (
+        !isIntervalI32(op.from) ||
+        !isIntervalI32(op.to) ||
+        !isIntervalI32(op.step)
+      ) {
+        intervalOperandBail(scenario.name);
+      }
+      current = NumberInterval.fromToBy(op.from, op.to, op.step);
+      continue;
+    }
+    if (op.op === "reversed") {
+      if (current === undefined) intervalOperandBail(scenario.name);
+      current = current.reversed();
+      continue;
+    }
+    intervalOperandBail(scenario.name);
+  }
+}
+
+function panicCollectionKnown(collection: string): boolean {
+  switch (collection) {
+    case "HashMap<i32, i32>":
+    case "HashMap<i64, i32>":
+    case "ListMultimap<i64, i32>":
+    case "SetMultimap<i64, i32>":
+    case "ArrayList<i32>":
+    case "HashSet<i32>":
+    case "HashBag<i32>":
+    case "TreeSet<i32>":
+    case "TreeMap<i32, i32>":
+    case "HashMap<f32, i32>":
+    case "HashSet<f32>":
+    case "TreeSet<f32>":
+    case "ArrayList<f32>":
+    case "Range<i32>":
+    case "RangeSet<i32>":
+    case "RangeMap<i32, i32>":
+    case "BoundedLruMap<i32, i32>":
+    case "ImmutableSortedMap<i32, i32>":
+    case "ImmutableSortedSet<i32>":
+    case "HashPipeline":
+    case "Bloom":
+    case "HyperLogLog":
+    case "CountMin":
+    case "SpaceSaving":
+    case "FenwickTree":
+    case "RoaringU32":
+    case "Interval<i32>":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function expectPanicMode(scenario: Scenario): "absent" | "true" | "malformed" {
+  const assertions = scenario.assertions;
+  if (
+    assertions === null ||
+    typeof assertions !== "object" ||
+    !Object.prototype.hasOwnProperty.call(assertions, "expect_panic")
+  ) {
+    return "absent";
+  }
+  return assertions["expect_panic"] === true ? "true" : "malformed";
+}
+
+function childStdoutText(stdout: unknown): string {
+  if (typeof stdout === "string") return stdout;
+  if (stdout == null) return "";
+  if (Buffer.isBuffer(stdout)) return stdout.toString("utf8");
+  return String(stdout);
+}
+
+function runExpectPanicParent(name: string, absolutePath: string): void {
+  // argv is [node, script, ...positionals]. Re-exec the script only.
+  // Keeping slice(1, -1) would leave an extra positional in front of
+  // --panic-child, and the child would not enter panic-child mode.
+  const script = process.argv[1];
+  if (script === undefined) process.exit(2);
+  const child = spawnSync(
+    process.execPath,
+    [...process.execArgv, script, "--panic-child", absolutePath],
+    {
+      timeout: 10000,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "inherit"],
+    },
+  );
+  const timedOut =
+    child.error !== undefined &&
+    (child.error as NodeJS.ErrnoException).code === "ETIMEDOUT";
+  const exitCode =
+    child.status === null && child.signal !== null ? 1 : (child.status ?? 0);
+  const passed = panicPassed(
+    exitCode,
+    childStdoutText(child.stdout),
+    timedOut,
+  );
+  console.log(`=== scenario: ${name} ===`);
+  if (passed) {
+    console.log("expect_panic: true");
     return;
   }
-  if (args.length < 1) {
-    console.error("Usage: npx tsx src/validate.ts <scenario.json>");
-    process.exit(2);
+  console.log(`FAIL ${name} expect_panic: child did not trap cleanly`);
+  process.exit(1);
+}
+
+function runPanicChild(filePath: string): void {
+  const scenario = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Scenario;
+  if (scenario.collection === "Interval<i32>") {
+    runInterval(scenario);
+    console.log(`=== scenario: ${scenario.name} ===`);
+    return;
   }
+  executeScenario(scenario);
+}
 
-  const filePath = path.resolve(args[0]);
-  const raw = fs.readFileSync(filePath, "utf-8");
-  const scenario: Scenario = JSON.parse(raw);
-
+function executeScenario(scenario: Scenario): void {
   // HashMap<i64, i32> takes a separate dispatch path: its keys are bigints
   // (decimal strings in the scenario, since i64 exceeds 2^53) and the
   // production map is BigIntNumberHashMap, which is not in the number-keyed
@@ -4019,14 +4223,14 @@ function main(): void {
     }
   }
 
-  // Output header
+  // Output header (after ops; an escaping trap prints nothing).
   console.log(`=== scenario: ${scenario.name} ===`);
 
   // Evaluate and print each assertion in order. The "comment" key is a
   // scenario-author doc string; Rust/Go/Zig all skip it, so do the same
-  // here for harness-diff parity.
+  // here for harness-diff parity. "expect_panic" is not a value assertion.
   for (const key of Object.keys(scenario.assertions)) {
-    if (key === "comment") continue;
+    if (key === "comment" || key === "expect_panic") continue;
     let actual: unknown;
     try {
       actual = evaluateAssertion(key, coll, other, f32Mode, log, query);
@@ -4054,6 +4258,44 @@ function main(): void {
   }
 
   if (anyFail) process.exit(1);
+}
+
+function main(): void {
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === "--panic-judge-selftest") {
+    runPanicJudgeSelftest();
+    return;
+  }
+  if (args[0] === "--panic-child") {
+    const childPath = args[1];
+    if (args.length !== 2 || childPath === undefined) process.exit(2);
+    runPanicChild(path.resolve(childPath));
+    return;
+  }
+  if (args.some((a) => a.startsWith("--"))) {
+    const parsed = parseTraceArgs(args);
+    if (parsed === undefined) {
+      console.error(TRACE_USAGE);
+      process.exit(2);
+    }
+    runTrace(path.resolve(parsed.trace), parsed.out);
+    return;
+  }
+  if (args.length < 1) {
+    console.error("Usage: npx tsx src/validate.ts <scenario.json>");
+    process.exit(2);
+  }
+
+  const filePath = path.resolve(args[0]);
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const scenario: Scenario = JSON.parse(raw) as Scenario;
+  const panicMode = expectPanicMode(scenario);
+  if (panicMode === "malformed") process.exit(1);
+  if (panicMode === "true" && panicCollectionKnown(scenario.collection)) {
+    runExpectPanicParent(scenario.name, filePath);
+    return;
+  }
+  executeScenario(scenario);
 }
 
 main();

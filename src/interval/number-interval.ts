@@ -192,8 +192,18 @@ export class NumberInterval {
     }
   }
 
-  /** Returns a new interval with elements in reverse order. */
+  /**
+   * Returns a new interval with elements in reverse order.
+   * Throws at the int32 minimum step. JS numbers can represent the
+   * negation, but this class is the Interval<i32> surface and
+   * algorithms.md requires the trap (same as IntInterval.toReversed).
+   */
   reversed(): NumberInterval {
+    if (this._step === -2147483648) {
+      throw new Error(
+        "NumberInterval: cannot reverse interval with minimum step",
+      );
+    }
     return new NumberInterval(this._to, this._from, -this._step as number);
   }
 

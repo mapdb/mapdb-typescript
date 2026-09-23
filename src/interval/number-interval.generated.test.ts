@@ -44,6 +44,10 @@ describe("NumberInterval generated", () => {
     const iv = NumberInterval.fromTo(1, 5);
     expect(iv.reversed().toArray()).toEqual([5, 4, 3, 2, 1]);
   });
+  it("reversed minimum i32 step throws", () => {
+    const iv = NumberInterval.fromToBy(0, -2147483648, -2147483648);
+    expect(() => iv.reversed()).toThrow(/minimum step/);
+  });
   it("oneTo", () => {
     const iv = NumberInterval.oneTo(3);
     expect(iv.toArray()).toEqual([1, 2, 3]);
