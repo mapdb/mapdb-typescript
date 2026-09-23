@@ -3539,11 +3539,272 @@ function renderSsExpected(expected: unknown, isTriple: boolean): string {
   return String(expected);
 }
 
+// Trace mode (--trace + --emit-observations). Observations are the same
+// strings formatValue already emits; assertions are not read. Unknown ops
+// are fatal here, including ops the positional runner skips on a tree.
+const TRACE_USAGE =
+  "Usage: npx tsx src/validate.ts --trace <file> --emit-observations <out.json>";
+const I32_MIN = -2147483648;
+const I32_MAX = 2147483647;
+
+function traceI32(v: unknown): number | null {
+  if (typeof v !== "number" || !Number.isInteger(v)) return null;
+  if (v < I32_MIN || v > I32_MAX) return null;
+  return v;
+}
+
+function parseTraceArgs(
+  args: string[],
+): { trace: string; out: string } | undefined {
+  let trace: string | undefined;
+  let out: string | undefined;
+  let positional = false;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === "--trace" || a === "--emit-observations") {
+      const v = args[++i];
+      if (v === undefined || v.startsWith("--")) return undefined;
+      if (a === "--trace") {
+        if (trace !== undefined) return undefined;
+        trace = v;
+      } else {
+        if (out !== undefined) return undefined;
+        out = v;
+      }
+    } else if (a.startsWith("--")) {
+      return undefined;
+    } else {
+      positional = true;
+    }
+  }
+  if (positional || trace === undefined || out === undefined) return undefined;
+  return { trace, out };
+}
+
+function traceFail(message: string): never {
+  console.error(message.split("\n")[0]);
+  process.exit(1);
+}
+
+function applyTraceOp(
+  kind: string,
+  coll: Collection,
+  raw: unknown,
+  seenKeys: Set<number>,
+  saw99: { value: boolean },
+): void {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("malformed operation");
+  }
+  const op = raw as Operation;
+  if (typeof op.op !== "string" || op.op.length === 0) {
+    throw new Error("malformed operation");
+  }
+  const isMap =
+    kind === "HashMap<i32, i32>" || kind === "TreeMap<i32, i32>";
+  if (isMap) {
+    if (op.op === "put") {
+      const k = traceI32(op.key);
+      const v = traceI32(op.value);
+      if (k === null || v === null) throw new Error("malformed operation: put");
+      seenKeys.add(k);
+      applyOperation(coll, op, false, newNavLog());
+      return;
+    }
+    if (op.op === "remove") {
+      const k = traceI32(op.key);
+      if (k === null) throw new Error("malformed operation: remove");
+      seenKeys.add(k);
+      applyOperation(coll, op, false, newNavLog());
+      return;
+    }
+    if (op.op === "clear") {
+      applyOperation(coll, op, false, newNavLog());
+      return;
+    }
+    if (op.op === "get") {
+      const k = traceI32(op.key);
+      if (k === null) throw new Error("malformed operation: get");
+      // 99 "appeared" even though a get is not a floor/rank probe key.
+      if (k === 99) saw99.value = true;
+      if (
+        coll instanceof Int32Int32HashMap ||
+        coll instanceof NumberNumberTreeMap
+      ) {
+        coll.get(k);
+      }
+      return;
+    }
+    throw new Error(`Unknown operation: ${op.op}`);
+  }
+  if (!(coll instanceof NumberArrayList)) {
+    throw new Error(`Unknown operation: ${op.op}`);
+  }
+  if (op.op === "add") {
+    if (traceI32(op.value) === null) throw new Error("malformed operation: add");
+    applyOperation(coll, op, false, newNavLog());
+    return;
+  }
+  if (op.op === "add_at") {
+    const idx = traceI32(op.index);
+    if (
+      idx === null ||
+      traceI32(op.value) === null ||
+      idx < 0 ||
+      idx > coll.size
+    ) {
+      throw new Error("malformed operation: add_at");
+    }
+    applyOperation(coll, op, false, newNavLog());
+    return;
+  }
+  if (op.op === "remove") {
+    if (traceI32(op.value) === null) {
+      throw new Error("malformed operation: remove");
+    }
+    applyOperation(coll, op, false, newNavLog());
+    return;
+  }
+  if (op.op === "clear") {
+    applyOperation(coll, op, false, newNavLog());
+    return;
+  }
+  throw new Error(`Unknown operation: ${op.op}`);
+}
+
+function traceProbe(coll: Collection, key: string): string {
+  return formatValue(
+    evaluateAssertion(key, coll, null, false, newNavLog(), null),
+  );
+}
+
+function writeObservationsAtomic(outPath: string, body: string): void {
+  const resolved = path.resolve(outPath);
+  const tmp = path.join(
+    path.dirname(resolved),
+    `.${path.basename(resolved)}.${process.pid}.${Date.now()}.tmp`,
+  );
+  try {
+    fs.writeFileSync(tmp, body, { encoding: "utf-8" });
+    fs.renameSync(tmp, resolved);
+  } catch (e) {
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      // temp was not created
+    }
+    traceFail(e instanceof Error ? e.message : String(e));
+  }
+}
+
+function runTrace(filePath: string, outPath: string): void {
+  let scenario: Scenario;
+  try {
+    scenario = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Scenario;
+  } catch (e) {
+    traceFail(e instanceof Error ? e.message : String(e));
+  }
+  if (scenario === null || typeof scenario !== "object") {
+    traceFail("malformed trace");
+  }
+  const kind = scenario.collection;
+  if (
+    kind !== "HashMap<i32, i32>" &&
+    kind !== "ArrayList<i32>" &&
+    kind !== "TreeMap<i32, i32>"
+  ) {
+    console.error(
+      `skip: unsupported collection kind (forward-compat): ${kind}`,
+    );
+    return;
+  }
+  if (scenario.construction !== undefined) {
+    traceFail(
+      `unsupported construction ${scenario.construction} for ${kind}`,
+    );
+  }
+  if (!Array.isArray(scenario.operations)) {
+    traceFail("malformed operation");
+  }
+
+  const coll = createCollection(kind);
+  const seenKeys = new Set<number>();
+  const saw99 = { value: false };
+  for (const op of scenario.operations) {
+    try {
+      applyTraceOp(kind, coll, op, seenKeys, saw99);
+    } catch (e) {
+      traceFail(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  const obs = new Map<string, string>();
+  const put = (key: string): void => {
+    obs.set(key, traceProbe(coll, key));
+  };
+  put("size");
+  put("is_empty");
+  if (kind === "ArrayList<i32>") {
+    put("to_sorted_array");
+    put("sum");
+    if (coll instanceof NumberArrayList) {
+      for (let i = 0; i < coll.size; i++) put(`get_at_${i}`);
+    }
+  } else {
+    put("sorted_keys");
+    put("sorted_values");
+    const isTree = kind === "TreeMap<i32, i32>";
+    if (isTree && coll.size > 0) {
+      put("first_key");
+      put("last_key");
+    }
+    for (const k of seenKeys) {
+      put(`get_${k}`);
+      put(`contains_${k}`);
+      if (isTree) {
+        put(`floor_${k}`);
+        put(`ceiling_${k}`);
+        put(`lower_${k}`);
+        put(`higher_${k}`);
+        put(`rank_${k}`);
+      }
+    }
+    if (!seenKeys.has(99) && !saw99.value) {
+      put("get_99");
+      put("contains_99");
+    }
+    if (isTree && coll.size >= 1 && coll.size <= 32) {
+      for (let i = 0; i < coll.size; i++) put(`select_${i}`);
+    }
+  }
+
+  const observations: Record<string, string> = {};
+  for (const key of [...obs.keys()].sort()) {
+    observations[key] = obs.get(key)!;
+  }
+  const body =
+    JSON.stringify(
+      { name: scenario.name, collection: kind, observations },
+      null,
+      2,
+    ) + "\n";
+  writeObservationsAtomic(outPath, body);
+}
+
 function main(): void {
   const args = process.argv.slice(2);
+  if (args.some((a) => a.startsWith("--"))) {
+    const parsed = parseTraceArgs(args);
+    if (parsed === undefined) {
+      console.error(TRACE_USAGE);
+      process.exit(2);
+    }
+    runTrace(path.resolve(parsed.trace), parsed.out);
+    return;
+  }
   if (args.length < 1) {
     console.error("Usage: npx tsx src/validate.ts <scenario.json>");
-    process.exit(1);
+    process.exit(2);
   }
 
   const filePath = path.resolve(args[0]);
