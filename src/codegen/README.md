@@ -12,7 +12,7 @@ templates.
 | array list | `src/typed/arraylist/` | 6 mutable + 6 immutable (+ tests) | 6b-2 |
 | hash set | `src/typed/hashset/` | 6 mutable + 6 immutable (+ tests) | 6b-2 |
 | array stack | `src/typed/stack/` | 6 mutable + 6 immutable (+ tests) | 6b-2 |
-| hash bag | `src/typed/bag/` | 6 mutable only (+ tests) | 6b-2 |
+| hash bag | `src/typed/bag/` | 6 mutable + 6 immutable (+ tests) | 6b-2 |
 | non-typed map | `src/hashmap/` | 4 map (+4 tests), 4 bimap, 4 immutable (+4 tests) | 6b-3 |
 | non-typed multimap | `src/multimap/` | 4 `K×V` × {list, set} = 8 classes | 6b-3 |
 

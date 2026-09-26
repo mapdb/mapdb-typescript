@@ -9,7 +9,7 @@
 //   arraylist  (mutable + immutable)
 //   hashset    (mutable + immutable)
 //   stack      (mutable + immutable)
-//   bag        (mutable only)
+//   bag        (mutable + immutable)
 //
 // Pure string builders parameterised ONLY by the per-PRIM metadata in spec.mjs
 // (no name-based branching). Canonical hash helpers (f64HashSeed / bigintHashSeed)
