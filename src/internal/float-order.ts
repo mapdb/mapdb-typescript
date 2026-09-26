@@ -84,6 +84,14 @@ export function mapKeyOf(value: number): number | typeof NEG_ZERO_KEY {
   return Object.is(value, -0) ? NEG_ZERO_KEY : value;
 }
 
+/** The Map-key type produced by {@link mapKeyOf}. */
+export type NumberMapKey = number | typeof NEG_ZERO_KEY;
+
+/** Inverse of {@link mapKeyOf}: recovers the number (-0 for the sentinel). */
+export function mapKeyValue(key: NumberMapKey): number {
+  return key === NEG_ZERO_KEY ? -0 : key;
+}
+
 /**
  * A 32-bit seed derived from a number's full IEEE 754 f64 bit pattern, XOR-
  * folding the two 32-bit halves together. This is not injective (64->32 bits),

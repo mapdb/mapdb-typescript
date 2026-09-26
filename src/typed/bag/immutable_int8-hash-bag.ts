@@ -11,6 +11,9 @@ import { Int8HashBag } from "./int8-hash-bag.js";
 /**
  * Immutable bag (multiset) for number values backed by Map<number, number>.
  * Tracks occurrence counts for each distinct value.
+ * Every caller-supplied value is first narrowed to what Int8Array stores.
+ * Narrowing folds -0 into 0, so integer keys need no signed-zero re-keying.
+ * Iteration follows Map insertion order of the distinct values.
  * Construct via static of(values) or fromMutable(mutable).
  * Mutations create new instances; select/reject return MUTABLE.
  */
@@ -22,8 +25,10 @@ export class ImmutableInt8HashBag {
   static of(values: number[]): ImmutableInt8HashBag {
     const counts = new Map<number, number>();
     let size = 0;
-    for (const v of values) {
-      counts.set(v, (counts.get(v) ?? 0) + 1);
+    for (const rawV of values) {
+      const v = (rawV << 24) >> 24;
+      const key = v;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
       size++;
     }
     return new ImmutableInt8HashBag(counts, size);
@@ -47,11 +52,13 @@ export class ImmutableInt8HashBag {
 
   /** Returns the number of occurrences of the given value. */
   occurrencesOf(value: number): number {
+    value = (value << 24) >> 24;
     return this.counts.get(value) ?? 0;
   }
 
   /** Returns true if the bag contains the given value. */
   has(value: number): boolean {
+    value = (value << 24) >> 24;
     return this.counts.has(value);
   }
 
@@ -72,8 +79,8 @@ export class ImmutableInt8HashBag {
 
   /** Yields [value, occurrences] pairs for each distinct value. */
   *entries(): Generator<[number, number]> {
-    for (const entry of this.counts) {
-      yield entry;
+    for (const [value, count] of this.counts) {
+      yield [value, count];
     }
   }
 

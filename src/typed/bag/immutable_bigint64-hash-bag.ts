@@ -11,6 +11,8 @@ import { BigInt64HashBag } from "./bigint64-hash-bag.js";
 /**
  * Immutable bag (multiset) for bigint values backed by Map<bigint, number>.
  * Tracks occurrence counts for each distinct value.
+ * Every caller-supplied value is first narrowed to what BigInt64Array stores.
+ * Iteration follows Map insertion order of the distinct values.
  * Construct via static of(values) or fromMutable(mutable).
  * Mutations create new instances; select/reject return MUTABLE.
  */
@@ -22,8 +24,10 @@ export class ImmutableBigInt64HashBag {
   static of(values: bigint[]): ImmutableBigInt64HashBag {
     const counts = new Map<bigint, number>();
     let size = 0;
-    for (const v of values) {
-      counts.set(v, (counts.get(v) ?? 0) + 1);
+    for (const rawV of values) {
+      const v = BigInt.asIntN(64, rawV);
+      const key = v;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
       size++;
     }
     return new ImmutableBigInt64HashBag(counts, size);
@@ -47,11 +51,13 @@ export class ImmutableBigInt64HashBag {
 
   /** Returns the number of occurrences of the given value. */
   occurrencesOf(value: bigint): number {
+    value = BigInt.asIntN(64, value);
     return this.counts.get(value) ?? 0;
   }
 
   /** Returns true if the bag contains the given value. */
   has(value: bigint): boolean {
+    value = BigInt.asIntN(64, value);
     return this.counts.has(value);
   }
 
@@ -72,8 +78,8 @@ export class ImmutableBigInt64HashBag {
 
   /** Yields [value, occurrences] pairs for each distinct value. */
   *entries(): Generator<[bigint, number]> {
-    for (const entry of this.counts) {
-      yield entry;
+    for (const [value, count] of this.counts) {
+      yield [value, count];
     }
   }
 

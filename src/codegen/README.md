@@ -115,7 +115,13 @@ verbatim so regeneration never silently reverts a hand fix:
   via `get`, `addToValue` via `get`+`set`) narrow in the callee, so a value may
   be narrowed more than once; list/stack *writes* narrow through the
   TypedArray assignment itself. `float64` has `narrow: null` and emits nothing
-  (a JS number is stored losslessly). Typed bags are outside this generator.
+  (a JS number is stored losslessly).
+- **typed bag keys** (audit 04 F5): the Map-backed bags narrow every value at
+  each entry point (`add`/`addOccurrences`/`remove*`/`occurrencesOf`/`has`/
+  `bulkLoad`/immutable `of`) with the same `PRIMS[].narrow`. Float bags key the
+  native `Map` through `mapKeyOf` (decoded by `mapKeyValue`), so `-0` and `+0`
+  are distinct keys while every NaN stays one key (SameValueZero), matching the
+  `Object.is` identity of the typed hash sets.
 - **float list/stack `min`/`max`** use `totalCmpNumber` (IEEE 754 totalOrder:
   `-0 < +0`, canonical positive NaN above `+Inf`, sign-bit NaN below `-Inf`;
   audit 04 F4), the same comparator as the generic `NumberArrayList`. Integer

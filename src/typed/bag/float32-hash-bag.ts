@@ -6,13 +6,23 @@
 // CODE GENERATED — DO NOT EDIT. Regenerate with `npm run generate:typed-bag`.
 
 
+import {
+  mapKeyOf,
+  mapKeyValue,
+  type NumberMapKey,
+} from "../../internal/float-order.js";
+
 /**
- * Bag (multiset) for number values backed by Map<number, number>.
+ * Bag (multiset) for number values backed by Map<NumberMapKey, number>.
  * Tracks occurrence counts for each distinct value.
- * Map handles number keys natively, including bigint.
+ * Every caller-supplied value is first narrowed to what Float32Array stores.
+ * Keys are routed through mapKeyOf, so -0 and +0 are DISTINCT keys
+ * (Object.is identity, like the typed hash sets); every NaN is ONE key.
+ * Iteration (entries / forEach / toArray / for-of) follows Map insertion
+ * order of the distinct values and yields the stored (narrowed) value.
  */
 export class Float32HashBag {
-  private counts: Map<number, number> = new Map();
+  private counts: Map<NumberMapKey, number> = new Map();
   private _size = 0;
 
   add(value: number): this {
@@ -28,7 +38,8 @@ export class Float32HashBag {
    */
   static bulkLoad(entries: Iterable<readonly [number, number]>): Float32HashBag {
     const bag = new Float32HashBag();
-    for (const [value, count] of entries) {
+    for (const [rawValue, count] of entries) {
+      const value = Math.fround(rawValue);
       if (!Number.isSafeInteger(count) || count < 0) {
         throw new RangeError(
           "bag occurrence count must be a non-negative safe integer, got " +
@@ -36,14 +47,15 @@ export class Float32HashBag {
         );
       }
       if (count === 0) continue;
-      const current = bag.counts.get(value) ?? 0;
+      const key = mapKeyOf(value);
+      const current = bag.counts.get(key) ?? 0;
       if (
         current + count > Number.MAX_SAFE_INTEGER ||
         bag._size + count > Number.MAX_SAFE_INTEGER
       ) {
         throw new RangeError("bag count overflow during pump");
       }
-      bag.counts.set(value, current + count);
+      bag.counts.set(key, current + count);
       bag._size += count;
     }
     return bag;
@@ -53,8 +65,10 @@ export class Float32HashBag {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return;
-    const current = this.counts.get(value) ?? 0;
-    this.counts.set(value, current + occurrences);
+    value = Math.fround(value);
+    const key = mapKeyOf(value);
+    const current = this.counts.get(key) ?? 0;
+    this.counts.set(key, current + occurrences);
     this._size += occurrences;
   }
 
@@ -66,32 +80,38 @@ export class Float32HashBag {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return false;
-    const current = this.counts.get(value);
+    value = Math.fround(value);
+    const key = mapKeyOf(value);
+    const current = this.counts.get(key);
     if (current === undefined) return false;
     if (occurrences >= current) {
-      this.counts.delete(value);
+      this.counts.delete(key);
       this._size -= current;
     } else {
-      this.counts.set(value, current - occurrences);
+      this.counts.set(key, current - occurrences);
       this._size -= occurrences;
     }
     return true;
   }
 
   removeAll(value: number): boolean {
-    const current = this.counts.get(value);
+    value = Math.fround(value);
+    const key = mapKeyOf(value);
+    const current = this.counts.get(key);
     if (current === undefined) return false;
-    this.counts.delete(value);
+    this.counts.delete(key);
     this._size -= current;
     return true;
   }
 
   occurrencesOf(value: number): number {
-    return this.counts.get(value) ?? 0;
+    value = Math.fround(value);
+    return this.counts.get(mapKeyOf(value)) ?? 0;
   }
 
   has(value: number): boolean {
-    return this.counts.has(value);
+    value = Math.fround(value);
+    return this.counts.has(mapKeyOf(value));
   }
 
   /** Total number of items including duplicates */
@@ -115,22 +135,25 @@ export class Float32HashBag {
 
   /** Yields [value, occurrences] pairs for each distinct value */
   *entries(): Generator<[number, number]> {
-    for (const entry of this.counts) {
-      yield entry;
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
+      yield [value, count];
     }
   }
 
   /** Makes the bag iterable with for-of loops; yields each item repeated by
    * its occurrence count (matching forEach / toArray). */
   *[Symbol.iterator](): IterableIterator<number> {
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       for (let i = 0; i < count; i++) yield value;
     }
   }
 
   /** Iterates over each item, repeating by occurrence count */
   forEach(f: (value: number) => void): void {
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       for (let i = 0; i < count; i++) {
         f(value);
       }
@@ -141,14 +164,16 @@ export class Float32HashBag {
   forEachWithOccurrences(
     f: (value: number, occurrences: number) => void,
   ): void {
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       f(value, count);
     }
   }
 
   select(predicate: (value: number) => boolean): Float32HashBag {
     const result = new Float32HashBag();
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       if (predicate(value)) result.addOccurrences(value, count);
     }
     return result;
@@ -156,7 +181,8 @@ export class Float32HashBag {
 
   reject(predicate: (value: number) => boolean): Float32HashBag {
     const result = new Float32HashBag();
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       if (!predicate(value)) result.addOccurrences(value, count);
     }
     return result;
@@ -166,7 +192,8 @@ export class Float32HashBag {
   toArray(): Float32Array {
     const result = new Float32Array(this._size);
     let idx = 0;
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       for (let i = 0; i < count; i++) {
         result[idx++] = value;
       }
@@ -176,7 +203,8 @@ export class Float32HashBag {
 
   toString(): string {
     const parts: string[] = [];
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       parts.push(`${value}×${count}`);
     }
     return `{${parts.join(", ")}}`;
@@ -184,7 +212,7 @@ export class Float32HashBag {
 
   /** Estimated memory: Map overhead + this object overhead */
   memoryBytes(): number {
-    // Map<number, number>: ~80 bytes per entry overhead in V8
+    // Map<NumberMapKey, number>: ~80 bytes per entry overhead in V8
     // This is an estimate; exact memory depends on the JS engine.
     return this.counts.size * 80;
   }

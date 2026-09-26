@@ -9,7 +9,9 @@
 /**
  * Bag (multiset) for bigint values backed by Map<bigint, number>.
  * Tracks occurrence counts for each distinct value.
- * Map handles bigint keys natively, including bigint.
+ * Every caller-supplied value is first narrowed to what BigInt64Array stores.
+ * Iteration (entries / forEach / toArray / for-of) follows Map insertion
+ * order of the distinct values and yields the stored (narrowed) value.
  */
 export class BigInt64HashBag {
   private counts: Map<bigint, number> = new Map();
@@ -28,7 +30,8 @@ export class BigInt64HashBag {
    */
   static bulkLoad(entries: Iterable<readonly [bigint, number]>): BigInt64HashBag {
     const bag = new BigInt64HashBag();
-    for (const [value, count] of entries) {
+    for (const [rawValue, count] of entries) {
+      const value = BigInt.asIntN(64, rawValue);
       if (!Number.isSafeInteger(count) || count < 0) {
         throw new RangeError(
           "bag occurrence count must be a non-negative safe integer, got " +
@@ -36,14 +39,15 @@ export class BigInt64HashBag {
         );
       }
       if (count === 0) continue;
-      const current = bag.counts.get(value) ?? 0;
+      const key = value;
+      const current = bag.counts.get(key) ?? 0;
       if (
         current + count > Number.MAX_SAFE_INTEGER ||
         bag._size + count > Number.MAX_SAFE_INTEGER
       ) {
         throw new RangeError("bag count overflow during pump");
       }
-      bag.counts.set(value, current + count);
+      bag.counts.set(key, current + count);
       bag._size += count;
     }
     return bag;
@@ -53,8 +57,10 @@ export class BigInt64HashBag {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return;
-    const current = this.counts.get(value) ?? 0;
-    this.counts.set(value, current + occurrences);
+    value = BigInt.asIntN(64, value);
+    const key = value;
+    const current = this.counts.get(key) ?? 0;
+    this.counts.set(key, current + occurrences);
     this._size += occurrences;
   }
 
@@ -66,31 +72,37 @@ export class BigInt64HashBag {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return false;
-    const current = this.counts.get(value);
+    value = BigInt.asIntN(64, value);
+    const key = value;
+    const current = this.counts.get(key);
     if (current === undefined) return false;
     if (occurrences >= current) {
-      this.counts.delete(value);
+      this.counts.delete(key);
       this._size -= current;
     } else {
-      this.counts.set(value, current - occurrences);
+      this.counts.set(key, current - occurrences);
       this._size -= occurrences;
     }
     return true;
   }
 
   removeAll(value: bigint): boolean {
-    const current = this.counts.get(value);
+    value = BigInt.asIntN(64, value);
+    const key = value;
+    const current = this.counts.get(key);
     if (current === undefined) return false;
-    this.counts.delete(value);
+    this.counts.delete(key);
     this._size -= current;
     return true;
   }
 
   occurrencesOf(value: bigint): number {
+    value = BigInt.asIntN(64, value);
     return this.counts.get(value) ?? 0;
   }
 
   has(value: bigint): boolean {
+    value = BigInt.asIntN(64, value);
     return this.counts.has(value);
   }
 
@@ -115,8 +127,8 @@ export class BigInt64HashBag {
 
   /** Yields [value, occurrences] pairs for each distinct value */
   *entries(): Generator<[bigint, number]> {
-    for (const entry of this.counts) {
-      yield entry;
+    for (const [value, count] of this.counts) {
+      yield [value, count];
     }
   }
 

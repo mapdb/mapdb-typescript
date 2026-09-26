@@ -9,7 +9,10 @@
 /**
  * Bag (multiset) for number values backed by Map<number, number>.
  * Tracks occurrence counts for each distinct value.
- * Map handles number keys natively, including bigint.
+ * Every caller-supplied value is first narrowed to what Int32Array stores.
+ * Narrowing folds -0 into 0, so integer keys need no signed-zero re-keying.
+ * Iteration (entries / forEach / toArray / for-of) follows Map insertion
+ * order of the distinct values and yields the stored (narrowed) value.
  */
 export class Int32HashBag {
   private counts: Map<number, number> = new Map();
@@ -28,7 +31,8 @@ export class Int32HashBag {
    */
   static bulkLoad(entries: Iterable<readonly [number, number]>): Int32HashBag {
     const bag = new Int32HashBag();
-    for (const [value, count] of entries) {
+    for (const [rawValue, count] of entries) {
+      const value = rawValue | 0;
       if (!Number.isSafeInteger(count) || count < 0) {
         throw new RangeError(
           "bag occurrence count must be a non-negative safe integer, got " +
@@ -36,14 +40,15 @@ export class Int32HashBag {
         );
       }
       if (count === 0) continue;
-      const current = bag.counts.get(value) ?? 0;
+      const key = value;
+      const current = bag.counts.get(key) ?? 0;
       if (
         current + count > Number.MAX_SAFE_INTEGER ||
         bag._size + count > Number.MAX_SAFE_INTEGER
       ) {
         throw new RangeError("bag count overflow during pump");
       }
-      bag.counts.set(value, current + count);
+      bag.counts.set(key, current + count);
       bag._size += count;
     }
     return bag;
@@ -53,8 +58,10 @@ export class Int32HashBag {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return;
-    const current = this.counts.get(value) ?? 0;
-    this.counts.set(value, current + occurrences);
+    value = value | 0;
+    const key = value;
+    const current = this.counts.get(key) ?? 0;
+    this.counts.set(key, current + occurrences);
     this._size += occurrences;
   }
 
@@ -66,31 +73,37 @@ export class Int32HashBag {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return false;
-    const current = this.counts.get(value);
+    value = value | 0;
+    const key = value;
+    const current = this.counts.get(key);
     if (current === undefined) return false;
     if (occurrences >= current) {
-      this.counts.delete(value);
+      this.counts.delete(key);
       this._size -= current;
     } else {
-      this.counts.set(value, current - occurrences);
+      this.counts.set(key, current - occurrences);
       this._size -= occurrences;
     }
     return true;
   }
 
   removeAll(value: number): boolean {
-    const current = this.counts.get(value);
+    value = value | 0;
+    const key = value;
+    const current = this.counts.get(key);
     if (current === undefined) return false;
-    this.counts.delete(value);
+    this.counts.delete(key);
     this._size -= current;
     return true;
   }
 
   occurrencesOf(value: number): number {
+    value = value | 0;
     return this.counts.get(value) ?? 0;
   }
 
   has(value: number): boolean {
+    value = value | 0;
     return this.counts.has(value);
   }
 
@@ -115,8 +128,8 @@ export class Int32HashBag {
 
   /** Yields [value, occurrences] pairs for each distinct value */
   *entries(): Generator<[number, number]> {
-    for (const entry of this.counts) {
-      yield entry;
+    for (const [value, count] of this.counts) {
+      yield [value, count];
     }
   }
 

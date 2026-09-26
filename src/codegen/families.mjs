@@ -2952,7 +2952,7 @@ describe("${cls} generated", () => {
 }
 
 // ===========================================================================
-// BAG — mutable only (multiset; no immutable variant)
+// BAG — mutable
 // ===========================================================================
 
 export function bagSourceFileName(prim) {
@@ -2965,20 +2965,60 @@ export function bagClassName(prim) {
   return `${prim.name}HashBag`;
 }
 
+/**
+ * Per-prim key plumbing for the Map-backed typed bags (audit F5). Every
+ * caller-supplied value is narrowed to the storage width at the API boundary
+ * (PRIMS[].narrow). Float bags key the Map through mapKeyOf so -0 and +0 are
+ * DISTINCT keys (native Map is SameValueZero); NaN stays one key (Map treats
+ * every NaN as the same key — the TS NaN exception in algorithms.md). Int and
+ * bigint bags need no re-keying: narrowing already folds -0 into 0.
+ */
+function bagKeying(prim) {
+  const T = prim.tsType;
+  const isFloat = prim.kind === "float";
+  return {
+    isFloat,
+    imports: isFloat
+      ? `import {\n  mapKeyOf,\n  mapKeyValue,\n  type NumberMapKey,\n} from "../../internal/float-order.js";\n`
+      : "",
+    K: isFloat ? "NumberMapKey" : T,
+    key: (v) => (isFloat ? `mapKeyOf(${v})` : v),
+    /** for-of over the counts Map binding `value` (decoded) and `count`. */
+    loop: (indent, src = "this.counts") =>
+      isFloat
+        ? `${indent}for (const [key, count] of ${src}) {\n${indent}  const value = mapKeyValue(key);\n`
+        : `${indent}for (const [value, count] of ${src}) {\n`,
+    narrow: (v, indent) => narrowStmt(prim, v, indent),
+    identityDoc: isFloat
+      ? ` * Keys are routed through mapKeyOf, so -0 and +0 are DISTINCT keys
+ * (Object.is identity, like the typed hash sets); every NaN is ONE key.
+`
+      : prim.kind === "int"
+        ? ` * Narrowing folds -0 into 0, so integer keys need no signed-zero re-keying.
+`
+        : "",
+  };
+}
+
 export function renderBag(prim, command) {
   const cls = bagClassName(prim);
   const T = prim.tsType;
   const Arr = prim.arrayClass;
+  const bk = bagKeying(prim);
+  const narrowNote = prim.narrow
+    ? ` * Every caller-supplied value is first narrowed to what ${Arr} stores.\n`
+    : "";
 
   return `${LICENSE}${banner(command)}
-
+${bk.imports ? "\n" + bk.imports : ""}
 /**
- * Bag (multiset) for ${T} values backed by Map<${T}, number>.
+ * Bag (multiset) for ${T} values backed by Map<${bk.K}, number>.
  * Tracks occurrence counts for each distinct value.
- * Map handles ${T} keys natively, including bigint.
+${narrowNote}${bk.identityDoc} * Iteration (entries / forEach / toArray / for-of) follows Map insertion
+ * order of the distinct values and yields the stored (narrowed) value.
  */
 export class ${cls} {
-  private counts: Map<${T}, number> = new Map();
+  private counts: Map<${bk.K}, number> = new Map();
   private _size = 0;
 
   add(value: ${T}): this {
@@ -2994,22 +3034,22 @@ export class ${cls} {
    */
   static bulkLoad(entries: Iterable<readonly [${T}, number]>): ${cls} {
     const bag = new ${cls}();
-    for (const [value, count] of entries) {
-      if (!Number.isSafeInteger(count) || count < 0) {
+${narrowForOf(prim, "[value, count]", "value", "entries", "    ")}      if (!Number.isSafeInteger(count) || count < 0) {
         throw new RangeError(
           "bag occurrence count must be a non-negative safe integer, got " +
             count,
         );
       }
       if (count === 0) continue;
-      const current = bag.counts.get(value) ?? 0;
+      const key = ${bk.key("value")};
+      const current = bag.counts.get(key) ?? 0;
       if (
         current + count > Number.MAX_SAFE_INTEGER ||
         bag._size + count > Number.MAX_SAFE_INTEGER
       ) {
         throw new RangeError("bag count overflow during pump");
       }
-      bag.counts.set(value, current + count);
+      bag.counts.set(key, current + count);
       bag._size += count;
     }
     return bag;
@@ -3019,8 +3059,9 @@ export class ${cls} {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return;
-    const current = this.counts.get(value) ?? 0;
-    this.counts.set(value, current + occurrences);
+${bk.narrow("value", "    ")}    const key = ${bk.key("value")};
+    const current = this.counts.get(key) ?? 0;
+    this.counts.set(key, current + occurrences);
     this._size += occurrences;
   }
 
@@ -3032,32 +3073,34 @@ export class ${cls} {
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return false;
-    const current = this.counts.get(value);
+${bk.narrow("value", "    ")}    const key = ${bk.key("value")};
+    const current = this.counts.get(key);
     if (current === undefined) return false;
     if (occurrences >= current) {
-      this.counts.delete(value);
+      this.counts.delete(key);
       this._size -= current;
     } else {
-      this.counts.set(value, current - occurrences);
+      this.counts.set(key, current - occurrences);
       this._size -= occurrences;
     }
     return true;
   }
 
   removeAll(value: ${T}): boolean {
-    const current = this.counts.get(value);
+${bk.narrow("value", "    ")}    const key = ${bk.key("value")};
+    const current = this.counts.get(key);
     if (current === undefined) return false;
-    this.counts.delete(value);
+    this.counts.delete(key);
     this._size -= current;
     return true;
   }
 
   occurrencesOf(value: ${T}): number {
-    return this.counts.get(value) ?? 0;
+${bk.narrow("value", "    ")}    return this.counts.get(${bk.key("value")}) ?? 0;
   }
 
   has(value: ${T}): boolean {
-    return this.counts.has(value);
+${bk.narrow("value", "    ")}    return this.counts.has(${bk.key("value")});
   }
 
   /** Total number of items including duplicates */
@@ -3081,23 +3124,20 @@ export class ${cls} {
 
   /** Yields [value, occurrences] pairs for each distinct value */
   *entries(): Generator<[${T}, number]> {
-    for (const entry of this.counts) {
-      yield entry;
+${bk.loop("    ")}      yield [value, count];
     }
   }
 
   /** Makes the bag iterable with for-of loops; yields each item repeated by
    * its occurrence count (matching forEach / toArray). */
   *[Symbol.iterator](): IterableIterator<${T}> {
-    for (const [value, count] of this.counts) {
-      for (let i = 0; i < count; i++) yield value;
+${bk.loop("    ")}      for (let i = 0; i < count; i++) yield value;
     }
   }
 
   /** Iterates over each item, repeating by occurrence count */
   forEach(f: (value: ${T}) => void): void {
-    for (const [value, count] of this.counts) {
-      for (let i = 0; i < count; i++) {
+${bk.loop("    ")}      for (let i = 0; i < count; i++) {
         f(value);
       }
     }
@@ -3107,23 +3147,20 @@ export class ${cls} {
   forEachWithOccurrences(
     f: (value: ${T}, occurrences: number) => void,
   ): void {
-    for (const [value, count] of this.counts) {
-      f(value, count);
+${bk.loop("    ")}      f(value, count);
     }
   }
 
   select(predicate: (value: ${T}) => boolean): ${cls} {
     const result = new ${cls}();
-    for (const [value, count] of this.counts) {
-      if (predicate(value)) result.addOccurrences(value, count);
+${bk.loop("    ")}      if (predicate(value)) result.addOccurrences(value, count);
     }
     return result;
   }
 
   reject(predicate: (value: ${T}) => boolean): ${cls} {
     const result = new ${cls}();
-    for (const [value, count] of this.counts) {
-      if (!predicate(value)) result.addOccurrences(value, count);
+${bk.loop("    ")}      if (!predicate(value)) result.addOccurrences(value, count);
     }
     return result;
   }
@@ -3132,8 +3169,7 @@ export class ${cls} {
   toArray(): ${Arr} {
     const result = new ${Arr}(this._size);
     let idx = 0;
-    for (const [value, count] of this.counts) {
-      for (let i = 0; i < count; i++) {
+${bk.loop("    ")}      for (let i = 0; i < count; i++) {
         result[idx++] = value;
       }
     }
@@ -3142,21 +3178,21 @@ export class ${cls} {
 
   toString(): string {
     const parts: string[] = [];
-    for (const [value, count] of this.counts) {
-      parts.push(\`\${value}×\${count}\`);
+${bk.loop("    ")}      parts.push(\`\${value}×\${count}\`);
     }
     return \`{\${parts.join(", ")}}\`;
   }
 
   /** Estimated memory: Map overhead + this object overhead */
   memoryBytes(): number {
-    // Map<${T}, number>: ~80 bytes per entry overhead in V8
+    // Map<${bk.K}, number>: ~80 bytes per entry overhead in V8
     // This is an estimate; exact memory depends on the JS engine.
     return this.counts.size * 80;
   }
 }
 `;
 }
+
 
 export function renderBagTest(prim, command) {
   const cls = bagClassName(prim);
@@ -3240,27 +3276,32 @@ export function renderImmutableBag(prim, command) {
   const mut = bagClassName(prim);
   const T = prim.tsType;
   const Arr = prim.arrayClass;
+  const bk = bagKeying(prim);
+  const narrowNote = prim.narrow
+    ? ` * Every caller-supplied value is first narrowed to what ${Arr} stores.\n`
+    : "";
 
   return `${LICENSE}${banner(command)}
 
 import { ${mut} } from "./${prim.id}-hash-bag.js";
-
+${bk.imports}
 /**
- * Immutable bag (multiset) for ${T} values backed by Map<${T}, number>.
+ * Immutable bag (multiset) for ${T} values backed by Map<${bk.K}, number>.
  * Tracks occurrence counts for each distinct value.
+${narrowNote}${bk.identityDoc} * Iteration follows Map insertion order of the distinct values.
  * Construct via static of(values) or fromMutable(mutable).
  * Mutations create new instances; select/reject return MUTABLE.
  */
 export class ${cls} {
-  private counts: Map<${T}, number>;
+  private counts: Map<${bk.K}, number>;
   private _size: number;
 
   /** Creates an immutable bag from an array of values (defensive copy). */
   static of(values: ${T}[]): ${cls} {
-    const counts = new Map<${T}, number>();
+    const counts = new Map<${bk.K}, number>();
     let size = 0;
-    for (const v of values) {
-      counts.set(v, (counts.get(v) ?? 0) + 1);
+${narrowForOf(prim, "v", "v", "values", "    ")}      const key = ${bk.key("v")};
+      counts.set(key, (counts.get(key) ?? 0) + 1);
       size++;
     }
     return new ${cls}(counts, size);
@@ -3268,28 +3309,28 @@ export class ${cls} {
 
   /** Creates an immutable copy from a mutable bag (defensive copy). */
   static fromMutable(mutable: ${mut}): ${cls} {
-    const counts = new Map<${T}, number>();
+    const counts = new Map<${bk.K}, number>();
     let size = 0;
     mutable.forEachWithOccurrences((value, occurrences) => {
-      counts.set(value, occurrences);
+      counts.set(${bk.key("value")}, occurrences);
       size += occurrences;
     });
     return new ${cls}(counts, size);
   }
 
-  private constructor(counts: Map<${T}, number>, size: number) {
+  private constructor(counts: Map<${bk.K}, number>, size: number) {
     this.counts = counts;
     this._size = size;
   }
 
   /** Returns the number of occurrences of the given value. */
   occurrencesOf(value: ${T}): number {
-    return this.counts.get(value) ?? 0;
+${bk.narrow("value", "    ")}    return this.counts.get(${bk.key("value")}) ?? 0;
   }
 
   /** Returns true if the bag contains the given value. */
   has(value: ${T}): boolean {
-    return this.counts.has(value);
+${bk.narrow("value", "    ")}    return this.counts.has(${bk.key("value")});
   }
 
   /** Total number of items including duplicates. */
@@ -3309,23 +3350,20 @@ export class ${cls} {
 
   /** Yields [value, occurrences] pairs for each distinct value. */
   *entries(): Generator<[${T}, number]> {
-    for (const entry of this.counts) {
-      yield entry;
+${bk.loop("    ")}      yield [value, count];
     }
   }
 
   /** Makes the bag iterable with for-of loops; yields each item repeated by
    * its occurrence count (matching forEach / toArray). */
   *[Symbol.iterator](): IterableIterator<${T}> {
-    for (const [value, count] of this.counts) {
-      for (let i = 0; i < count; i++) yield value;
+${bk.loop("    ")}      for (let i = 0; i < count; i++) yield value;
     }
   }
 
   /** Iterates over each item, repeating by occurrence count. */
   forEach(f: (value: ${T}) => void): void {
-    for (const [value, count] of this.counts) {
-      for (let i = 0; i < count; i++) {
+${bk.loop("    ")}      for (let i = 0; i < count; i++) {
         f(value);
       }
     }
@@ -3335,16 +3373,14 @@ export class ${cls} {
   forEachWithOccurrences(
     f: (value: ${T}, occurrences: number) => void,
   ): void {
-    for (const [value, count] of this.counts) {
-      f(value, count);
+${bk.loop("    ")}      f(value, count);
     }
   }
 
   /** Returns a new MUTABLE bag with values satisfying the predicate. */
   select(predicate: (value: ${T}) => boolean): ${mut} {
     const result = new ${mut}();
-    for (const [value, count] of this.counts) {
-      if (predicate(value)) result.addOccurrences(value, count);
+${bk.loop("    ")}      if (predicate(value)) result.addOccurrences(value, count);
     }
     return result;
   }
@@ -3352,8 +3388,7 @@ export class ${cls} {
   /** Returns a new MUTABLE bag with values NOT satisfying the predicate. */
   reject(predicate: (value: ${T}) => boolean): ${mut} {
     const result = new ${mut}();
-    for (const [value, count] of this.counts) {
-      if (!predicate(value)) result.addOccurrences(value, count);
+${bk.loop("    ")}      if (!predicate(value)) result.addOccurrences(value, count);
     }
     return result;
   }
@@ -3362,8 +3397,7 @@ export class ${cls} {
   toArray(): ${Arr} {
     const result = new ${Arr}(this._size);
     let idx = 0;
-    for (const [value, count] of this.counts) {
-      for (let i = 0; i < count; i++) {
+${bk.loop("    ")}      for (let i = 0; i < count; i++) {
         result[idx++] = value;
       }
     }
@@ -3373,29 +3407,28 @@ export class ${cls} {
   /** Returns a mutable copy of this immutable bag. */
   toMutable(): ${mut} {
     const result = new ${mut}();
-    for (const [value, count] of this.counts) {
-      result.addOccurrences(value, count);
+${bk.loop("    ")}      result.addOccurrences(value, count);
     }
     return result;
   }
 
   toString(): string {
     const parts: string[] = [];
-    for (const [value, count] of this.counts) {
-      parts.push(\`\${value}×\${count}\`);
+${bk.loop("    ")}      parts.push(\`\${value}×\${count}\`);
     }
     return \`{\${parts.join(", ")}}\`;
   }
 
   /** Estimated memory: Map overhead + this object overhead. */
   memoryBytes(): number {
-    // Map<${T}, number>: ~80 bytes per entry overhead in V8
+    // Map<${bk.K}, number>: ~80 bytes per entry overhead in V8
     // This is an estimate; exact memory depends on the JS engine.
     return this.counts.size * 80;
   }
 }
 `;
 }
+
 
 export function renderImmutableBagTest(prim, command) {
   const cls = immBagClassName(prim);

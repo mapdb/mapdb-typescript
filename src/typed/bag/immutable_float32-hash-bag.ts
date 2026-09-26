@@ -7,23 +7,34 @@
 
 
 import { Float32HashBag } from "./float32-hash-bag.js";
+import {
+  mapKeyOf,
+  mapKeyValue,
+  type NumberMapKey,
+} from "../../internal/float-order.js";
 
 /**
- * Immutable bag (multiset) for number values backed by Map<number, number>.
+ * Immutable bag (multiset) for number values backed by Map<NumberMapKey, number>.
  * Tracks occurrence counts for each distinct value.
+ * Every caller-supplied value is first narrowed to what Float32Array stores.
+ * Keys are routed through mapKeyOf, so -0 and +0 are DISTINCT keys
+ * (Object.is identity, like the typed hash sets); every NaN is ONE key.
+ * Iteration follows Map insertion order of the distinct values.
  * Construct via static of(values) or fromMutable(mutable).
  * Mutations create new instances; select/reject return MUTABLE.
  */
 export class ImmutableFloat32HashBag {
-  private counts: Map<number, number>;
+  private counts: Map<NumberMapKey, number>;
   private _size: number;
 
   /** Creates an immutable bag from an array of values (defensive copy). */
   static of(values: number[]): ImmutableFloat32HashBag {
-    const counts = new Map<number, number>();
+    const counts = new Map<NumberMapKey, number>();
     let size = 0;
-    for (const v of values) {
-      counts.set(v, (counts.get(v) ?? 0) + 1);
+    for (const rawV of values) {
+      const v = Math.fround(rawV);
+      const key = mapKeyOf(v);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
       size++;
     }
     return new ImmutableFloat32HashBag(counts, size);
@@ -31,28 +42,30 @@ export class ImmutableFloat32HashBag {
 
   /** Creates an immutable copy from a mutable bag (defensive copy). */
   static fromMutable(mutable: Float32HashBag): ImmutableFloat32HashBag {
-    const counts = new Map<number, number>();
+    const counts = new Map<NumberMapKey, number>();
     let size = 0;
     mutable.forEachWithOccurrences((value, occurrences) => {
-      counts.set(value, occurrences);
+      counts.set(mapKeyOf(value), occurrences);
       size += occurrences;
     });
     return new ImmutableFloat32HashBag(counts, size);
   }
 
-  private constructor(counts: Map<number, number>, size: number) {
+  private constructor(counts: Map<NumberMapKey, number>, size: number) {
     this.counts = counts;
     this._size = size;
   }
 
   /** Returns the number of occurrences of the given value. */
   occurrencesOf(value: number): number {
-    return this.counts.get(value) ?? 0;
+    value = Math.fround(value);
+    return this.counts.get(mapKeyOf(value)) ?? 0;
   }
 
   /** Returns true if the bag contains the given value. */
   has(value: number): boolean {
-    return this.counts.has(value);
+    value = Math.fround(value);
+    return this.counts.has(mapKeyOf(value));
   }
 
   /** Total number of items including duplicates. */
@@ -72,22 +85,25 @@ export class ImmutableFloat32HashBag {
 
   /** Yields [value, occurrences] pairs for each distinct value. */
   *entries(): Generator<[number, number]> {
-    for (const entry of this.counts) {
-      yield entry;
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
+      yield [value, count];
     }
   }
 
   /** Makes the bag iterable with for-of loops; yields each item repeated by
    * its occurrence count (matching forEach / toArray). */
   *[Symbol.iterator](): IterableIterator<number> {
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       for (let i = 0; i < count; i++) yield value;
     }
   }
 
   /** Iterates over each item, repeating by occurrence count. */
   forEach(f: (value: number) => void): void {
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       for (let i = 0; i < count; i++) {
         f(value);
       }
@@ -98,7 +114,8 @@ export class ImmutableFloat32HashBag {
   forEachWithOccurrences(
     f: (value: number, occurrences: number) => void,
   ): void {
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       f(value, count);
     }
   }
@@ -106,7 +123,8 @@ export class ImmutableFloat32HashBag {
   /** Returns a new MUTABLE bag with values satisfying the predicate. */
   select(predicate: (value: number) => boolean): Float32HashBag {
     const result = new Float32HashBag();
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       if (predicate(value)) result.addOccurrences(value, count);
     }
     return result;
@@ -115,7 +133,8 @@ export class ImmutableFloat32HashBag {
   /** Returns a new MUTABLE bag with values NOT satisfying the predicate. */
   reject(predicate: (value: number) => boolean): Float32HashBag {
     const result = new Float32HashBag();
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       if (!predicate(value)) result.addOccurrences(value, count);
     }
     return result;
@@ -125,7 +144,8 @@ export class ImmutableFloat32HashBag {
   toArray(): Float32Array {
     const result = new Float32Array(this._size);
     let idx = 0;
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       for (let i = 0; i < count; i++) {
         result[idx++] = value;
       }
@@ -136,7 +156,8 @@ export class ImmutableFloat32HashBag {
   /** Returns a mutable copy of this immutable bag. */
   toMutable(): Float32HashBag {
     const result = new Float32HashBag();
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       result.addOccurrences(value, count);
     }
     return result;
@@ -144,7 +165,8 @@ export class ImmutableFloat32HashBag {
 
   toString(): string {
     const parts: string[] = [];
-    for (const [value, count] of this.counts) {
+    for (const [key, count] of this.counts) {
+      const value = mapKeyValue(key);
       parts.push(`${value}×${count}`);
     }
     return `{${parts.join(", ")}}`;
@@ -152,7 +174,7 @@ export class ImmutableFloat32HashBag {
 
   /** Estimated memory: Map overhead + this object overhead. */
   memoryBytes(): number {
-    // Map<number, number>: ~80 bytes per entry overhead in V8
+    // Map<NumberMapKey, number>: ~80 bytes per entry overhead in V8
     // This is an estimate; exact memory depends on the JS engine.
     return this.counts.size * 80;
   }
