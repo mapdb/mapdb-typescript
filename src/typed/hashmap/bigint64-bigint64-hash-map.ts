@@ -283,7 +283,9 @@ export class BigInt64BigInt64HashMap {
       existing !== undefined ? (((existing as any) + amount) as any) : amount
     ) as bigint;
     this.set(key, newVal);
-    return newVal;
+    // Return what the BigInt64Array stored (wrapped/narrowed at the value
+    // width, algorithms.md integer overflow contract; audit F7), not the raw sum.
+    return BigInt.asIntN(64, newVal);
   }
 
   /** Memory stats for this map */

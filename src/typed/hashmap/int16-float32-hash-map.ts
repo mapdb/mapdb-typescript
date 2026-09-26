@@ -282,7 +282,9 @@ export class Int16Float32HashMap {
       existing !== undefined ? (((existing as any) + amount) as any) : amount
     ) as number;
     this.set(key, newVal);
-    return newVal;
+    // Return what the Float32Array stored (wrapped/narrowed at the value
+    // width, algorithms.md integer overflow contract; audit F7), not the raw sum.
+    return Math.fround(newVal);
   }
 
   /** Memory stats for this map */

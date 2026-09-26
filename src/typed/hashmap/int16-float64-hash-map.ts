@@ -282,6 +282,8 @@ export class Int16Float64HashMap {
       existing !== undefined ? (((existing as any) + amount) as any) : amount
     ) as number;
     this.set(key, newVal);
+    // Return what the Float64Array stored (wrapped/narrowed at the value
+    // width, algorithms.md integer overflow contract; audit F7), not the raw sum.
     return newVal;
   }
 

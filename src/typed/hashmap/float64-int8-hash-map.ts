@@ -278,7 +278,9 @@ export class Float64Int8HashMap {
       existing !== undefined ? (((existing as any) + amount) as any) : amount
     ) as number;
     this.set(key, newVal);
-    return newVal;
+    // Return what the Int8Array stored (wrapped/narrowed at the value
+    // width, algorithms.md integer overflow contract; audit F7), not the raw sum.
+    return (newVal << 24) >> 24;
   }
 
   /** Memory stats for this map */
