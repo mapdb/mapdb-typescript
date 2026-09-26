@@ -324,6 +324,9 @@ interface NavLog {
   pollFirstValues: (number | null)[];
   pollLastValues: (number | null)[];
   removeRangeCounts: number[];
+  // Value returned by each production addToValue, in execution order
+  // (add_to_value_results; HashMap<i32,i32> only).
+  addToValueResults: number[];
 }
 
 function newNavLog(): NavLog {
@@ -333,6 +336,7 @@ function newNavLog(): NavLog {
     pollFirstValues: [],
     pollLastValues: [],
     removeRangeCounts: [],
+    addToValueResults: [],
   };
 }
 
@@ -423,7 +427,9 @@ function applyOperation(
       // owns the width contract now (see algorithms.md "Integer overflow
       // contract" + the typed-map native test).
       if (coll instanceof Int32Int32HashMap) {
-        coll.addToValue(k(), op.delta as number);
+        // Record the production return value verbatim (add_to_value_results):
+        // it must equal the stored, width-wrapped value.
+        log.addToValueResults.push(coll.addToValue(k(), op.delta as number));
       } else {
         // Fail loudly rather than silently no-op: a future addToValue scenario
         // on another collection (e.g. HashMap<f32,i32>) must route through that
@@ -805,6 +811,11 @@ function evaluateAssertion(
         return log.pollLastValues;
       if (key === "remove_range_counts") return log.removeRangeCounts;
     }
+  }
+
+  // --- add_to_value_results (HashMap<i32,i32>): replayed from execution ---
+  if (key === "add_to_value_results" && coll instanceof Int32Int32HashMap) {
+    return log.addToValueResults;
   }
 
   // --- get_N (maps) ---
