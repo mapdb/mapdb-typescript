@@ -2,6 +2,23 @@
 
 All notable changes to `@mapdb/typescript` are documented here.
 
+## Unreleased
+
+### Fixed
+
+- `NumberInterval` now enforces its documented `Interval<i32>` domain: `from`,
+  `to` and `step` must be int32 values, and every factory (`fromToBy`,
+  `fromTo`, `oneTo`, `zeroTo`) throws a `RangeError` otherwise. Previously
+  `fromTo(2 ** 53, 2 ** 53 + 2)` was accepted and iterated forever because the
+  `current += step` cursor rounded back to `2 ** 53`. Iteration is now
+  index-driven (`from + step * i` for `i < size`), `size` is an exact integer
+  (`fromToBy(0, 10, 3).size` was `4.333…`, which let `get(4)` return `12`, a
+  non-member), `get` rejects fractional indexes, and `has` returns false for
+  any non-integer query. Callers that passed integers beyond int32 should
+  switch to `BigIntInterval`; fractional endpoints or steps were never
+  members of an integer interval and must be rounded to integers by the
+  caller before construction.
+
 ## 0.2.0 — v2 idiom line (BREAKING)
 
 This release cuts the collection API over to JS-native idioms. It removes

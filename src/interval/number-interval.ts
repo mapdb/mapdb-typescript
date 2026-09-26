@@ -4,11 +4,18 @@
 // See LICENSE-EPL-1.0.txt and LICENSE-EDL-1.0.txt.
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 
-
 /**
  * A virtual collection representing a range of number values [from, to] with
  * a given step. No elements are materialised in memory — iteration computes
  * values on the fly.
+ *
+ * This is the `Interval<i32>` surface (algorithms.md §"Interval over signed
+ * integers"): `from`, `to` and `step` must be int32 values
+ * (`Number.isInteger` and within `[-2^31, 2^31 - 1]`); every factory throws a
+ * `RangeError` otherwise. Enforcing the domain keeps `to - from` and
+ * `from + step * i` exact in IEEE doubles, so `size` is an exact integer
+ * division and iteration is index-driven (`get(i)` for `i < size`), never a
+ * `current += step` cursor that can round at 2^53 and loop forever.
  */
 export class NumberInterval {
   private readonly _from: number;
@@ -21,8 +28,25 @@ export class NumberInterval {
     this._step = step;
   }
 
+  /**
+   * Rejects anything outside the int32 domain: fractions, NaN, ±Infinity and
+   * integers beyond ±2^31. Called by every public factory so no path (in
+   * particular `fromTo`, which does not go through `fromToBy`) can build an
+   * interval whose arithmetic is inexact.
+   */
+  private static checkI32(name: string, value: number): void {
+    if (!Number.isInteger(value) || value < -2147483648 || value > 2147483647) {
+      throw new RangeError(
+        `NumberInterval: ${name} must be an int32, got ${String(value)}`,
+      );
+    }
+  }
+
   /** Creates an interval from `from` to `to` (inclusive) with the given step. */
   static fromToBy(from: number, to: number, step: number): NumberInterval {
+    NumberInterval.checkI32("from", from);
+    NumberInterval.checkI32("to", to);
+    NumberInterval.checkI32("step", step);
     if (step === 0) throw new Error("NumberInterval: step must not be zero");
     if (from < to && step < 0)
       throw new Error("NumberInterval: step must be positive when from < to");
@@ -33,6 +57,8 @@ export class NumberInterval {
 
   /** Creates an interval from `from` to `to` (inclusive) with step 1 or -1. */
   static fromTo(from: number, to: number): NumberInterval {
+    NumberInterval.checkI32("from", from);
+    NumberInterval.checkI32("to", to);
     const step: number = from <= to ? 1 : (-1 as number);
     return new NumberInterval(from, to, step);
   }
@@ -70,7 +96,15 @@ export class NumberInterval {
     ) {
       return 0;
     }
-    return Number((this._to - this._from) / this._step) + 1;
+    // Both operands are int32, so the distance (< 2^32) is exact. The
+    // intermediate quotient may round (10 / 3 is not representable), but the
+    // rounding error is far below the gap to the next integer boundary, so
+    // the floor is the exact integer quotient and the count is exact: the
+    // canonical `distance / absStep + 1`, never a fractional size (which let
+    // `get` return elements outside the interval).
+    return (
+      Math.floor(Math.abs(this._to - this._from) / Math.abs(this._step)) + 1
+    );
   }
 
   /** Returns true if the interval is empty. */
@@ -78,8 +112,15 @@ export class NumberInterval {
     return this.size === 0;
   }
 
-  /** Returns true if the interval contains the given value. */
+  /**
+   * Returns true if the interval contains the given value. A non-integer
+   * query can never be a member, and it must be rejected before the
+   * subtraction: `Number.EPSILON - (-2147483648)` rounds to an integer, so
+   * the remainder test alone would report it as a member. Out-of-int32
+   * integers fail the endpoint comparisons.
+   */
   has(value: number): boolean {
+    if (!Number.isInteger(value)) return false;
     if (this._step > 0) {
       return (
         value >= this._from &&
@@ -96,7 +137,7 @@ export class NumberInterval {
 
   /** Returns the element at the given index, or throws if out of bounds. */
   get(index: number): number {
-    if (index < 0 || index >= this.size) {
+    if (!Number.isInteger(index) || index < 0 || index >= this.size) {
       throw new RangeError(
         `${index} out of bounds for interval size ${this.size}`,
       );
@@ -178,17 +219,12 @@ export class NumberInterval {
 
   /** Makes the interval iterable with for-of loops. */
   *[Symbol.iterator](): IterableIterator<number> {
-    let current = this._from;
-    if (this._step > 0) {
-      while (current <= this._to) {
-        yield current;
-        current = (current + this._step) as number;
-      }
-    } else {
-      while (current >= this._to) {
-        yield current;
-        current = (current + this._step) as number;
-      }
+    // Index-driven, per algorithms.md: `from + step * i` for `i < size` is
+    // exact in the int32 domain, whereas a `current += step` cursor is not
+    // guaranteed to cross `to` once values round (2^53 + 1 == 2^53).
+    const n = this.size;
+    for (let i = 0; i < n; i++) {
+      yield this._from + this._step * i;
     }
   }
 
