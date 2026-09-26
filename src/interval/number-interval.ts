@@ -229,8 +229,11 @@ export class NumberInterval {
   }
 
   /**
-   * Returns a new interval with the same elements in reverse order:
-   * `get(size - 1), ..., get(0)`.
+   * Returns a new interval with the same elements in reverse order. The
+   * result starts from the last element of the complete progression and
+   * walks back to `from`; that equals `get(size - 1), ..., get(0)` whenever
+   * the element count is representable by the index API, but the general
+   * definition is the complete progression, as the spec states.
    *
    * Its `from` is the last element actually produced, not this interval's
    * `to`: `to` is only an inclusive bound and may sit off the step grid
