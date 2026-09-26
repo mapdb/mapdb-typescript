@@ -105,16 +105,21 @@ verbatim so regeneration never silently reverts a hand fix:
 - **hash-set element hashing** uses the same canonical helpers as hash-map keys
   (`f64HashSeed` / `bigintHashSeed` / `key | 0`), imported by name.
 - **float-element hash sets** get an `IEEE 754 edge cases` test block.
-- **width normalisation** (audit 04 F1): every API entry point that takes a
-  key/element (hash map `set`/`get`/`remove`/bulk-load, hash set
-  `add`/`has`/`remove`/bulk-load, list/stack `has`/`indexOf`) narrows it ONCE to
-  the storage width via the `PRIMS[].narrow` expression (`Math.fround`,
-  `<<24>>24`, `<<16>>16`, `| 0`, `BigInt.asIntN(64, …)`) before hashing and
-  `Object.is`, so a key hashes and compares exactly as it is stored. `float64`
-  has `narrow: null` and emits nothing (a JS number is stored losslessly).
+- **width normalisation** (audit 04 F1): in the listed families, each
+  hash/comparison entry point that takes a key/element (hash map
+  `set`/`get`/`remove`/bulk-load, hash set `add`/`has`/`remove`/bulk-load,
+  list/stack `has`/`indexOf`) narrows it to the storage width via the
+  `PRIMS[].narrow` expression (`Math.fround`, `<<24>>24`, `<<16>>16`, `| 0`,
+  `BigInt.asIntN(64, …)`) before hashing and `Object.is`, so a key hashes and
+  compares exactly as it is stored. Wrappers that delegate (`has`/`getOrDefault`
+  via `get`, `addToValue` via `get`+`set`) narrow in the callee, so a value may
+  be narrowed more than once; list/stack *writes* narrow through the
+  TypedArray assignment itself. `float64` has `narrow: null` and emits nothing
+  (a JS number is stored losslessly). Typed bags are outside this generator.
 - **float list/stack `min`/`max`** use `totalCmpNumber` (IEEE 754 totalOrder:
-  `-0 < +0`, NaN above `+Inf`; audit 04 F4), the same comparator as the generic
-  `NumberArrayList`. Integer and bigint types keep raw `<`/`>`.
+  `-0 < +0`, canonical positive NaN above `+Inf`, sign-bit NaN below `-Inf`;
+  audit 04 F4), the same comparator as the generic `NumberArrayList`. Integer
+  and bigint types keep raw `<`/`>`.
 - A couple of **hand quirks** in the immutable-stack tests (a `// top = …`
   comment that carries the bigint `n` suffix, and an `every((v) => v < 100)`
   that compares a bigint element to a plain `100`) are reproduced as-is.
