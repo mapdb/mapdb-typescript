@@ -564,6 +564,13 @@ function evaluateF32Assertion(key: string, coll: Collection): unknown {
   if (key === "sorted_keys" && coll instanceof NumberNumberHashMap) {
     return renderSorted(coll.keysToArray(), true);
   }
+  // HashMap<f32, i32>: the VALUES are i32 (README: HashMap<*> sorted_values
+  // is the value multiset ascending), rendered like the i32 map's, not as
+  // float labels. The expected side is rendered in i32 mode too (see
+  // executeScenario).
+  if (key === "sorted_values" && coll instanceof NumberNumberHashMap) {
+    return coll.valuesToArray().sort((a, b) => a - b);
+  }
   if (
     (key === "sorted_values" || key === "to_sorted_array") &&
     coll instanceof NumberHashSet
@@ -3606,8 +3613,7 @@ function applyTraceOp(
   if (typeof op.op !== "string" || op.op.length === 0) {
     throw new Error("malformed operation");
   }
-  const isMap =
-    kind === "HashMap<i32, i32>" || kind === "TreeMap<i32, i32>";
+  const isMap = kind === "HashMap<i32, i32>" || kind === "TreeMap<i32, i32>";
   if (isMap) {
     if (op.op === "put") {
       const k = traceI32(op.key);
@@ -3647,7 +3653,8 @@ function applyTraceOp(
     throw new Error(`Unknown operation: ${op.op}`);
   }
   if (op.op === "add") {
-    if (traceI32(op.value) === null) throw new Error("malformed operation: add");
+    if (traceI32(op.value) === null)
+      throw new Error("malformed operation: add");
     applyOperation(coll, op, false, newNavLog());
     return;
   }
@@ -3725,9 +3732,7 @@ function runTrace(filePath: string, outPath: string): void {
     return;
   }
   if (scenario.construction !== undefined) {
-    traceFail(
-      `unsupported construction ${scenario.construction} for ${kind}`,
-    );
+    traceFail(`unsupported construction ${scenario.construction} for ${kind}`);
   }
   if (!Array.isArray(scenario.operations)) {
     traceFail("malformed operation");
@@ -3812,61 +3817,150 @@ function stdoutHasSentinel(stdout: string): boolean {
 
 function isPanicStatusLine(line: string): boolean {
   for (const key of ["PASS", "FAIL", "SKIP", "ERROR", "SUMMARY"]) {
-    if (line === key || line.startsWith(key + " ") || line.startsWith(key + ":")) {
+    if (
+      line === key ||
+      line.startsWith(key + " ") ||
+      line.startsWith(key + ":")
+    ) {
       return true;
     }
   }
   return false;
 }
 
+// The line the --panic-child prints on stdout immediately before it calls the
+// production operation for op i of n (1-based). It starts with '[' so it can
+// never be an assertion sentinel.
+function reachMarkerLine(i: number, n: number): string {
+  return `[panic-child] reached op ${i}/${n}`;
+}
+
+// Did the child print the marker for the LAST operation, i.e. get as far as
+// calling the product for it? A runner crash before that point leaves no such
+// line (astra25/25 F4: any non-zero exit used to count as the trap). A
+// scenario with no operations has nothing to reach and cannot pass.
+function stdoutHasReachMarker(stdout: string, ops: number): boolean {
+  if (ops < 1) return false;
+  const want = reachMarkerLine(ops, ops);
+  for (const raw of stdout.split("\n")) {
+    if (raw.replace(/\r+$/, "") === want) return true;
+  }
+  return false;
+}
+
+// ops is the scenario's operation count: the child must have reached the
+// product call of the last op, so the trap has to be raised by that op.
 function panicPassed(
   exitCode: number,
   stdout: string,
   timedOut: boolean,
+  ops: number,
 ): boolean {
-  return !timedOut && exitCode !== 0 && !stdoutHasSentinel(stdout);
+  return (
+    !timedOut &&
+    exitCode !== 0 &&
+    !stdoutHasSentinel(stdout) &&
+    stdoutHasReachMarker(stdout, ops)
+  );
 }
 
 function runPanicJudgeSelftest(): void {
+  // m1: reach marker of a one-op scenario; m2: last-op marker of a two-op
+  // scenario. Cases 1-11 are the original sentinel/exit rules with the marker
+  // present; 12-17 pin the reach rule (astra25/25 F4).
+  const m1 = reachMarkerLine(1, 1) + "\n";
+  const m2 = reachMarkerLine(2, 2) + "\n";
+  const m1of2 = reachMarkerLine(1, 2) + "\n";
   const cases: ReadonlyArray<{
     exitCode: number;
     stdout: string;
     timedOut: boolean;
+    ops: number;
     want: boolean;
   }> = [
-    { exitCode: 0, stdout: "", timedOut: false, want: false },
+    { exitCode: 0, stdout: m1, timedOut: false, ops: 1, want: false },
     {
       exitCode: 0,
-      stdout: "=== scenario: x ===\n",
+      stdout: m1 + "=== scenario: x ===\n",
       timedOut: false,
+      ops: 1,
       want: false,
     },
-    { exitCode: 1, stdout: "size: 1\n", timedOut: false, want: false },
-    { exitCode: 1, stdout: "", timedOut: false, want: true },
-    { exitCode: 101, stdout: "boom\n", timedOut: false, want: true },
-    { exitCode: 1, stdout: "", timedOut: true, want: false },
     {
       exitCode: 1,
-      stdout: "FAIL name expect_panic\n",
+      stdout: m1 + "size: 1\n",
       timedOut: false,
+      ops: 1,
+      want: false,
+    },
+    { exitCode: 1, stdout: m1, timedOut: false, ops: 1, want: true },
+    {
+      exitCode: 101,
+      stdout: m1 + "boom\n",
+      timedOut: false,
+      ops: 1,
+      want: true,
+    },
+    { exitCode: 1, stdout: m1, timedOut: true, ops: 1, want: false },
+    {
+      exitCode: 1,
+      stdout: m1 + "FAIL name expect_panic\n",
+      timedOut: false,
+      ops: 1,
       want: true,
     },
     {
       exitCode: 1,
-      stdout: "expect_panic: true\n",
+      stdout: m1 + "expect_panic: true\n",
       timedOut: false,
+      ops: 1,
       want: false,
     },
-    { exitCode: 1, stdout: "SUMMARY: 1\n", timedOut: false, want: true },
-    { exitCode: 1, stdout: "boom:detail\n", timedOut: false, want: true },
-    { exitCode: 1, stdout: "FAIL-count: 1\n", timedOut: false, want: false },
+    {
+      exitCode: 1,
+      stdout: m1 + "SUMMARY: 1\n",
+      timedOut: false,
+      ops: 1,
+      want: true,
+    },
+    {
+      exitCode: 1,
+      stdout: m1 + "boom:detail\n",
+      timedOut: false,
+      ops: 1,
+      want: true,
+    },
+    {
+      exitCode: 1,
+      stdout: m1 + "FAIL-count: 1\n",
+      timedOut: false,
+      ops: 1,
+      want: false,
+    },
+    // crash before the product: no marker
+    { exitCode: 1, stdout: "", timedOut: false, ops: 1, want: false },
+    { exitCode: 1, stdout: "boom\n", timedOut: false, ops: 1, want: false },
+    // trapped on op 1 of 2
+    { exitCode: 1, stdout: m1of2, timedOut: false, ops: 2, want: false },
+    // reached op 2 of 2
+    { exitCode: 1, stdout: m1of2 + m2, timedOut: false, ops: 2, want: true },
+    // no ops: nothing to reach
+    { exitCode: 1, stdout: m1, timedOut: false, ops: 0, want: false },
+    // the marker must match exactly
+    {
+      exitCode: 1,
+      stdout: "[panic-child] reached op 1/1 \n",
+      timedOut: false,
+      ops: 1,
+      want: false,
+    },
   ];
   for (let i = 0; i < cases.length; i++) {
     const c = cases[i]!;
-    const got = panicPassed(c.exitCode, c.stdout, c.timedOut);
+    const got = panicPassed(c.exitCode, c.stdout, c.timedOut, c.ops);
     if (got !== c.want) {
       console.error(
-        `panic-judge selftest case ${i + 1} failed: exit=${c.exitCode} timedOut=${c.timedOut} got=${got} want=${c.want}`,
+        `panic-judge selftest case ${i + 1} failed: exit=${c.exitCode} timedOut=${c.timedOut} ops=${c.ops} got=${got} want=${c.want}`,
       );
       process.exit(1);
     }
@@ -3892,11 +3986,23 @@ function intervalOperandBail(name: string): never {
 // Returns the production interval after the last op (undefined when the
 // scenario has no from_to_by; the value path treats that as malformed, the
 // panic child does not care because the trap is what it is measuring).
-function runInterval(scenario: Scenario): NumberInterval | undefined {
+// With markers (panic child only) the reach marker for op i of n is written
+// synchronously to fd 1 immediately before each production call, so the
+// parent can tell a trap raised by the product from a runner crash on the
+// way there.
+function runInterval(
+  scenario: Scenario,
+  markers = false,
+): NumberInterval | undefined {
   let current: NumberInterval | undefined;
   const ops = scenario.operations;
   if (!Array.isArray(ops)) intervalOperandBail(scenario.name);
-  for (const op of ops) {
+  const n = ops.length;
+  const reach = (i: number): void => {
+    if (markers) fs.writeSync(1, reachMarkerLine(i + 1, n) + "\n");
+  };
+  for (let i = 0; i < n; i++) {
+    const op = ops[i];
     if (op === null || typeof op !== "object") {
       intervalOperandBail(scenario.name);
     }
@@ -3908,11 +4014,13 @@ function runInterval(scenario: Scenario): NumberInterval | undefined {
       ) {
         intervalOperandBail(scenario.name);
       }
+      reach(i);
       current = NumberInterval.fromToBy(op.from, op.to, op.step);
       continue;
     }
     if (op.op === "reversed") {
       if (current === undefined) intervalOperandBail(scenario.name);
+      reach(i);
       current = current.reversed();
       continue;
     }
@@ -4019,7 +4127,11 @@ function childStdoutText(stdout: unknown): string {
   return String(stdout);
 }
 
-function runExpectPanicParent(name: string, absolutePath: string): void {
+function runExpectPanicParent(
+  name: string,
+  absolutePath: string,
+  ops: number,
+): void {
   // argv is [node, script, ...positionals]. Re-exec the script only.
   // Keeping slice(1, -1) would leave an extra positional in front of
   // --panic-child, and the child would not enter panic-child mode.
@@ -4043,6 +4155,7 @@ function runExpectPanicParent(name: string, absolutePath: string): void {
     exitCode,
     childStdoutText(child.stdout),
     timedOut,
+    ops,
   );
   console.log(`=== scenario: ${name} ===`);
   if (passed) {
@@ -4056,7 +4169,7 @@ function runExpectPanicParent(name: string, absolutePath: string): void {
 function runPanicChild(filePath: string): void {
   const scenario = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Scenario;
   if (scenario.collection === "Interval<i32>") {
-    runInterval(scenario);
+    runInterval(scenario, true);
     console.log(`=== scenario: ${scenario.name} ===`);
     return;
   }
@@ -4308,12 +4421,17 @@ function executeScenario(scenario: Scenario): void {
       }
       throw e;
     }
+    // HashMap<f32, i32>: sorted_values is an i32 array (values, not keys), so
+    // its expected side must not be rendered as quoted float labels.
+    const f32Expected =
+      f32Mode &&
+      !(key === "sorted_values" && coll instanceof NumberNumberHashMap);
     emit(
       scenario.name,
       key,
       formatValue(actual),
       scenario.assertions[key],
-      f32Mode,
+      f32Expected,
     );
   }
 
@@ -4352,7 +4470,10 @@ function main(): void {
   const panicMode = expectPanicMode(scenario);
   if (panicMode === "malformed") process.exit(1);
   if (panicMode === "true" && panicCollectionKnown(scenario.collection)) {
-    runExpectPanicParent(scenario.name, filePath);
+    const ops = Array.isArray(scenario.operations)
+      ? scenario.operations.length
+      : 0;
+    runExpectPanicParent(scenario.name, filePath, ops);
     return;
   }
   executeScenario(scenario);
