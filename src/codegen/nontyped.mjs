@@ -794,6 +794,16 @@ export function renderBiMap(pair, command) {
   const inv = biMapInverseClassName(pair);
   const K = key.tsType;
   const V = val.tsType;
+  // audit F6: a number side is keyed through mapKeyOf (-0 and +0 DISTINCT,
+  // every NaN one key — Map is SameValueZero); a bigint side is keyed raw.
+  const kNum = K === "number";
+  const vNum = V === "number";
+  const FK = kNum ? "NumberMapKey" : K; // forward-map key type
+  const IK = vNum ? "NumberMapKey" : V; // inverse-map key type
+  const fk = (x) => (kNum ? `mapKeyOf(${x})` : x);
+  const ik = (x) => (vNum ? `mapKeyOf(${x})` : x);
+  const dk = (x) => (kNum ? `mapKeyValue(${x})` : x); // decode forward key
+  const fkName = kNum ? "mk" : "key"; // loop binding for the raw Map key
 
   // Committed header layout (banner replaces no content; HEAD is pre-banner):
   //   same key/value: <blank> <blank> /**   (inverse() returns `this` class —
@@ -801,24 +811,34 @@ export function renderBiMap(pair, command) {
   //   mixed key/value: <blank> <blank> import { Inverse } /**  (import sits
   //                   directly above the doc comment, no blank between)
   const pumpImport = `import { PumpDuplicateError } from "../internal/pump.js";`;
+  const floatImport =
+    kNum || vNum
+      ? `\nimport {\n  mapKeyOf,${kNum ? "\n  mapKeyValue," : ""}\n  type NumberMapKey,\n} from "../internal/float-order.js";`
+      : "";
   const imports =
     cls === inv
-      ? `\n\n${pumpImport}\n`
-      : `\n\nimport { ${inv} } from "./${biMapInverseFileName(pair)}";\n${pumpImport}\n`;
+      ? `\n\n${pumpImport}${floatImport}\n`
+      : `\n\nimport { ${inv} } from "./${biMapInverseFileName(pair)}";\n${pumpImport}${floatImport}\n`;
+  const identityDoc =
+    kNum || vNum
+      ? ` * Number sides use Object.is identity via mapKeyOf: -0 and +0 are DISTINCT
+ * keys/values, while every NaN is ONE key/value.
+`
+      : "";
 
   return `${LICENSE}${banner(command)}${imports}/**
  * Bidirectional hash map from ${K} keys to ${V} values.
  * Both key->value and value->key lookups are O(1).
  * Each key maps to exactly one value and each value maps to exactly one key.
  * Inserting a duplicate key OR value replaces the existing mapping.
- */
+${identityDoc} */
 export class ${cls} {
-  private _forward: Map<${K}, ${V}>;
-  private _inverse: Map<${V}, ${K}>;
+  private _forward: Map<${FK}, ${V}>;
+  private _inverse: Map<${IK}, ${K}>;
 
   constructor() {
-    this._forward = new Map<${K}, ${V}>();
-    this._inverse = new Map<${V}, ${K}>();
+    this._forward = new Map<${FK}, ${V}>();
+    this._inverse = new Map<${IK}, ${K}>();
   }
 
   /** Creates a new empty BiMap. */
@@ -837,10 +857,10 @@ export class ${cls} {
     const bm = new ${cls}();
     let i = 0;
     for (const [key, value] of pairs) {
-      if (bm._forward.has(key)) throw new PumpDuplicateError(i, "key");
-      if (bm._inverse.has(value)) throw new PumpDuplicateError(i, "value");
-      bm._forward.set(key, value);
-      bm._inverse.set(value, key);
+      if (bm._forward.has(${fk("key")})) throw new PumpDuplicateError(i, "key");
+      if (bm._inverse.has(${ik("value")})) throw new PumpDuplicateError(i, "value");
+      bm._forward.set(${fk("key")}, value);
+      bm._inverse.set(${ik("value")}, key);
       i++;
     }
     return bm;
@@ -853,40 +873,40 @@ export class ${cls} {
    */
   set(key: ${K}, value: ${V}): this {
     // If this key already maps to an old value, remove old_value->key from inverse
-    const oldValue = this._forward.get(key);
+    const oldValue = this._forward.get(${fk("key")});
     if (oldValue !== undefined) {
-      this._inverse.delete(oldValue);
+      this._inverse.delete(${ik("oldValue")});
     }
 
     // If this value already maps to an old key, remove old_key->value from forward
-    const oldKey = this._inverse.get(value);
+    const oldKey = this._inverse.get(${ik("value")});
     if (oldKey !== undefined && !Object.is(oldKey, key)) {
-      this._forward.delete(oldKey);
+      this._forward.delete(${fk("oldKey")});
     }
 
-    this._forward.set(key, value);
-    this._inverse.set(value, key);
+    this._forward.set(${fk("key")}, value);
+    this._inverse.set(${ik("value")}, key);
     return this;
   }
 
   /** Forward lookup: returns the value for the given key, or undefined. */
   get(key: ${K}): ${V} | undefined {
-    return this._forward.get(key);
+    return this._forward.get(${fk("key")});
   }
 
   /** Inverse lookup: returns the key for the given value, or undefined. */
   getKey(value: ${V}): ${K} | undefined {
-    return this._inverse.get(value);
+    return this._inverse.get(${ik("value")});
   }
 
   /** Returns true if the map contains the given key. */
   has(key: ${K}): boolean {
-    return this._forward.has(key);
+    return this._forward.has(${fk("key")});
   }
 
   /** Returns true if the map contains the given value. */
   containsValue(value: ${V}): boolean {
-    return this._inverse.has(value);
+    return this._inverse.has(${ik("value")});
   }
 
   /**
@@ -894,10 +914,10 @@ export class ${cls} {
    * Returns the old value, or undefined if the key was not present.
    */
   removeKey(key: ${K}): ${V} | undefined {
-    const value = this._forward.get(key);
+    const value = this._forward.get(${fk("key")});
     if (value !== undefined) {
-      this._forward.delete(key);
-      this._inverse.delete(value);
+      this._forward.delete(${fk("key")});
+      this._inverse.delete(${ik("value")});
       return value;
     }
     return undefined;
@@ -908,10 +928,10 @@ export class ${cls} {
    * Returns the old key, or undefined if the value was not present.
    */
   removeValue(value: ${V}): ${K} | undefined {
-    const key = this._inverse.get(value);
+    const key = this._inverse.get(${ik("value")});
     if (key !== undefined) {
-      this._inverse.delete(value);
-      this._forward.delete(key);
+      this._inverse.delete(${ik("value")});
+      this._forward.delete(${fk("key")});
       return key;
     }
     return undefined;
@@ -935,7 +955,7 @@ export class ${cls} {
 
   /** Returns all keys as an array. */
   keys(): ${K}[] {
-    return Array.from(this._forward.keys());
+    return ${kNum ? "Array.from(this._forward.keys(), mapKeyValue)" : "Array.from(this._forward.keys())"};
   }
 
   /** Returns all values as an array. */
@@ -945,21 +965,21 @@ export class ${cls} {
 
   /** Calls the function for each key-value pair. */
   forEach(fn: (key: ${K}, value: ${V}) => void): void {
-    this._forward.forEach((value, key) => {
-      fn(key, value);
+    this._forward.forEach((value, ${fkName}) => {
+      fn(${dk(fkName)}, value);
     });
   }
 
   /** Returns all entries as an array of [key, value] tuples. */
   toArray(): [${K}, ${V}][] {
-    return Array.from(this._forward.entries());
+    return ${kNum ? "Array.from(this)" : "Array.from(this._forward.entries())"};
   }
 
   /** Returns a new BiMap with key and value types swapped. */
   inverse(): ${inv} {
     const result = new ${inv}();
-    this._forward.forEach((value, key) => {
-      result.set(value, key);
+    this._forward.forEach((value, ${fkName}) => {
+      result.set(value, ${dk(fkName)});
     });
     return result;
   }
@@ -969,8 +989,8 @@ export class ${cls} {
     if (this.size !== other.size) {
       return false;
     }
-    for (const [key, value] of this._forward) {
-      const otherValue = other.get(key);
+    for (const [${fkName}, value] of this._forward) {
+      const otherValue = other.get(${dk(fkName)});
       if (otherValue === undefined || !Object.is(value, otherValue)) {
         return false;
       }
@@ -981,21 +1001,28 @@ export class ${cls} {
   /** Returns a string representation of the bi-map. */
   toString(): string {
     const parts: string[] = [];
-    this._forward.forEach((value, key) => {
-      parts.push(\`\${key}=\${value}\`);
+    this._forward.forEach((value, ${fkName}) => {
+      parts.push(\`\${${dk(fkName)}}=\${value}\`);
     });
     return \`{\${parts.join(", ")}}\`;
   }
 
   /** Yields [key, value] tuples. */
   *[Symbol.iterator](): Generator<[${K}, ${V}]> {
-    for (const entry of this._forward) {
+${
+    kNum
+      ? `    for (const [mk, value] of this._forward) {
+      yield [mapKeyValue(mk), value];
+    }`
+      : `    for (const entry of this._forward) {
       yield entry;
-    }
+    }`
+  }
   }
 }
 `;
 }
+
 
 // ===========================================================================
 // IMMUTABLE HASH MAP  (src/hashmap/immutable-<k>-<v>-hash-map.ts) + test

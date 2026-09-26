@@ -7,19 +7,26 @@
 
 
 import { PumpDuplicateError } from "../internal/pump.js";
+import {
+  mapKeyOf,
+  mapKeyValue,
+  type NumberMapKey,
+} from "../internal/float-order.js";
 /**
  * Bidirectional hash map from number keys to number values.
  * Both key->value and value->key lookups are O(1).
  * Each key maps to exactly one value and each value maps to exactly one key.
  * Inserting a duplicate key OR value replaces the existing mapping.
+ * Number sides use Object.is identity via mapKeyOf: -0 and +0 are DISTINCT
+ * keys/values, while every NaN is ONE key/value.
  */
 export class NumberNumberHashBiMap {
-  private _forward: Map<number, number>;
-  private _inverse: Map<number, number>;
+  private _forward: Map<NumberMapKey, number>;
+  private _inverse: Map<NumberMapKey, number>;
 
   constructor() {
-    this._forward = new Map<number, number>();
-    this._inverse = new Map<number, number>();
+    this._forward = new Map<NumberMapKey, number>();
+    this._inverse = new Map<NumberMapKey, number>();
   }
 
   /** Creates a new empty BiMap. */
@@ -38,10 +45,10 @@ export class NumberNumberHashBiMap {
     const bm = new NumberNumberHashBiMap();
     let i = 0;
     for (const [key, value] of pairs) {
-      if (bm._forward.has(key)) throw new PumpDuplicateError(i, "key");
-      if (bm._inverse.has(value)) throw new PumpDuplicateError(i, "value");
-      bm._forward.set(key, value);
-      bm._inverse.set(value, key);
+      if (bm._forward.has(mapKeyOf(key))) throw new PumpDuplicateError(i, "key");
+      if (bm._inverse.has(mapKeyOf(value))) throw new PumpDuplicateError(i, "value");
+      bm._forward.set(mapKeyOf(key), value);
+      bm._inverse.set(mapKeyOf(value), key);
       i++;
     }
     return bm;
@@ -54,40 +61,40 @@ export class NumberNumberHashBiMap {
    */
   set(key: number, value: number): this {
     // If this key already maps to an old value, remove old_value->key from inverse
-    const oldValue = this._forward.get(key);
+    const oldValue = this._forward.get(mapKeyOf(key));
     if (oldValue !== undefined) {
-      this._inverse.delete(oldValue);
+      this._inverse.delete(mapKeyOf(oldValue));
     }
 
     // If this value already maps to an old key, remove old_key->value from forward
-    const oldKey = this._inverse.get(value);
+    const oldKey = this._inverse.get(mapKeyOf(value));
     if (oldKey !== undefined && !Object.is(oldKey, key)) {
-      this._forward.delete(oldKey);
+      this._forward.delete(mapKeyOf(oldKey));
     }
 
-    this._forward.set(key, value);
-    this._inverse.set(value, key);
+    this._forward.set(mapKeyOf(key), value);
+    this._inverse.set(mapKeyOf(value), key);
     return this;
   }
 
   /** Forward lookup: returns the value for the given key, or undefined. */
   get(key: number): number | undefined {
-    return this._forward.get(key);
+    return this._forward.get(mapKeyOf(key));
   }
 
   /** Inverse lookup: returns the key for the given value, or undefined. */
   getKey(value: number): number | undefined {
-    return this._inverse.get(value);
+    return this._inverse.get(mapKeyOf(value));
   }
 
   /** Returns true if the map contains the given key. */
   has(key: number): boolean {
-    return this._forward.has(key);
+    return this._forward.has(mapKeyOf(key));
   }
 
   /** Returns true if the map contains the given value. */
   containsValue(value: number): boolean {
-    return this._inverse.has(value);
+    return this._inverse.has(mapKeyOf(value));
   }
 
   /**
@@ -95,10 +102,10 @@ export class NumberNumberHashBiMap {
    * Returns the old value, or undefined if the key was not present.
    */
   removeKey(key: number): number | undefined {
-    const value = this._forward.get(key);
+    const value = this._forward.get(mapKeyOf(key));
     if (value !== undefined) {
-      this._forward.delete(key);
-      this._inverse.delete(value);
+      this._forward.delete(mapKeyOf(key));
+      this._inverse.delete(mapKeyOf(value));
       return value;
     }
     return undefined;
@@ -109,10 +116,10 @@ export class NumberNumberHashBiMap {
    * Returns the old key, or undefined if the value was not present.
    */
   removeValue(value: number): number | undefined {
-    const key = this._inverse.get(value);
+    const key = this._inverse.get(mapKeyOf(value));
     if (key !== undefined) {
-      this._inverse.delete(value);
-      this._forward.delete(key);
+      this._inverse.delete(mapKeyOf(value));
+      this._forward.delete(mapKeyOf(key));
       return key;
     }
     return undefined;
@@ -136,7 +143,7 @@ export class NumberNumberHashBiMap {
 
   /** Returns all keys as an array. */
   keys(): number[] {
-    return Array.from(this._forward.keys());
+    return Array.from(this._forward.keys(), mapKeyValue);
   }
 
   /** Returns all values as an array. */
@@ -146,21 +153,21 @@ export class NumberNumberHashBiMap {
 
   /** Calls the function for each key-value pair. */
   forEach(fn: (key: number, value: number) => void): void {
-    this._forward.forEach((value, key) => {
-      fn(key, value);
+    this._forward.forEach((value, mk) => {
+      fn(mapKeyValue(mk), value);
     });
   }
 
   /** Returns all entries as an array of [key, value] tuples. */
   toArray(): [number, number][] {
-    return Array.from(this._forward.entries());
+    return Array.from(this);
   }
 
   /** Returns a new BiMap with key and value types swapped. */
   inverse(): NumberNumberHashBiMap {
     const result = new NumberNumberHashBiMap();
-    this._forward.forEach((value, key) => {
-      result.set(value, key);
+    this._forward.forEach((value, mk) => {
+      result.set(value, mapKeyValue(mk));
     });
     return result;
   }
@@ -170,8 +177,8 @@ export class NumberNumberHashBiMap {
     if (this.size !== other.size) {
       return false;
     }
-    for (const [key, value] of this._forward) {
-      const otherValue = other.get(key);
+    for (const [mk, value] of this._forward) {
+      const otherValue = other.get(mapKeyValue(mk));
       if (otherValue === undefined || !Object.is(value, otherValue)) {
         return false;
       }
@@ -182,16 +189,16 @@ export class NumberNumberHashBiMap {
   /** Returns a string representation of the bi-map. */
   toString(): string {
     const parts: string[] = [];
-    this._forward.forEach((value, key) => {
-      parts.push(`${key}=${value}`);
+    this._forward.forEach((value, mk) => {
+      parts.push(`${mapKeyValue(mk)}=${value}`);
     });
     return `{${parts.join(", ")}}`;
   }
 
   /** Yields [key, value] tuples. */
   *[Symbol.iterator](): Generator<[number, number]> {
-    for (const entry of this._forward) {
-      yield entry;
+    for (const [mk, value] of this._forward) {
+      yield [mapKeyValue(mk), value];
     }
   }
 }

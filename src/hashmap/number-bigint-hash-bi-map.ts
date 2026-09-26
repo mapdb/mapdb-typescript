@@ -8,18 +8,25 @@
 
 import { BigIntNumberHashBiMap } from "./bigint-number-hash-bi-map.js";
 import { PumpDuplicateError } from "../internal/pump.js";
+import {
+  mapKeyOf,
+  mapKeyValue,
+  type NumberMapKey,
+} from "../internal/float-order.js";
 /**
  * Bidirectional hash map from number keys to bigint values.
  * Both key->value and value->key lookups are O(1).
  * Each key maps to exactly one value and each value maps to exactly one key.
  * Inserting a duplicate key OR value replaces the existing mapping.
+ * Number sides use Object.is identity via mapKeyOf: -0 and +0 are DISTINCT
+ * keys/values, while every NaN is ONE key/value.
  */
 export class NumberBigIntHashBiMap {
-  private _forward: Map<number, bigint>;
+  private _forward: Map<NumberMapKey, bigint>;
   private _inverse: Map<bigint, number>;
 
   constructor() {
-    this._forward = new Map<number, bigint>();
+    this._forward = new Map<NumberMapKey, bigint>();
     this._inverse = new Map<bigint, number>();
   }
 
@@ -39,9 +46,9 @@ export class NumberBigIntHashBiMap {
     const bm = new NumberBigIntHashBiMap();
     let i = 0;
     for (const [key, value] of pairs) {
-      if (bm._forward.has(key)) throw new PumpDuplicateError(i, "key");
+      if (bm._forward.has(mapKeyOf(key))) throw new PumpDuplicateError(i, "key");
       if (bm._inverse.has(value)) throw new PumpDuplicateError(i, "value");
-      bm._forward.set(key, value);
+      bm._forward.set(mapKeyOf(key), value);
       bm._inverse.set(value, key);
       i++;
     }
@@ -55,7 +62,7 @@ export class NumberBigIntHashBiMap {
    */
   set(key: number, value: bigint): this {
     // If this key already maps to an old value, remove old_value->key from inverse
-    const oldValue = this._forward.get(key);
+    const oldValue = this._forward.get(mapKeyOf(key));
     if (oldValue !== undefined) {
       this._inverse.delete(oldValue);
     }
@@ -63,17 +70,17 @@ export class NumberBigIntHashBiMap {
     // If this value already maps to an old key, remove old_key->value from forward
     const oldKey = this._inverse.get(value);
     if (oldKey !== undefined && !Object.is(oldKey, key)) {
-      this._forward.delete(oldKey);
+      this._forward.delete(mapKeyOf(oldKey));
     }
 
-    this._forward.set(key, value);
+    this._forward.set(mapKeyOf(key), value);
     this._inverse.set(value, key);
     return this;
   }
 
   /** Forward lookup: returns the value for the given key, or undefined. */
   get(key: number): bigint | undefined {
-    return this._forward.get(key);
+    return this._forward.get(mapKeyOf(key));
   }
 
   /** Inverse lookup: returns the key for the given value, or undefined. */
@@ -83,7 +90,7 @@ export class NumberBigIntHashBiMap {
 
   /** Returns true if the map contains the given key. */
   has(key: number): boolean {
-    return this._forward.has(key);
+    return this._forward.has(mapKeyOf(key));
   }
 
   /** Returns true if the map contains the given value. */
@@ -96,9 +103,9 @@ export class NumberBigIntHashBiMap {
    * Returns the old value, or undefined if the key was not present.
    */
   removeKey(key: number): bigint | undefined {
-    const value = this._forward.get(key);
+    const value = this._forward.get(mapKeyOf(key));
     if (value !== undefined) {
-      this._forward.delete(key);
+      this._forward.delete(mapKeyOf(key));
       this._inverse.delete(value);
       return value;
     }
@@ -113,7 +120,7 @@ export class NumberBigIntHashBiMap {
     const key = this._inverse.get(value);
     if (key !== undefined) {
       this._inverse.delete(value);
-      this._forward.delete(key);
+      this._forward.delete(mapKeyOf(key));
       return key;
     }
     return undefined;
@@ -137,7 +144,7 @@ export class NumberBigIntHashBiMap {
 
   /** Returns all keys as an array. */
   keys(): number[] {
-    return Array.from(this._forward.keys());
+    return Array.from(this._forward.keys(), mapKeyValue);
   }
 
   /** Returns all values as an array. */
@@ -147,21 +154,21 @@ export class NumberBigIntHashBiMap {
 
   /** Calls the function for each key-value pair. */
   forEach(fn: (key: number, value: bigint) => void): void {
-    this._forward.forEach((value, key) => {
-      fn(key, value);
+    this._forward.forEach((value, mk) => {
+      fn(mapKeyValue(mk), value);
     });
   }
 
   /** Returns all entries as an array of [key, value] tuples. */
   toArray(): [number, bigint][] {
-    return Array.from(this._forward.entries());
+    return Array.from(this);
   }
 
   /** Returns a new BiMap with key and value types swapped. */
   inverse(): BigIntNumberHashBiMap {
     const result = new BigIntNumberHashBiMap();
-    this._forward.forEach((value, key) => {
-      result.set(value, key);
+    this._forward.forEach((value, mk) => {
+      result.set(value, mapKeyValue(mk));
     });
     return result;
   }
@@ -171,8 +178,8 @@ export class NumberBigIntHashBiMap {
     if (this.size !== other.size) {
       return false;
     }
-    for (const [key, value] of this._forward) {
-      const otherValue = other.get(key);
+    for (const [mk, value] of this._forward) {
+      const otherValue = other.get(mapKeyValue(mk));
       if (otherValue === undefined || !Object.is(value, otherValue)) {
         return false;
       }
@@ -183,16 +190,16 @@ export class NumberBigIntHashBiMap {
   /** Returns a string representation of the bi-map. */
   toString(): string {
     const parts: string[] = [];
-    this._forward.forEach((value, key) => {
-      parts.push(`${key}=${value}`);
+    this._forward.forEach((value, mk) => {
+      parts.push(`${mapKeyValue(mk)}=${value}`);
     });
     return `{${parts.join(", ")}}`;
   }
 
   /** Yields [key, value] tuples. */
   *[Symbol.iterator](): Generator<[number, bigint]> {
-    for (const entry of this._forward) {
-      yield entry;
+    for (const [mk, value] of this._forward) {
+      yield [mapKeyValue(mk), value];
     }
   }
 }
