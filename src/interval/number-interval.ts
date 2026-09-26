@@ -229,10 +229,20 @@ export class NumberInterval {
   }
 
   /**
-   * Returns a new interval with elements in reverse order.
-   * Throws at the int32 minimum step. JS numbers can represent the
-   * negation, but this class is the Interval<i32> surface and
-   * algorithms.md requires the trap (same as IntInterval.toReversed).
+   * Returns a new interval with the same elements in reverse order:
+   * `get(size - 1), ..., get(0)`.
+   *
+   * Its `from` is the last element actually produced, not this interval's
+   * `to`: `to` is only an inclusive bound and may sit off the step grid
+   * (`fromToBy(0, 10, 3)` is `0, 3, 6, 9`, so its reverse is `9, 6, 3, 0`).
+   * The last element is `to` pulled back onto the grid by the remainder of
+   * the distance (algorithms.md §"Reversed() starts from the last element");
+   * both operands are int32, so the distance and remainder are exact.
+   *
+   * Throws at the int32 minimum step, before anything is computed. JS
+   * numbers can represent the negation, but this class is the Interval<i32>
+   * surface and algorithms.md requires the trap (same as
+   * IntInterval.toReversed).
    */
   reversed(): NumberInterval {
     if (this._step === -2147483648) {
@@ -240,7 +250,10 @@ export class NumberInterval {
         "NumberInterval: cannot reverse interval with minimum step",
       );
     }
-    return new NumberInterval(this._to, this._from, -this._step as number);
+    // rem <= distance, so pulling `to` back by rem cannot leave [from, to].
+    const rem = Math.abs(this._to - this._from) % Math.abs(this._step);
+    const last = this._step > 0 ? this._to - rem : this._to + rem;
+    return new NumberInterval(last, this._from, -this._step as number);
   }
 
   toString(): string {

@@ -18,6 +18,17 @@ All notable changes to `@mapdb/typescript` are documented here.
   switch to `BigIntInterval`; fractional endpoints or steps were never
   members of an integer interval and must be rounded to integers by the
   caller before construction.
+- `NumberInterval.reversed()` and `BigIntInterval.reversed()` now start
+  from the last element actually produced instead of the constructor's `to`.
+  `to` is only an inclusive bound and may sit off the step grid:
+  `fromToBy(0, 10, 3)` is `0, 3, 6, 9`, but its reverse was `10, 7, 4, 1`,
+  a different element set. The reverse now pulls `to` back onto the grid by
+  the remainder of the distance (`spec/algorithms.md` §"Reversed() starts
+  from the last element"), so it has the same size and elements as the
+  source, `has` agrees on every value, and `reversed().reversed()` is the
+  source sequence (its `to` is normalised to the last element, `9` above).
+  On-grid intervals such as `fromTo(1, 5)` are unaffected. The int32
+  minimum-step trap in `NumberInterval` is unchanged and still fires first.
 
 ## 0.2.0 — v2 idiom line (BREAKING)
 

@@ -192,9 +192,26 @@ export class BigIntInterval {
     }
   }
 
-  /** Returns a new interval with elements in reverse order. */
+  /**
+   * Returns a new interval with the same elements in reverse order:
+   * `get(size - 1), ..., get(0)`.
+   *
+   * Its `from` is the last element actually produced, not this interval's
+   * `to`: `to` is only an inclusive bound and may sit off the step grid
+   * (`fromToBy(0n, 10n, 3n)` is `0, 3, 6, 9`, so its reverse is
+   * `9, 6, 3, 0`). The last element is `to` pulled back onto the grid by the
+   * remainder of the distance (algorithms.md §"Reversed() starts from the
+   * last element"), computed in bigint so it is exact at any width. bigint
+   * has no minimum value, so there is no minimum-step trap here.
+   */
   reversed(): BigIntInterval {
-    return new BigIntInterval(this._to, this._from, -this._step as bigint);
+    const distance =
+      this._to >= this._from ? this._to - this._from : this._from - this._to;
+    const absStep = this._step < 0n ? (-this._step as bigint) : this._step;
+    // rem <= distance, so pulling `to` back by rem cannot leave [from, to].
+    const rem = distance % absStep;
+    const last = this._step > 0n ? this._to - rem : this._to + rem;
+    return new BigIntInterval(last, this._from, -this._step as bigint);
   }
 
   toString(): string {

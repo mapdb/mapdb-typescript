@@ -3888,7 +3888,11 @@ function intervalOperandBail(name: string): never {
   process.exit(1);
 }
 
-function runInterval(scenario: Scenario): void {
+// Interval<i32> operation replay, shared by --panic-child and the value path.
+// Returns the production interval after the last op (undefined when the
+// scenario has no from_to_by; the value path treats that as malformed, the
+// panic child does not care because the trap is what it is measuring).
+function runInterval(scenario: Scenario): NumberInterval | undefined {
   let current: NumberInterval | undefined;
   const ops = scenario.operations;
   if (!Array.isArray(ops)) intervalOperandBail(scenario.name);
@@ -3913,6 +3917,51 @@ function runInterval(scenario: Scenario): void {
       continue;
     }
     intervalOperandBail(scenario.name);
+  }
+  return current;
+}
+
+// Interval<i32> value assertions (cross-language-validation/README.md
+// §"Interval<i32>"). Every value comes from the production NumberInterval
+// method the key names: `size`, `isEmpty`, `get(0)`, `get(size-1)`, the
+// iterator (`to_array` is in ITERATION order, never sorted, so the reversed_*
+// scenarios can pin the reverse sequence), `get(N)` and `has(N)`. Unknown keys
+// return undefined -> skip (forward-compat convention).
+function evaluateIntervalAssertion(key: string, iv: NumberInterval): unknown {
+  if (key === "size") return iv.size;
+  if (key === "is_empty") return iv.isEmpty();
+  if (key === "first") return iv.get(0);
+  if (key === "last") return iv.get(iv.size - 1);
+  if (key === "to_array") return iv.toArray();
+  const at = key.match(/^get_at_(\d+)$/);
+  if (at) {
+    const n = parseInt(at[1]!, 10);
+    return n >= iv.size ? null : iv.get(n);
+  }
+  // contains_<v>: <v> is a signed base-10 i32 suffix.
+  const contains = key.match(/^contains_(-?\d+)$/);
+  if (contains) return iv.has(parseInt(contains[1]!, 10));
+  return undefined; // unknown assertion key -> skip
+}
+
+// Interval<i32> value path (the normal, non-expect_panic dispatch). Applies
+// the ops through runInterval, prints the banner, then emits every assertion
+// key in sorted order.
+function runIntervalValue(scenario: Scenario): void {
+  const iv = runInterval(scenario);
+  if (iv === undefined) intervalOperandBail(scenario.name);
+  console.log(`=== scenario: ${scenario.name} ===`);
+  for (const key of Object.keys(scenario.assertions).sort()) {
+    if (key === "comment" || key === "expect_panic") continue;
+    const actual = evaluateIntervalAssertion(key, iv);
+    if (actual === undefined) continue;
+    emit(
+      scenario.name,
+      key,
+      formatValue(actual),
+      scenario.assertions[key],
+      false,
+    );
   }
 }
 
@@ -4155,6 +4204,17 @@ function executeScenario(scenario: Scenario): void {
   // ORDER (order-dependent). Separate dispatch.
   if (scenario.collection === "SpaceSaving") {
     runSpaceSaving(scenario);
+    if (anyFail) process.exit(1);
+    return;
+  }
+
+  // Interval<i32> — the virtual arithmetic progression (algorithms.md
+  // §"Interval over signed integers"). Value path; the two expect_panic
+  // scenarios never reach here (main routes them to the panic parent/child,
+  // which shares runInterval). Separate dispatch: NumberInterval is immutable
+  // and not in the number-keyed Collection union.
+  if (scenario.collection === "Interval<i32>") {
+    runIntervalValue(scenario);
     if (anyFail) process.exit(1);
     return;
   }
