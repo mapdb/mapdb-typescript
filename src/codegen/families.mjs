@@ -65,14 +65,16 @@ function lit(prim, n) {
 // sum() body builders (shared by arraylist + stack).
 // ---------------------------------------------------------------------------
 
-/** f64 / bigint accumulating sum body (used by ints, float64, and all stacks). */
+/** f64 / bigint accumulating sum body (used by ints, float64, and all stacks);
+ * the bigint (i64) total wraps at 64 bits. */
 function plainSumBody(prim) {
   if (prim.tsType === "bigint") {
     return `    let s: bigint = 0n as bigint;
     for (let i = 0; i < this._size; i++) {
       s = ((s as any) + this.data[i]) as any as bigint;
     }
-    return s;`;
+    // i64 sum wraps at i64 (algorithms.md integer overflow contract; audit F8).
+    return BigInt.asIntN(64, s);`;
   }
   return `    let s: number = 0 as number;
     for (let i = 0; i < this._size; i++) {

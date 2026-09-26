@@ -146,7 +146,8 @@ export class BigInt64ArrayList {
     for (let i = 0; i < this._size; i++) {
       s = ((s as any) + this.data[i]) as any as bigint;
     }
-    return s;
+    // i64 sum wraps at i64 (algorithms.md integer overflow contract; audit F8).
+    return BigInt.asIntN(64, s);
   }
 
   min(): bigint | undefined {
