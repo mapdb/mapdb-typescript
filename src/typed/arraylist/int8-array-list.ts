@@ -64,6 +64,7 @@ export class Int8ArrayList {
   }
 
   has(value: number): boolean {
+    value = (value << 24) >> 24;
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
@@ -71,6 +72,7 @@ export class Int8ArrayList {
   }
 
   indexOf(value: number): number {
+    value = (value << 24) >> 24;
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return i;
     }

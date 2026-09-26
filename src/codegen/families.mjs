@@ -27,7 +27,22 @@
 //   * float-keyed hashsets carry an `IEEE 754 edge cases` test block.
 // ---------------------------------------------------------------------------
 
-import { KEY_HASH } from "./spec.mjs";
+import { KEY_HASH, narrowForOf, narrowStmt } from "./spec.mjs";
+
+// Float lists/stacks order min/max by IEEE 754 totalOrder (-0 < +0, NaN above
+// +Inf), reusing the generic NumberArrayList comparator (audit F4; scenario
+// 05-float-edge-cases/float_min_max_with_nan). Integer/bigint keep raw < / >.
+function totalCmpImport(prim) {
+  return prim.kind === "float"
+    ? `import { totalCmpNumber } from "../../internal/float-order.js";\n`
+    : "";
+}
+function lessExpr(prim, a, b) {
+  return prim.kind === "float" ? `totalCmpNumber(${a}, ${b}) < 0` : `${a} < ${b}`;
+}
+function greaterExpr(prim, a, b) {
+  return prim.kind === "float" ? `totalCmpNumber(${a}, ${b}) > 0` : `${a} > ${b}`;
+}
 
 const LICENSE = `// Copyright (c) 2026 Jan Kotek.
 // Derived from Eclipse Collections (Copyright (c) Goldman Sachs and others).
@@ -117,7 +132,7 @@ export function renderArrayList(prim, command) {
       : plainSumBody(prim);
 
   return `${LICENSE}${banner(command)}
-
+${totalCmpImport(prim)}
 const DEFAULT_CAPACITY = 16;
 
 /**
@@ -176,14 +191,14 @@ export class ${cls} {
   }
 
   has(value: ${T}): boolean {
-    for (let i = 0; i < this._size; i++) {
+${narrowStmt(prim, "value", "    ")}    for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
   }
 
   indexOf(value: ${T}): number {
-    for (let i = 0; i < this._size; i++) {
+${narrowStmt(prim, "value", "    ")}    for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return i;
     }
     return -1;
@@ -259,7 +274,7 @@ ${sumBody}
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] < m) m = this.data[i];
+      if (${lessExpr(prim, "this.data[i]", "m")}) m = this.data[i];
     }
     return m;
   }
@@ -268,7 +283,7 @@ ${sumBody}
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] > m) m = this.data[i];
+      if (${greaterExpr(prim, "this.data[i]", "m")}) m = this.data[i];
     }
     return m;
   }
@@ -364,7 +379,7 @@ export function renderImmutableArrayList(prim, command) {
     prim.id === "float32" ? froundSumBodyImmutable() : plainSumBody(prim);
 
   return `${LICENSE}${banner(command)}
-
+${totalCmpImport(prim)}
 import { ${mut} } from "./${prim.id}-array-list.js";
 
 /**
@@ -420,7 +435,7 @@ export class ${cls} {
 
   /** Returns true if the list contains the given value. */
   has(value: ${T}): boolean {
-    for (let i = 0; i < this._size; i++) {
+${narrowStmt(prim, "value", "    ")}    for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
@@ -433,7 +448,7 @@ export class ${cls} {
 
   /** Returns the index of the first occurrence, or -1. */
   indexOf(value: ${T}): number {
-    for (let i = 0; i < this._size; i++) {
+${narrowStmt(prim, "value", "    ")}    for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return i;
     }
     return -1;
@@ -508,7 +523,7 @@ ${sumBody}
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] < m) m = this.data[i];
+      if (${lessExpr(prim, "this.data[i]", "m")}) m = this.data[i];
     }
     return m;
   }
@@ -518,7 +533,7 @@ ${sumBody}
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] > m) m = this.data[i];
+      if (${greaterExpr(prim, "this.data[i]", "m")}) m = this.data[i];
     }
     return m;
   }
@@ -1021,8 +1036,7 @@ export class ${cls} {
     const mask = set.capacity - 1;
     let seen = 0;
     let i = 0;
-    for (const value of values) {
-      if (seen >= n) {
+${narrowForOf(prim, "value", "value", "values", "    ")}      if (seen >= n) {
         throw new RangeError("pump source exceeds exact size " + n);
       }
       let idx = set.hash(value) & mask;
@@ -1063,8 +1077,7 @@ export class ${cls} {
     const set =
       hint !== undefined ? new ${cls}(hashCapacityFor(hint)) : new ${cls}();
     let i = 0;
-    for (const value of values) {
-      if (set.needsResize()) set.resize();
+${narrowForOf(prim, "value", "value", "values", "    ")}      if (set.needsResize()) set.resize();
       const mask = set.capacity - 1;
       let idx = set.hash(value) & mask;
       while (true) {
@@ -1086,7 +1099,7 @@ export class ${cls} {
   }
 
   add(value: ${T}): this {
-    if (this.needsResize()) this.resize();
+${narrowStmt(prim, "value", "    ")}    if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {
@@ -1103,7 +1116,7 @@ export class ${cls} {
 
   remove(value: ${T}): boolean {
     if (this.capacity === 0) return false;
-    const mask = this.capacity - 1;
+${narrowStmt(prim, "value", "    ")}    const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {
       if (!this.occupied[idx]) return false;
@@ -1119,7 +1132,7 @@ export class ${cls} {
 
   has(value: ${T}): boolean {
     if (this.capacity === 0) return false;
-    const mask = this.capacity - 1;
+${narrowStmt(prim, "value", "    ")}    const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {
       if (!this.occupied[idx]) return false;
@@ -1402,7 +1415,7 @@ export class ${cls} {
   /** Returns true if the set contains the given value. */
   has(value: ${T}): boolean {
     if (this.capacity === 0) return false;
-    const mask = this.capacity - 1;
+${narrowStmt(prim, "value", "    ")}    const mask = this.capacity - 1;
     let idx = hash(value, this.capacity);
     while (true) {
       if (!this.occupied[idx]) return false;
@@ -1917,7 +1930,7 @@ export function renderStack(prim, command) {
   const sumBody = plainSumBody(prim);
 
   return `${LICENSE}${banner(command)}
-
+${totalCmpImport(prim)}
 const DEFAULT_CAPACITY = 16;
 
 /**
@@ -2014,7 +2027,7 @@ export class ${cls} {
 
   /** Returns true if the stack contains the given value. */
   has(value: ${T}): boolean {
-    for (let i = 0; i < this._size; i++) {
+${narrowStmt(prim, "value", "    ")}    for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
@@ -2141,7 +2154,7 @@ ${sumBody}
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] < m) m = this.data[i];
+      if (${lessExpr(prim, "this.data[i]", "m")}) m = this.data[i];
     }
     return m;
   }
@@ -2151,7 +2164,7 @@ ${sumBody}
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] > m) m = this.data[i];
+      if (${greaterExpr(prim, "this.data[i]", "m")}) m = this.data[i];
     }
     return m;
   }
@@ -2234,7 +2247,7 @@ export function renderImmutableStack(prim, command) {
   const sumBody = plainSumBody(prim);
 
   return `${LICENSE}${banner(command)}
-
+${totalCmpImport(prim)}
 import { ${mut} } from "./${prim.id}-array-stack.js";
 
 /**
@@ -2298,7 +2311,7 @@ export class ${cls} {
 
   /** Returns true if the stack contains the given value. */
   has(value: ${T}): boolean {
-    for (let i = 0; i < this._size; i++) {
+${narrowStmt(prim, "value", "    ")}    for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
     return false;
@@ -2384,7 +2397,7 @@ ${sumBody}
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] < m) m = this.data[i];
+      if (${lessExpr(prim, "this.data[i]", "m")}) m = this.data[i];
     }
     return m;
   }
@@ -2394,7 +2407,7 @@ ${sumBody}
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] > m) m = this.data[i];
+      if (${greaterExpr(prim, "this.data[i]", "m")}) m = this.data[i];
     }
     return m;
   }

@@ -77,6 +77,7 @@ export class ImmutableFloat32Int8HashMap {
   /** Returns the value for the key, or undefined. */
   get(key: number): number | undefined {
     if (this.capacity === 0) return undefined;
+    key = Math.fround(key);
     const mask = this.capacity - 1;
     let idx = hash(key) & mask;
     while (true) {

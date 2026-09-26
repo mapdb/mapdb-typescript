@@ -10,7 +10,7 @@
 // are imported BY NAME (see spec.KEY_HASH) — never inlined.
 // ---------------------------------------------------------------------------
 
-import { KEY_HASH } from "./spec.mjs";
+import { KEY_HASH, narrowForOf, narrowStmt } from "./spec.mjs";
 
 const LICENSE = `// Copyright (c) 2026 Jan Kotek.
 // Derived from Eclipse Collections (Copyright (c) Goldman Sachs and others).
@@ -129,8 +129,7 @@ export class ${cls} {
     const mask = map.capacity - 1;
     let seen = 0;
     let i = 0;
-    for (const [key, value] of pairs) {
-      if (seen >= n) {
+${narrowForOf(key, "[key, value]", "key", "pairs", "    ")}      if (seen >= n) {
         throw new RangeError("pump source exceeds exact size " + n);
       }
       let idx = map.hash(key) & mask;
@@ -176,8 +175,7 @@ export class ${cls} {
     const map =
       hint !== undefined ? new ${cls}(hashCapacityFor(hint)) : new ${cls}();
     let i = 0;
-    for (const [key, value] of pairs) {
-      if (map.needsResize()) map.resize();
+${narrowForOf(key, "[key, value]", "key", "pairs", "    ")}      if (map.needsResize()) map.resize();
       const mask = map.capacity - 1;
       let idx = map.hash(key) & mask;
       while (true) {
@@ -200,7 +198,7 @@ export class ${cls} {
   }
 
   set(key: ${K}, value: ${V}): this {
-    if (this.needsResize()) this.resize();
+${narrowStmt(key, "key", "    ")}    if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {
@@ -221,7 +219,7 @@ export class ${cls} {
 
   get(key: ${K}): ${V} | undefined {
     if (this.capacity === 0) return undefined;
-    const mask = this.capacity - 1;
+${narrowStmt(key, "key", "    ")}    const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {
       if (!this.occupied[idx]) return undefined;
@@ -237,7 +235,7 @@ export class ${cls} {
 
   remove(key: ${K}): ${V} | undefined {
     if (this.capacity === 0) return undefined;
-    const mask = this.capacity - 1;
+${narrowStmt(key, "key", "    ")}    const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {
       if (!this.occupied[idx]) return undefined;
@@ -538,7 +536,7 @@ export class ${cls} {
   /** Returns the value for the key, or undefined. */
   get(key: ${K}): ${V} | undefined {
     if (this.capacity === 0) return undefined;
-    const mask = this.capacity - 1;
+${narrowStmt(key, "key", "    ")}    const mask = this.capacity - 1;
     let idx = hash(key) & mask;
     while (true) {
       if (!this.occupied[idx]) return undefined;

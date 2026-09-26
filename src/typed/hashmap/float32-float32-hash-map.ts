@@ -56,7 +56,8 @@ export class Float32Float32HashMap {
     const mask = map.capacity - 1;
     let seen = 0;
     let i = 0;
-    for (const [key, value] of pairs) {
+    for (const [rawKey, value] of pairs) {
+      const key = Math.fround(rawKey);
       if (seen >= n) {
         throw new RangeError("pump source exceeds exact size " + n);
       }
@@ -103,7 +104,8 @@ export class Float32Float32HashMap {
     const map =
       hint !== undefined ? new Float32Float32HashMap(hashCapacityFor(hint)) : new Float32Float32HashMap();
     let i = 0;
-    for (const [key, value] of pairs) {
+    for (const [rawKey, value] of pairs) {
+      const key = Math.fround(rawKey);
       if (map.needsResize()) map.resize();
       const mask = map.capacity - 1;
       let idx = map.hash(key) & mask;
@@ -127,6 +129,7 @@ export class Float32Float32HashMap {
   }
 
   set(key: number, value: number): this {
+    key = Math.fround(key);
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
@@ -148,6 +151,7 @@ export class Float32Float32HashMap {
 
   get(key: number): number | undefined {
     if (this.capacity === 0) return undefined;
+    key = Math.fround(key);
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {
@@ -164,6 +168,7 @@ export class Float32Float32HashMap {
 
   remove(key: number): number | undefined {
     if (this.capacity === 0) return undefined;
+    key = Math.fround(key);
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {

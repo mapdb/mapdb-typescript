@@ -54,7 +54,8 @@ export class BigInt64HashSet {
     const mask = set.capacity - 1;
     let seen = 0;
     let i = 0;
-    for (const value of values) {
+    for (const rawValue of values) {
+      const value = BigInt.asIntN(64, rawValue);
       if (seen >= n) {
         throw new RangeError("pump source exceeds exact size " + n);
       }
@@ -96,7 +97,8 @@ export class BigInt64HashSet {
     const set =
       hint !== undefined ? new BigInt64HashSet(hashCapacityFor(hint)) : new BigInt64HashSet();
     let i = 0;
-    for (const value of values) {
+    for (const rawValue of values) {
+      const value = BigInt.asIntN(64, rawValue);
       if (set.needsResize()) set.resize();
       const mask = set.capacity - 1;
       let idx = set.hash(value) & mask;
@@ -119,6 +121,7 @@ export class BigInt64HashSet {
   }
 
   add(value: bigint): this {
+    value = BigInt.asIntN(64, value);
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -136,6 +139,7 @@ export class BigInt64HashSet {
 
   remove(value: bigint): boolean {
     if (this.capacity === 0) return false;
+    value = BigInt.asIntN(64, value);
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {
@@ -152,6 +156,7 @@ export class BigInt64HashSet {
 
   has(value: bigint): boolean {
     if (this.capacity === 0) return false;
+    value = BigInt.asIntN(64, value);
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {

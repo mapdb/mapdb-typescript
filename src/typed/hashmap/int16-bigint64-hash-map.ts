@@ -55,7 +55,8 @@ export class Int16BigInt64HashMap {
     const mask = map.capacity - 1;
     let seen = 0;
     let i = 0;
-    for (const [key, value] of pairs) {
+    for (const [rawKey, value] of pairs) {
+      const key = (rawKey << 16) >> 16;
       if (seen >= n) {
         throw new RangeError("pump source exceeds exact size " + n);
       }
@@ -102,7 +103,8 @@ export class Int16BigInt64HashMap {
     const map =
       hint !== undefined ? new Int16BigInt64HashMap(hashCapacityFor(hint)) : new Int16BigInt64HashMap();
     let i = 0;
-    for (const [key, value] of pairs) {
+    for (const [rawKey, value] of pairs) {
+      const key = (rawKey << 16) >> 16;
       if (map.needsResize()) map.resize();
       const mask = map.capacity - 1;
       let idx = map.hash(key) & mask;
@@ -126,6 +128,7 @@ export class Int16BigInt64HashMap {
   }
 
   set(key: number, value: bigint): this {
+    key = (key << 16) >> 16;
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
@@ -147,6 +150,7 @@ export class Int16BigInt64HashMap {
 
   get(key: number): bigint | undefined {
     if (this.capacity === 0) return undefined;
+    key = (key << 16) >> 16;
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {
@@ -163,6 +167,7 @@ export class Int16BigInt64HashMap {
 
   remove(key: number): bigint | undefined {
     if (this.capacity === 0) return undefined;
+    key = (key << 16) >> 16;
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {

@@ -64,6 +64,7 @@ export class Int16ArrayList {
   }
 
   has(value: number): boolean {
+    value = (value << 16) >> 16;
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
@@ -71,6 +72,7 @@ export class Int16ArrayList {
   }
 
   indexOf(value: number): number {
+    value = (value << 16) >> 16;
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return i;
     }

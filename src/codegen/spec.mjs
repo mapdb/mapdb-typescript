@@ -32,16 +32,23 @@
  *                              int  -> `key | 0`            (no helper import)
  *                              float-> `f64HashSeed(key)`   (float-order helper)
  *                              bigint-> `bigintHashSeed(key) | 0` (hash helper)
+ * @property {((v: string) => string) | null} narrow  expression that narrows a
+ *                              caller-supplied JS value to exactly what the
+ *                              backing TypedArray stores (Math.fround, ToInt8/
+ *                              16/32 wrap, BigInt.asIntN(64)); null when the
+ *                              store is lossless (float64). Applied ONCE at
+ *                              every API entry point so hashing and Object.is
+ *                              comparison see the stored value (audit F1).
  */
 
 /** @type {Prim[]} */
 export const PRIMS = [
-  { id: "int8", name: "Int8", arrayClass: "Int8Array", bytes: 1, tsType: "number", kind: "int" },
-  { id: "int16", name: "Int16", arrayClass: "Int16Array", bytes: 2, tsType: "number", kind: "int" },
-  { id: "int32", name: "Int32", arrayClass: "Int32Array", bytes: 4, tsType: "number", kind: "int" },
-  { id: "float32", name: "Float32", arrayClass: "Float32Array", bytes: 4, tsType: "number", kind: "float" },
-  { id: "float64", name: "Float64", arrayClass: "Float64Array", bytes: 8, tsType: "number", kind: "float" },
-  { id: "bigint64", name: "BigInt64", arrayClass: "BigInt64Array", bytes: 8, tsType: "bigint", kind: "bigint" },
+  { id: "int8", name: "Int8", arrayClass: "Int8Array", bytes: 1, tsType: "number", kind: "int", narrow: (v) => `(${v} << 24) >> 24` },
+  { id: "int16", name: "Int16", arrayClass: "Int16Array", bytes: 2, tsType: "number", kind: "int", narrow: (v) => `(${v} << 16) >> 16` },
+  { id: "int32", name: "Int32", arrayClass: "Int32Array", bytes: 4, tsType: "number", kind: "int", narrow: (v) => `${v} | 0` },
+  { id: "float32", name: "Float32", arrayClass: "Float32Array", bytes: 4, tsType: "number", kind: "float", narrow: (v) => `Math.fround(${v})` },
+  { id: "float64", name: "Float64", arrayClass: "Float64Array", bytes: 8, tsType: "number", kind: "float", narrow: null },
+  { id: "bigint64", name: "BigInt64", arrayClass: "BigInt64Array", bytes: 8, tsType: "bigint", kind: "bigint", narrow: (v) => `BigInt.asIntN(64, ${v})` },
 ];
 
 /**
@@ -79,4 +86,30 @@ export function pairs() {
     }
   }
   return out;
+}
+
+/**
+ * Statement that narrows `v` in place to `prim`'s storage width (audit F1:
+ * normalise once at the API boundary, then hash + compare the narrowed value).
+ * Empty string for a lossless store (float64), so those files are unchanged.
+ */
+export function narrowStmt(prim, v, indent) {
+  return prim.narrow ? `${indent}${v} = ${prim.narrow(v)};\n` : "";
+}
+
+/**
+ * Head of a for-of loop over caller values whose loop variable `v` must be the
+ * narrowed value: `for (const v of src) {` for a lossless store, otherwise
+ * `for (const raw of src) {` followed by `const v = <narrow>(raw);`.
+ * `bind` is the destructuring pattern, e.g. "value" or "[key, value]"; `keyVar`
+ * names the element (or key) to narrow.
+ */
+export function narrowForOf(prim, bind, keyVar, src, indent) {
+  if (!prim.narrow) return `${indent}for (const ${bind} of ${src}) {\n`;
+  const rawVar = "raw" + keyVar[0].toUpperCase() + keyVar.slice(1);
+  const rawBind = bind.replace(keyVar, rawVar);
+  return (
+    `${indent}for (const ${rawBind} of ${src}) {\n` +
+    `${indent}  const ${keyVar} = ${prim.narrow(rawVar)};\n`
+  );
 }

@@ -53,7 +53,8 @@ export class Int8HashSet {
     const mask = set.capacity - 1;
     let seen = 0;
     let i = 0;
-    for (const value of values) {
+    for (const rawValue of values) {
+      const value = (rawValue << 24) >> 24;
       if (seen >= n) {
         throw new RangeError("pump source exceeds exact size " + n);
       }
@@ -95,7 +96,8 @@ export class Int8HashSet {
     const set =
       hint !== undefined ? new Int8HashSet(hashCapacityFor(hint)) : new Int8HashSet();
     let i = 0;
-    for (const value of values) {
+    for (const rawValue of values) {
+      const value = (rawValue << 24) >> 24;
       if (set.needsResize()) set.resize();
       const mask = set.capacity - 1;
       let idx = set.hash(value) & mask;
@@ -118,6 +120,7 @@ export class Int8HashSet {
   }
 
   add(value: number): this {
+    value = (value << 24) >> 24;
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -135,6 +138,7 @@ export class Int8HashSet {
 
   remove(value: number): boolean {
     if (this.capacity === 0) return false;
+    value = (value << 24) >> 24;
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {
@@ -151,6 +155,7 @@ export class Int8HashSet {
 
   has(value: number): boolean {
     if (this.capacity === 0) return false;
+    value = (value << 24) >> 24;
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {

@@ -68,6 +68,7 @@ export class ImmutableInt8HashSet {
   /** Returns true if the set contains the given value. */
   has(value: number): boolean {
     if (this.capacity === 0) return false;
+    value = (value << 24) >> 24;
     const mask = this.capacity - 1;
     let idx = hash(value, this.capacity);
     while (true) {

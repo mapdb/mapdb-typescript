@@ -77,6 +77,7 @@ export class ImmutableBigInt64Int8HashMap {
   /** Returns the value for the key, or undefined. */
   get(key: bigint): number | undefined {
     if (this.capacity === 0) return undefined;
+    key = BigInt.asIntN(64, key);
     const mask = this.capacity - 1;
     let idx = hash(key) & mask;
     while (true) {

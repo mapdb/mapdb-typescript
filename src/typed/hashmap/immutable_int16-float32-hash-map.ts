@@ -76,6 +76,7 @@ export class ImmutableInt16Float32HashMap {
   /** Returns the value for the key, or undefined. */
   get(key: number): number | undefined {
     if (this.capacity === 0) return undefined;
+    key = (key << 16) >> 16;
     const mask = this.capacity - 1;
     let idx = hash(key) & mask;
     while (true) {

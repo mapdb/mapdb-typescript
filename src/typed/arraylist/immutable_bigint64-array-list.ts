@@ -61,6 +61,7 @@ export class ImmutableBigInt64ArrayList {
 
   /** Returns true if the list contains the given value. */
   has(value: bigint): boolean {
+    value = BigInt.asIntN(64, value);
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
@@ -74,6 +75,7 @@ export class ImmutableBigInt64ArrayList {
 
   /** Returns the index of the first occurrence, or -1. */
   indexOf(value: bigint): number {
+    value = BigInt.asIntN(64, value);
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return i;
     }

@@ -69,6 +69,7 @@ export class ImmutableFloat32HashSet {
   /** Returns true if the set contains the given value. */
   has(value: number): boolean {
     if (this.capacity === 0) return false;
+    value = Math.fround(value);
     const mask = this.capacity - 1;
     let idx = hash(value, this.capacity);
     while (true) {

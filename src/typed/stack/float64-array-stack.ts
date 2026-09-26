@@ -5,6 +5,7 @@
 // USE AT YOUR OWN RISK — THIS SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 // CODE GENERATED — DO NOT EDIT. Regenerate with `npm run generate:typed-stack`.
 
+import { totalCmpNumber } from "../../internal/float-order.js";
 
 const DEFAULT_CAPACITY = 16;
 
@@ -233,7 +234,7 @@ export class Float64ArrayStack {
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] < m) m = this.data[i];
+      if (totalCmpNumber(this.data[i], m) < 0) m = this.data[i];
     }
     return m;
   }
@@ -243,7 +244,7 @@ export class Float64ArrayStack {
     if (this._size === 0) return undefined;
     let m = this.data[0];
     for (let i = 1; i < this._size; i++) {
-      if (this.data[i] > m) m = this.data[i];
+      if (totalCmpNumber(this.data[i], m) > 0) m = this.data[i];
     }
     return m;
   }

@@ -55,7 +55,8 @@ export class Int8Float64HashMap {
     const mask = map.capacity - 1;
     let seen = 0;
     let i = 0;
-    for (const [key, value] of pairs) {
+    for (const [rawKey, value] of pairs) {
+      const key = (rawKey << 24) >> 24;
       if (seen >= n) {
         throw new RangeError("pump source exceeds exact size " + n);
       }
@@ -102,7 +103,8 @@ export class Int8Float64HashMap {
     const map =
       hint !== undefined ? new Int8Float64HashMap(hashCapacityFor(hint)) : new Int8Float64HashMap();
     let i = 0;
-    for (const [key, value] of pairs) {
+    for (const [rawKey, value] of pairs) {
+      const key = (rawKey << 24) >> 24;
       if (map.needsResize()) map.resize();
       const mask = map.capacity - 1;
       let idx = map.hash(key) & mask;
@@ -126,6 +128,7 @@ export class Int8Float64HashMap {
   }
 
   set(key: number, value: number): this {
+    key = (key << 24) >> 24;
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
@@ -147,6 +150,7 @@ export class Int8Float64HashMap {
 
   get(key: number): number | undefined {
     if (this.capacity === 0) return undefined;
+    key = (key << 24) >> 24;
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {
@@ -163,6 +167,7 @@ export class Int8Float64HashMap {
 
   remove(key: number): number | undefined {
     if (this.capacity === 0) return undefined;
+    key = (key << 24) >> 24;
     const mask = this.capacity - 1;
     let idx = this.hash(key) & mask;
     while (true) {

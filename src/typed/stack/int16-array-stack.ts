@@ -102,6 +102,7 @@ export class Int16ArrayStack {
 
   /** Returns true if the stack contains the given value. */
   has(value: number): boolean {
+    value = (value << 16) >> 16;
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }

@@ -69,6 +69,7 @@ export class ImmutableBigInt64HashSet {
   /** Returns true if the set contains the given value. */
   has(value: bigint): boolean {
     if (this.capacity === 0) return false;
+    value = BigInt.asIntN(64, value);
     const mask = this.capacity - 1;
     let idx = hash(value, this.capacity);
     while (true) {

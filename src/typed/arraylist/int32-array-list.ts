@@ -64,6 +64,7 @@ export class Int32ArrayList {
   }
 
   has(value: number): boolean {
+    value = value | 0;
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
@@ -71,6 +72,7 @@ export class Int32ArrayList {
   }
 
   indexOf(value: number): number {
+    value = value | 0;
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return i;
     }

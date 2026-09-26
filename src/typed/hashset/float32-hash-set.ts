@@ -54,7 +54,8 @@ export class Float32HashSet {
     const mask = set.capacity - 1;
     let seen = 0;
     let i = 0;
-    for (const value of values) {
+    for (const rawValue of values) {
+      const value = Math.fround(rawValue);
       if (seen >= n) {
         throw new RangeError("pump source exceeds exact size " + n);
       }
@@ -96,7 +97,8 @@ export class Float32HashSet {
     const set =
       hint !== undefined ? new Float32HashSet(hashCapacityFor(hint)) : new Float32HashSet();
     let i = 0;
-    for (const value of values) {
+    for (const rawValue of values) {
+      const value = Math.fround(rawValue);
       if (set.needsResize()) set.resize();
       const mask = set.capacity - 1;
       let idx = set.hash(value) & mask;
@@ -119,6 +121,7 @@ export class Float32HashSet {
   }
 
   add(value: number): this {
+    value = Math.fround(value);
     if (this.needsResize()) this.resize();
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
@@ -136,6 +139,7 @@ export class Float32HashSet {
 
   remove(value: number): boolean {
     if (this.capacity === 0) return false;
+    value = Math.fround(value);
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {
@@ -152,6 +156,7 @@ export class Float32HashSet {
 
   has(value: number): boolean {
     if (this.capacity === 0) return false;
+    value = Math.fround(value);
     const mask = this.capacity - 1;
     let idx = this.hash(value) & mask;
     while (true) {

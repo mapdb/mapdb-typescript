@@ -64,6 +64,7 @@ export class BigInt64ArrayList {
   }
 
   has(value: bigint): boolean {
+    value = BigInt.asIntN(64, value);
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
@@ -71,6 +72,7 @@ export class BigInt64ArrayList {
   }
 
   indexOf(value: bigint): number {
+    value = BigInt.asIntN(64, value);
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return i;
     }

@@ -102,6 +102,7 @@ export class Int8ArrayStack {
 
   /** Returns true if the stack contains the given value. */
   has(value: number): boolean {
+    value = (value << 24) >> 24;
     for (let i = 0; i < this._size; i++) {
       if (Object.is(this.data[i], value)) return true;
     }
