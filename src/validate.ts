@@ -262,22 +262,32 @@ function printBanner(name: string): void {
 }
 
 // Resolve the scenario's `profile` field. Absent -> "primitive". An unknown
-// value, a non-string, or "object" on a kind with no object cell is a FAIL:
-// print `FAIL profile: unknown '<value>'` and exit non-zero; never fall back.
-function resolveProfile(scenario: Scenario): Profile {
+// value or a non-string prints the banner and `FAIL profile: unknown
+// '<value>'`. "object" on a kind with no object cell (a known or an unknown
+// kind) prints the banner, the `profile: object` echo and `FAIL profile:
+// object not supported for '<kind>'`. Both exit non-zero; never fall back.
+// The expect_panic child (`child`) exits 1 on the same inputs but prints
+// nothing: a `profile:` line in its stdout would be read by the panic judge
+// as an assertion line, and the rejection must never look like a trap.
+function resolveProfile(scenario: Scenario, child = false): Profile {
   const raw = scenario["profile"];
   if (raw === undefined || raw === "primitive") return "primitive";
-  if (
-    raw === "object" &&
-    OBJECT_PROFILE_SAME_AS_PRIMITIVE.includes(scenario.collection)
-  ) {
-    return "object";
+  if (raw === "object") {
+    if (OBJECT_PROFILE_SAME_AS_PRIMITIVE.includes(scenario.collection)) {
+      return "object";
+    }
+    if (child) process.exit(1);
+    console.log(`=== scenario: ${scenario.name} ===`);
+    console.log(`profile: ${raw}`);
+    console.log(
+      `FAIL profile: object not supported for '${scenario.collection}'`,
+    );
+    process.exit(1);
   }
+  if (child) process.exit(1);
   const shown = typeof raw === "string" ? raw : JSON.stringify(raw);
-  const forKind =
-    raw === "object" ? ` for collection '${scenario.collection}'` : "";
   console.log(`=== scenario: ${scenario.name} ===`);
-  console.log(`FAIL profile: unknown '${shown}'${forKind}`);
+  console.log(`FAIL profile: unknown '${shown}'`);
   process.exit(1);
 }
 
@@ -4271,6 +4281,9 @@ function runExpectPanicParent(
 
 function runPanicChild(filePath: string): void {
   const scenario = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Scenario;
+  // Same (kind, profile) applicability as the parent, before any dispatch
+  // including the Interval special case; no echo in the child.
+  resolveProfile(scenario, true);
   if (scenario.collection === "Interval<i32>") {
     runInterval(scenario, true);
     printBanner(scenario.name);
