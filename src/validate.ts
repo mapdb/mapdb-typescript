@@ -3835,17 +3835,27 @@ function reachMarkerLine(i: number, n: number): string {
   return `[panic-child] reached op ${i}/${n}`;
 }
 
+// Printed immediately after that production call returns normally. Its
+// presence for the last op means the product did NOT trap there, whatever
+// killed the process afterwards.
+function returnMarkerLine(i: number, n: number): string {
+  return `[panic-child] returned op ${i}/${n}`;
+}
+
+function stdoutHasLine(stdout: string, want: string): boolean {
+  for (const raw of stdout.split("\n")) {
+    if (raw.replace(/\r+$/, "") === want) return true;
+  }
+  return false;
+}
+
 // Did the child print the marker for the LAST operation, i.e. get as far as
 // calling the product for it? A runner crash before that point leaves no such
 // line (astra25/25 F4: any non-zero exit used to count as the trap). A
 // scenario with no operations has nothing to reach and cannot pass.
 function stdoutHasReachMarker(stdout: string, ops: number): boolean {
   if (ops < 1) return false;
-  const want = reachMarkerLine(ops, ops);
-  for (const raw of stdout.split("\n")) {
-    if (raw.replace(/\r+$/, "") === want) return true;
-  }
-  return false;
+  return stdoutHasLine(stdout, reachMarkerLine(ops, ops));
 }
 
 // ops is the scenario's operation count: the child must have reached the
@@ -3860,7 +3870,10 @@ function panicPassed(
     !timedOut &&
     exitCode !== 0 &&
     !stdoutHasSentinel(stdout) &&
-    stdoutHasReachMarker(stdout, ops)
+    stdoutHasReachMarker(stdout, ops) &&
+    // The last call returned normally: whatever killed the child afterwards
+    // (a crash on the way to the banner), it was not the product's trap.
+    !stdoutHasLine(stdout, returnMarkerLine(ops, ops))
   );
 }
 
@@ -3871,6 +3884,8 @@ function runPanicJudgeSelftest(): void {
   const m1 = reachMarkerLine(1, 1) + "\n";
   const m2 = reachMarkerLine(2, 2) + "\n";
   const m1of2 = reachMarkerLine(1, 2) + "\n";
+  const r1 = returnMarkerLine(1, 1) + "\n";
+  const r1of2 = returnMarkerLine(1, 2) + "\n";
   const cases: ReadonlyArray<{
     exitCode: number;
     stdout: string;
@@ -3954,6 +3969,16 @@ function runPanicJudgeSelftest(): void {
       ops: 1,
       want: false,
     },
+    // the last call returned: not the product's trap
+    { exitCode: 1, stdout: m1 + r1, timedOut: false, ops: 1, want: false },
+    // op 1 returned, op 2 trapped
+    {
+      exitCode: 1,
+      stdout: m1of2 + r1of2 + m2,
+      timedOut: false,
+      ops: 2,
+      want: true,
+    },
   ];
   for (let i = 0; i < cases.length; i++) {
     const c = cases[i]!;
@@ -4001,6 +4026,9 @@ function runInterval(
   const reach = (i: number): void => {
     if (markers) fs.writeSync(1, reachMarkerLine(i + 1, n) + "\n");
   };
+  const returned = (i: number): void => {
+    if (markers) fs.writeSync(1, returnMarkerLine(i + 1, n) + "\n");
+  };
   for (let i = 0; i < n; i++) {
     const op = ops[i];
     if (op === null || typeof op !== "object") {
@@ -4016,12 +4044,14 @@ function runInterval(
       }
       reach(i);
       current = NumberInterval.fromToBy(op.from, op.to, op.step);
+      returned(i);
       continue;
     }
     if (op.op === "reversed") {
       if (current === undefined) intervalOperandBail(scenario.name);
       reach(i);
       current = current.reversed();
+      returned(i);
       continue;
     }
     intervalOperandBail(scenario.name);
