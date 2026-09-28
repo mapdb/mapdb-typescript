@@ -216,6 +216,62 @@ describe("BoundedLruMap evict-before-insert & capacity edges", () => {
 });
 
 describe("BoundedLruMap callback ordering (SIZE / EXPIRED)", () => {
+  it("size callback sees eviction before insertion and cannot mutate the map", () => {
+    const m = new BoundedLruMap<number, number>({
+      maxSize: 2,
+      onEvict: () => {
+        expect(m.keys()).toEqual([2]);
+        expect(m.containsKey(3)).toBe(false);
+        expect(() => m.put(4, 40)).toThrow(/from onEvict/);
+        expect(() => m.remove(2)).toThrow(/from onEvict/);
+        expect(() => m.clear()).toThrow(/from onEvict/);
+        expect(() => m.expireEntries(0n)).toThrow(/from onEvict/);
+        expect(() => m.get(2)).toThrow(/from onEvict/);
+      },
+    });
+    m.put(1, 10);
+    m.put(2, 20);
+    m.put(3, 30);
+    expect(m.keys()).toEqual([2, 3]);
+    expect(m.size()).toBe(2);
+  });
+
+  it("uncaught expiry callback mutation leaves later victims linked and resets the guard", () => {
+    const m = new BoundedLruMap<number, number>({
+      maxSize: 3,
+      ttl: 5n,
+      onEvict: (k) => {
+        if (k !== 1) return;
+        expect(m.containsKey(1)).toBe(false);
+        expect(m.containsKey(2)).toBe(true);
+        m.remove(2); // throws; the expiry pass stops after victim 1
+      },
+    });
+    m.putAt(1, 10, 0n);
+    m.putAt(2, 20, 0n);
+    m.putAt(3, 30, 10n);
+    expect(() => m.expireEntries(5n)).toThrow(/from onEvict/);
+    expect(m.keys()).toEqual([2, 3]);
+    expect(m.size()).toBe(2);
+    expect(m.expireEntries(5n)).toBe(1);
+    expect(m.keys()).toEqual([3]);
+  });
+
+  it("uncaught size callback mutation aborts insertion without corrupting the map", () => {
+    const m = new BoundedLruMap<number, number>({
+      maxSize: 2,
+      onEvict: (k) => {
+        if (k === 1) m.put(4, 40);
+      },
+    });
+    m.put(1, 10);
+    m.put(2, 20);
+    expect(() => m.put(3, 30)).toThrow(/from onEvict/);
+    expect(m.keys()).toEqual([2]);
+    m.put(4, 40);
+    expect(m.keys()).toEqual([2, 4]);
+  });
+
   it("expire basic, inclusive boundary", () => {
     const { m, log } = mapWithLogTtl(10, 10n);
     m.putAt(1, 10, 0n); // expire_at 10

@@ -32,7 +32,10 @@
  * evictions and never invoke the callback. */
 export type EvictionCause = "size" | "expired";
 
-/** The eviction callback: invoked with `(key, value-at-eviction, cause)`. */
+/** The eviction callback: invoked with `(key, value-at-eviction, cause)`.
+ * Mutating the same map from this callback throws. `size`, `isEmpty`,
+ * `capacity`, `containsKey`, `keys`, `values`, and `entries` are safe to inspect;
+ * `get`/`getOrDefault` throw because a hit refreshes recency. */
 export type EvictCallback<K, V> = (
   key: K,
   value: V,
@@ -48,7 +51,8 @@ export interface BoundedLruMapOptions<K, V> {
   /** After-write TTL in logical ticks (unsigned 64-bit). Omitted/`null` for a
    * pure max-size map. Accepts a `bigint` or a decimal string. */
   ttl?: bigint | number | string | null;
-  /** Optional recording/eviction callback `(key, value, cause)`. */
+  /** Optional eviction callback `(key, value, cause)`. It must not mutate this
+   * map; attempted mutation throws before changing state. */
   onEvict?: EvictCallback<K, V>;
 }
 
@@ -111,6 +115,7 @@ export class BoundedLruMap<K = number, V = number> {
   private readonly maxSize: number;
   private readonly ttl: bigint | null;
   private readonly onEvict: EvictCallback<K, V> | null;
+  private inEvictionCallback = false;
 
   constructor(options: BoundedLruMapOptions<K, V>) {
     if (!Number.isInteger(options.maxSize) || options.maxSize < 0) {
@@ -174,12 +179,25 @@ export class BoundedLruMap<K = number, V = number> {
     this.pushTail(node);
   }
 
+  private rejectReentrantMutation(): void {
+    if (this.inEvictionCallback) {
+      throw new Error("mutating BoundedLruMap from onEvict is not supported");
+    }
+  }
+
   /** Remove a victim node entirely (unlink + index-remove) and fire the
    * eviction callback with the given cause and the value-at-eviction. */
   private evictNode(node: Node<K, V>, cause: EvictionCause): void {
     this.index.delete(node.key);
     this.unlink(node);
-    if (this.onEvict !== null) this.onEvict(node.key, node.value, cause);
+    if (this.onEvict !== null) {
+      this.inEvictionCallback = true;
+      try {
+        this.onEvict(node.key, node.value, cause);
+      } finally {
+        this.inEvictionCallback = false;
+      }
+    }
   }
 
   // --- map surface ------------------------------------------------------
@@ -195,6 +213,7 @@ export class BoundedLruMap<K = number, V = number> {
    * new-key insert at capacity evicts the LRU entry first
    * (evict-before-insert). Returns the previous value, or `undefined`. */
   putAt(key: K, value: V, now: bigint | number | string): V | undefined {
+    this.rejectReentrantMutation();
     const nowTick = toTick(now);
     const expireAt =
       this.ttl === null ? NEVER : saturatingAddU64(nowTick, this.ttl);
@@ -231,6 +250,7 @@ export class BoundedLruMap<K = number, V = number> {
 
   /** Lookup. On a hit refreshes recency; on a miss does nothing. */
   get(key: K): V | undefined {
+    this.rejectReentrantMutation(); // a hit refreshes recency
     const node = this.index.get(key);
     if (node === undefined) return undefined;
     this.touch(node);
@@ -253,6 +273,7 @@ export class BoundedLruMap<K = number, V = number> {
    * (manual removal is not an eviction). Returns the removed value, or
    * `undefined`. */
   remove(key: K): V | undefined {
+    this.rejectReentrantMutation();
     const node = this.index.get(key);
     if (node === undefined) return undefined;
     this.index.delete(key);
@@ -263,6 +284,7 @@ export class BoundedLruMap<K = number, V = number> {
   /** Remove all entries. Does NOT invoke the eviction callback for the cleared
    * entries (bulk manual removal is not eviction). */
   clear(): void {
+    this.rejectReentrantMutation();
     this.index.clear();
     this.head = null;
     this.tail = null;
@@ -274,6 +296,7 @@ export class BoundedLruMap<K = number, V = number> {
    * removed. The only time-driven eviction; surviving entries' recency is
    * unchanged. A no-TTL map expires nothing for any `now`. */
   expireEntries(now: bigint | number | string): number {
+    this.rejectReentrantMutation();
     if (this.ttl === null) return 0;
     const nowTick = toTick(now);
 
