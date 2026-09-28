@@ -265,7 +265,7 @@ function printBanner(name: string): void {
 // value, a non-string, or "object" on a kind with no object cell is a FAIL:
 // print `FAIL profile: unknown '<value>'` and exit non-zero; never fall back.
 function resolveProfile(scenario: Scenario): Profile {
-  const raw = scenario.profile;
+  const raw = scenario["profile"];
   if (raw === undefined || raw === "primitive") return "primitive";
   if (
     raw === "object" &&
