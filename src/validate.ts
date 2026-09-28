@@ -243,11 +243,11 @@ interface Scenario {
 // adds no coverage on this port, only the echo that proves the field was read.
 type Profile = "primitive" | "object";
 
-const OBJECT_PROFILE_SAME_AS_PRIMITIVE: ReadonlySet<string> = new Set([
+const OBJECT_PROFILE_SAME_AS_PRIMITIVE: readonly string[] = [
   "HashMap<f32, i32>",
   "HashSet<f32>",
   "TreeSet<f32>",
-]);
+];
 
 // Profile echoed after every scenario banner (null = do not echo: the
 // expect_panic child, whose stdout is judged for sentinels, and --trace).
@@ -269,7 +269,7 @@ function resolveProfile(scenario: Scenario): Profile {
   if (raw === undefined || raw === "primitive") return "primitive";
   if (
     raw === "object" &&
-    OBJECT_PROFILE_SAME_AS_PRIMITIVE.has(scenario.collection)
+    OBJECT_PROFILE_SAME_AS_PRIMITIVE.includes(scenario.collection)
   ) {
     return "object";
   }
