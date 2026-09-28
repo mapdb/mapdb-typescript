@@ -219,7 +219,66 @@ interface Scenario {
   // Optional single range (10-range builder-op shape) naming the range that
   // the scenario's range_* assertions refer to (spec/features/navigable-map.md).
   query?: RangeOp;
+  // Optional runner profile (B3 runner-profiles design): which implementation
+  // tier drives the scenario. Absent == "primitive". Resolved and validated by
+  // resolveProfile before any dispatch; never defaulted on an unknown value.
+  profile?: unknown;
+  // On a non-primitive profile: the primitive scenario this one mirrors.
+  // Harness metadata for the checker; the runner ignores it.
+  mirrors?: string | null;
   assertions: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Runner profiles
+// ---------------------------------------------------------------------------
+//
+// "primitive" is every existing dispatch below. "object" is accepted only for
+// the stage-1 f32 kinds, and on TypeScript it is `same_as` primitive: TS has
+// ONE number-keyed implementation per kind (NumberNumberHashMap, NumberHashSet,
+// NumberTreeSet), already driven by the primitive profile under the recorded
+// f64 carve-out (spec/algorithms.md §"NaN must hash and compare by bit
+// pattern", TypeScript carve-out). There is no second implementation to route
+// to, so an object scenario takes the SAME createCollection path; the profile
+// adds no coverage on this port, only the echo that proves the field was read.
+type Profile = "primitive" | "object";
+
+const OBJECT_PROFILE_SAME_AS_PRIMITIVE: ReadonlySet<string> = new Set([
+  "HashMap<f32, i32>",
+  "HashSet<f32>",
+  "TreeSet<f32>",
+]);
+
+// Profile echoed after every scenario banner (null = do not echo: the
+// expect_panic child, whose stdout is judged for sentinels, and --trace).
+let echoProfile: Profile | null = null;
+
+// The scenario banner, followed by the `profile: <name>` guard line when the
+// profile has been resolved. Every scenario output path prints the banner
+// exactly once, so the echo appears exactly once, before the first assertion.
+function printBanner(name: string): void {
+  console.log(`=== scenario: ${name} ===`);
+  if (echoProfile !== null) console.log(`profile: ${echoProfile}`);
+}
+
+// Resolve the scenario's `profile` field. Absent -> "primitive". An unknown
+// value, a non-string, or "object" on a kind with no object cell is a FAIL:
+// print `FAIL profile: unknown '<value>'` and exit non-zero; never fall back.
+function resolveProfile(scenario: Scenario): Profile {
+  const raw = scenario.profile;
+  if (raw === undefined || raw === "primitive") return "primitive";
+  if (
+    raw === "object" &&
+    OBJECT_PROFILE_SAME_AS_PRIMITIVE.has(scenario.collection)
+  ) {
+    return "object";
+  }
+  const shown = typeof raw === "string" ? raw : JSON.stringify(raw);
+  const forKind =
+    raw === "object" ? ` for collection '${scenario.collection}'` : "";
+  console.log(`=== scenario: ${scenario.name} ===`);
+  console.log(`FAIL profile: unknown '${shown}'${forKind}`);
+  process.exit(1);
 }
 
 function numberPairs(operations: Operation[]): [number, number][] {
@@ -295,6 +354,9 @@ function createCollection(type: string): Collection {
     // carve-out in spec/algorithms.md §"NaN must hash and compare by bit
     // pattern" and the README "Port limitation (TypeScript)". Ordering
     // (tree/total-order) still distinguishes signed NaN where representable.
+    // These three f32 kinds also serve `"profile": "object"` scenarios: the
+    // object cell is `same_as` primitive (OBJECT_PROFILE_SAME_AS_PRIMITIVE),
+    // so both profiles construct exactly these classes.
     case "HashMap<f32, i32>":
       return new NumberNumberHashMap();
     case "HashSet<f32>":
@@ -1488,7 +1550,7 @@ function runBoundedLru(scenario: Scenario): void {
     }
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
 
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
@@ -1692,7 +1754,7 @@ function runI64HashMap(scenario: Scenario): void {
     }
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
 
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
@@ -1796,7 +1858,7 @@ function runI64Multimap(scenario: Scenario, m: I64Multimap): void {
     }
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
 
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
@@ -1968,7 +2030,7 @@ function runRange(scenario: Scenario): void {
   const range = buildRange(scenario.operations);
   const other = scenario.other ? buildRange(scenario.other.operations) : null;
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
 
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
@@ -2174,7 +2236,7 @@ function runSortedTable(scenario: Scenario, isMap: boolean): void {
     ? buildRangeObj(scenario.query)
     : null;
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
     const computed = evalSortedTableAssertion(key, coll, query);
@@ -2407,7 +2469,7 @@ function runHashPipeline(scenario: Scenario): void {
       return;
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
     const computed = evalHashProbe(probe, key);
@@ -2524,7 +2586,7 @@ function runBloom(scenario: Scenario): void {
     }
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
     let computed: unknown;
@@ -2704,7 +2766,7 @@ function runRoaring(scenario: Scenario): void {
     }
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
     const computed = evalRoaringAssertion(key, s, other);
@@ -2845,7 +2907,7 @@ function runFenwick(scenario: Scenario): void {
     }
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
     const computed = evalFenwickAssertion(key, tree);
@@ -2958,7 +3020,7 @@ function runHyperLogLog(scenario: Scenario): void {
     console.error("skip: malformed HyperLogLog scenario (forward-compat)");
     return;
   }
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
     const computed = evalHllAssertion(key, hll);
@@ -3095,7 +3157,7 @@ function runRangeSet(scenario: Scenario): void {
     : null;
   const span = set.span();
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
 
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
@@ -3300,7 +3362,7 @@ function runCountMin(scenario: Scenario): void {
     }
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
     let computed: string;
@@ -3353,7 +3415,7 @@ function runRangeMap(scenario: Scenario): void {
     : null;
   const span = map.span();
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
 
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
@@ -3514,7 +3576,7 @@ function runSpaceSaving(scenario: Scenario): void {
     }
   }
 
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions)) {
     if (key === "comment" || key === "expect_panic") continue;
     let computed: string;
@@ -4014,7 +4076,7 @@ function isIntervalI32(v: unknown): v is number {
 }
 
 function intervalOperandBail(name: string): never {
-  console.log(`=== scenario: ${name} ===`);
+  printBanner(name);
   process.exit(1);
 }
 
@@ -4099,7 +4161,7 @@ function evaluateIntervalAssertion(key: string, iv: NumberInterval): unknown {
 function runIntervalValue(scenario: Scenario): void {
   const iv = runInterval(scenario);
   if (iv === undefined) intervalOperandBail(scenario.name);
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
   for (const key of Object.keys(scenario.assertions).sort()) {
     if (key === "comment" || key === "expect_panic") continue;
     const actual = evaluateIntervalAssertion(key, iv);
@@ -4198,7 +4260,7 @@ function runExpectPanicParent(
     timedOut,
     ops,
   );
-  console.log(`=== scenario: ${name} ===`);
+  printBanner(name);
   if (passed) {
     console.log("expect_panic: true");
     return;
@@ -4211,7 +4273,7 @@ function runPanicChild(filePath: string): void {
   const scenario = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Scenario;
   if (scenario.collection === "Interval<i32>") {
     runInterval(scenario, true);
-    console.log(`=== scenario: ${scenario.name} ===`);
+    printBanner(scenario.name);
     return;
   }
   executeScenario(scenario);
@@ -4438,7 +4500,7 @@ function executeScenario(scenario: Scenario): void {
   }
 
   // Output header (after ops; an escaping trap prints nothing).
-  console.log(`=== scenario: ${scenario.name} ===`);
+  printBanner(scenario.name);
 
   // Evaluate and print each assertion in order. The "comment" key is a
   // scenario-author doc string; Rust/Go/Zig all skip it, so do the same
@@ -4508,6 +4570,7 @@ function main(): void {
   const filePath = path.resolve(args[0]);
   const raw = fs.readFileSync(filePath, "utf-8");
   const scenario: Scenario = JSON.parse(raw) as Scenario;
+  echoProfile = resolveProfile(scenario);
   const panicMode = expectPanicMode(scenario);
   if (panicMode === "malformed") process.exit(1);
   if (panicMode === "true" && panicCollectionKnown(scenario.collection)) {
