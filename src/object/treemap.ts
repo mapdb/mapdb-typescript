@@ -374,21 +374,20 @@ export class TreeMap<K, V> {
 
   // ── range slice & descending iteration (consume Range<K>) ───────────
   //
-  // Range membership is EXACTLY `range.contains(key)`: e.g. `open(1, 2)` over
-  // i32 matches no key yet is a valid, non-cut-empty range. We never infer
-  // discrete-domain emptiness from the cuts.
+  // Stored number keys can exceed Range's public i32 point-query domain.
+  // Apply the same cuts without validating stored keys as query inputs.
 
   /** Keys whose key ∈ `range`, ascending. Snapshot at call time; read-only. */
   rangeKeys(range: Range<K>): K[] {
     const out: K[] = [];
-    for (const [k] of this) if (range.contains(k)) out.push(k);
+    for (const [k] of this) if (range.containsStoredKey(k)) out.push(k);
     return out;
   }
 
   /** `[key, value]` pairs whose key ∈ `range`, ascending. */
   rangeEntries(range: Range<K>): [K, V][] {
     const out: [K, V][] = [];
-    for (const [k, v] of this) if (range.contains(k)) out.push([k, v]);
+    for (const [k, v] of this) if (range.containsStoredKey(k)) out.push([k, v]);
     return out;
   }
 
@@ -421,7 +420,7 @@ export class TreeMap<K, V> {
    */
   subMap(range: Range<K>): TreeMap<K, V> {
     const out = new TreeMap<K, V>(this.cmp);
-    for (const [k, v] of this) if (range.contains(k)) out.set(k, v);
+    for (const [k, v] of this) if (range.containsStoredKey(k)) out.set(k, v);
     return out;
   }
 

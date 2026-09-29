@@ -330,14 +330,13 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
 
   // ── range slice & descending iteration (consume Range) ──────────────
   //
-  // Range membership is EXACTLY `range.contains(key)`: e.g. `open(1, 2)` over
-  // i32 matches no key yet is a valid, non-cut-empty range. We never infer
-  // discrete-domain emptiness from the cuts.
+  // Stored keys may be any number even though Range's public point queries
+  // accept only i32. Apply the same cuts in the tree's total numeric order.
 
   /** Keys whose key ∈ `range`, ascending. Snapshot at call time; read-only. */
   rangeKeysIn(range: Range<number>): number[] {
     const out: number[] = [];
-    for (const k of this.keys()) if (range.contains(k)) out.push(k);
+    for (const k of this.keys()) if (range.containsStoredKey(k)) out.push(k);
     return out;
   }
 
@@ -345,7 +344,7 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
   rangeEntriesIn(range: Range<number>): [number, number][] {
     const out: [number, number][] = [];
     for (const [k, v] of this.entries())
-      if (range.contains(k)) out.push([k, v]);
+      if (range.containsStoredKey(k)) out.push([k, v]);
     return out;
   }
 
@@ -376,7 +375,8 @@ export class NumberNumberTreeMap implements MapDbMutableMap<number, number> {
    */
   subMap(range: Range<number>): NumberNumberTreeMap {
     const out = new NumberNumberTreeMap();
-    for (const [k, v] of this.entries()) if (range.contains(k)) out.set(k, v);
+    for (const [k, v] of this.entries())
+      if (range.containsStoredKey(k)) out.set(k, v);
     return out;
   }
 

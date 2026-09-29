@@ -280,12 +280,12 @@ export class NumberTreeSet implements MapDbMutableSet<number> {
 
   // ── range slice & descending iteration (consume Range) ──────────────
   //
-  // Range membership is EXACTLY `range.contains(element)`.
+  // Stored number keys use the same cuts without the public i32 point check.
 
   /** Elements ∈ `range`, ascending. Snapshot at call time; read-only. */
   rangeElements(range: Range<number>): number[] {
     const out: number[] = [];
-    for (const v of this.values()) if (range.contains(v)) out.push(v);
+    for (const v of this.values()) if (range.containsStoredKey(v)) out.push(v);
     return out;
   }
 

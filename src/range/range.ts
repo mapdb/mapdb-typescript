@@ -46,6 +46,8 @@
  */
 
 /** The kind of a finite endpoint: `Open` (exclusive) or `Closed` (inclusive). */
+import { totalCmpNumber } from "../internal/float-order.js";
+
 export enum BoundType {
   Open,
   Closed,
@@ -355,14 +357,34 @@ export class Range<T> {
    */
   contains(x: T): boolean {
     if (typeof x === "number") i32Point(x);
+    return this.containsWithComparator(x, this._cmp);
+  }
+
+  /**
+   * Membership for keys already stored in a sorted collection. Range factories
+   * validate the endpoints, but a number tree can store fractional keys, signed
+   * zero, infinities and NaNs. Compare those keys in the tree's total order
+   * without applying the i32 point-query restriction.
+   *
+   * @internal
+   */
+  containsStoredKey(x: T): boolean {
+    const cmp = (a: T, b: T): number =>
+      typeof a === "number" && typeof b === "number"
+        ? totalCmpNumber(a, b)
+        : this._cmp(a, b);
+    return this.containsWithComparator(x, cmp);
+  }
+
+  private containsWithComparator(x: T, cmp: (a: T, b: T) => number): boolean {
     const lo = this._lower;
     const lowerOk =
       lo.kind === CutKind.BelowAll
         ? true
         : lo.kind === CutKind.Below
-          ? this._cmp(lo.value, x) <= 0
+          ? cmp(lo.value, x) <= 0
           : lo.kind === CutKind.Above
-            ? this._cmp(lo.value, x) < 0
+            ? cmp(lo.value, x) < 0
             : false; // AboveAll never a lower cut
     if (!lowerOk) return false;
     const hi = this._upper;
@@ -370,9 +392,9 @@ export class Range<T> {
       hi.kind === CutKind.AboveAll
         ? true
         : hi.kind === CutKind.Below
-          ? this._cmp(x, hi.value) < 0
+          ? cmp(x, hi.value) < 0
           : hi.kind === CutKind.Above
-            ? this._cmp(x, hi.value) <= 0
+            ? cmp(x, hi.value) <= 0
             : false; // BelowAll never an upper cut
     return upperOk;
   }
