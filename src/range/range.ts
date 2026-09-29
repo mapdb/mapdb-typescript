@@ -362,15 +362,20 @@ export class Range<T> {
 
   /**
    * Membership for keys already stored in a sorted collection. Range factories
-   * validate the endpoints, but a number tree can store fractional keys, signed
-   * zero, infinities and NaNs. Compare those keys in the tree's total order
-   * without applying the i32 point-query restriction.
+   * validate the endpoints, but a number tree can store fractional keys,
+   * infinities and NaNs. Valid i32 keys retain the public contains semantics
+   * (including -0 matching the canonicalized +0 endpoint). Other number keys
+   * use the tree's total order without applying the i32 point-query restriction.
    *
    * @internal
    */
   containsStoredKey(x: T): boolean {
     const cmp = (a: T, b: T): number =>
-      typeof a === "number" && typeof b === "number"
+      typeof a === "number" &&
+      typeof b === "number" &&
+      (!Number.isInteger(x) ||
+        (x as number) < -2147483648 ||
+        (x as number) > 2147483647)
         ? totalCmpNumber(a, b)
         : this._cmp(a, b);
     return this.containsWithComparator(x, cmp);

@@ -28,6 +28,8 @@ describe("tree ranges over stored number keys", () => {
   it("keeps the public i32 point-query contract", () => {
     expect(() => bounded.contains(1.5)).toThrow(RangeError);
     expect(bounded.contains(0)).toBe(true);
+    expect(Range.singleton(0).contains(-0)).toBe(true);
+    expect(Range.singleton(0).containsStoredKey(-0)).toBe(true);
   });
 
   it("slices and removes from primitive map and set in total order", () => {
@@ -37,17 +39,17 @@ describe("tree ranges over stored number keys", () => {
       map.set(key, 1);
       set.add(key);
     }
-    expect(map.rangeKeysIn(bounded)).toEqual([0, 1.5, 2]);
+    expect(map.rangeKeysIn(bounded)).toEqual([-0, 0, 1.5, 2]);
     expect(map.rangeEntriesIn(bounded)).toEqual([
+      [-0, 1],
       [0, 1],
       [1.5, 1],
       [2, 1],
     ]);
-    expect([...map.subMap(bounded).keys()]).toEqual([0, 1.5, 2]);
-    expect(set.rangeElements(bounded)).toEqual([0, 1.5, 2]);
-    expect(map.removeRange(bounded)).toBe(3);
-    expect(set.removeRange(bounded)).toBe(3);
-    expect([...map.keys()].some((x) => Object.is(x, -0))).toBe(true);
+    expect([...map.subMap(bounded).keys()]).toEqual([-0, 0, 1.5, 2]);
+    expect(set.rangeElements(bounded)).toEqual([-0, 0, 1.5, 2]);
+    expect(map.removeRange(bounded)).toBe(4);
+    expect(set.removeRange(bounded)).toBe(4);
     expect([...set.values()].some(Number.isNaN)).toBe(true);
   });
 
@@ -58,17 +60,41 @@ describe("tree ranges over stored number keys", () => {
       map.set(key, 1);
       set.add(key);
     }
-    expect(map.rangeKeys(bounded)).toEqual([0, 1.5, 2]);
+    expect(map.rangeKeys(bounded)).toEqual([-0, 0, 1.5, 2]);
     expect(map.rangeEntries(bounded)).toEqual([
+      [-0, 1],
       [0, 1],
       [1.5, 1],
       [2, 1],
     ]);
-    expect([...map.subMap(bounded).keys()]).toEqual([0, 1.5, 2]);
-    expect(set.rangeElements(bounded)).toEqual([0, 1.5, 2]);
-    expect(map.removeRange(bounded)).toBe(3);
-    expect(set.removeRange(bounded)).toBe(3);
-    expect([...map.keys()].some((x) => Object.is(x, -0))).toBe(true);
+    expect([...map.subMap(bounded).keys()]).toEqual([-0, 0, 1.5, 2]);
+    expect(set.rangeElements(bounded)).toEqual([-0, 0, 1.5, 2]);
+    expect(map.removeRange(bounded)).toBe(4);
+    expect(set.removeRange(bounded)).toBe(4);
     expect([...set].some(Number.isNaN)).toBe(true);
+  });
+
+  it("applies open, singleton and unbounded cuts to mixed keys", () => {
+    const primitive = new NumberNumberTreeMap();
+    const object = new TreeMap<number, number>(totalCmpNumber);
+    const set = new NumberTreeSet();
+    for (const key of keys) {
+      primitive.set(key, 1);
+      object.set(key, 1);
+      set.add(key);
+    }
+    const cases: [Range<number>, number[]][] = [
+      [Range.open(0, 2), [1.5]],
+      [Range.singleton(0), [-0, 0]],
+      [Range.lessThan(0), [Number.NEGATIVE_INFINITY, -1]],
+      [Range.atLeast(0), [-0, 0, 1.5, 2, Number.POSITIVE_INFINITY, Number.NaN]],
+      [Range.closedOpen(0, 0), []],
+      [Range.all(), [...keys].sort(totalCmpNumber)],
+    ];
+    for (const [range, expected] of cases) {
+      expect(primitive.rangeKeysIn(range)).toEqual(expected);
+      expect(object.rangeKeys(range)).toEqual(expected);
+      expect(set.rangeElements(range)).toEqual(expected);
+    }
   });
 });
