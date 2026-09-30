@@ -948,7 +948,7 @@ function evaluateAssertion(
 
   // --- occurrences_N ---
   {
-    const m = key.match(/^occurrences_(\d+)$/);
+    const m = key.match(/^occurrences_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberHashBag) return coll.occurrencesOf(n);
