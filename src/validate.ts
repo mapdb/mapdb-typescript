@@ -755,9 +755,7 @@ function evaluateAssertion(
   // Wrapping i32 product (06-overflow/i32_multiply_overflow.json).
   if (key === "product" || key === "inject_into_wrapping_product") {
     if (coll instanceof NumberArrayList) {
-      let acc = 1;
-      for (const v of coll.toArray()) acc = Math.imul(acc, v);
-      return acc;
+      return coll.reduce((acc, value) => Math.imul(acc, value), 1);
     }
     throw new Error(`product not supported for ${coll.constructor.name}`);
   }
@@ -1175,14 +1173,11 @@ function evaluateAssertion(
   // --- inject_into_sum ---
   // injectInto with a + reduction accumulates in the i32 seed type and wraps
   // two's-complement at i32 (algorithms.md "Integer overflow contract"). The
-  // TS production list has no injectInto, so the wrap is applied here (per the
-  // spec note that the TS runner applies wrapping in the runner): `| 0`
-  // coerces each step back to i32.
+  // Production reduce supplies the fold; the callback coerces each step
+  // back to i32 with `| 0`.
   if (key === "inject_into_sum") {
     if (coll instanceof NumberArrayList) {
-      let acc = 0;
-      for (const v of coll.toArray()) acc = (acc + v) | 0;
-      return acc;
+      return coll.reduce((acc, value) => (acc + value) | 0, 0);
     }
     throw new Error(
       `inject_into_sum not supported for ${coll.constructor.name}`,
@@ -1193,9 +1188,7 @@ function evaluateAssertion(
   // i32-seed-width wrapping fold (Math.imul coerces each step to i32).
   if (key === "inject_into_product") {
     if (coll instanceof NumberArrayList) {
-      let acc = 1;
-      for (const v of coll.toArray()) acc = Math.imul(acc, v);
-      return acc;
+      return coll.reduce((acc, value) => Math.imul(acc, value), 1);
     }
     throw new Error(
       `inject_into_product not supported for ${coll.constructor.name}`,

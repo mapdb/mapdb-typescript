@@ -83,10 +83,21 @@ const scenarios = [
       "none_satisfy_gt_-2": true,
       "none_satisfy_lt_-2": true
     }
-  }
+  },
+  ...[
+    { name: "fold ordinary", values: [2, 3, 4], sum: 9, product: 24, widened: 9 },
+    { name: "fold empty", values: [], sum: 0, product: 1, widened: 0 },
+    { name: "fold wrapping", values: [2147483647, 2], sum: -2147483647, product: -2, widened: 2147483649 },
+  ].map(({ name, values, sum, product, widened }) => ({
+    name, collection: "ArrayList<i32>", required_keys: ["size"],
+    operations: values.map((value) => ({ op: "add", value })),
+    assertions: { size: values.length, inject_into_sum: sum,
+      inject_into_product: product, inject_into_wrapping_product: product,
+      product, sum: widened },
+  }))
 ];
 
-it.each(scenarios)("emits signed functional thresholds for $name", (scenario) => {
+it.each(scenarios)("emits functional results for $name", (scenario) => {
   const scratch = mkdtempSync(join(tmpdir(), "mapdb-signed-threshold-"));
   try {
     const path = join(scratch, "scenario.json");
