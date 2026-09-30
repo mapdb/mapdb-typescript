@@ -1013,7 +1013,7 @@ function evaluateAssertion(
 
   // --- select_gt_N ---
   {
-    const m = key.match(/^select_gt_(\d+)$/);
+    const m = key.match(/^select_gt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList) {
@@ -1034,7 +1034,7 @@ function evaluateAssertion(
 
   // --- reject_gt_N ---
   {
-    const m = key.match(/^reject_gt_(\d+)$/);
+    const m = key.match(/^reject_gt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList) {
@@ -1049,7 +1049,7 @@ function evaluateAssertion(
 
   // --- detect_gt_N ---
   {
-    const m = key.match(/^detect_gt_(\d+)$/);
+    const m = key.match(/^detect_gt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList) {
@@ -1062,7 +1062,7 @@ function evaluateAssertion(
 
   // --- count_gt_N ---
   {
-    const m = key.match(/^count_gt_(\d+)$/);
+    const m = key.match(/^count_gt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList) return coll.count((v) => v > n);
@@ -1072,7 +1072,7 @@ function evaluateAssertion(
 
   // --- count_lt_N ---
   {
-    const m = key.match(/^count_lt_(\d+)$/);
+    const m = key.match(/^count_lt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList) return coll.count((v) => v < n);
@@ -1094,7 +1094,7 @@ function evaluateAssertion(
 
   // --- any_satisfy_gt_N ---
   {
-    const m = key.match(/^any_satisfy_gt_(\d+)$/);
+    const m = key.match(/^any_satisfy_gt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList) return coll.anySatisfy((v) => v > n);
@@ -1106,7 +1106,7 @@ function evaluateAssertion(
 
   // --- all_satisfy_gt_N ---
   {
-    const m = key.match(/^all_satisfy_gt_(\d+)$/);
+    const m = key.match(/^all_satisfy_gt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList) return coll.allSatisfy((v) => v > n);
@@ -1118,7 +1118,7 @@ function evaluateAssertion(
 
   // --- none_satisfy_gt_N ---
   {
-    const m = key.match(/^none_satisfy_gt_(\d+)$/);
+    const m = key.match(/^none_satisfy_gt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList)
@@ -1131,7 +1131,7 @@ function evaluateAssertion(
 
   // --- none_satisfy_lt_N ---
   {
-    const m = key.match(/^none_satisfy_lt_(\d+)$/);
+    const m = key.match(/^none_satisfy_lt_(-?\d+)$/);
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList)
