@@ -911,7 +911,8 @@ function evaluateAssertion(
     if (m) {
       const n = parseInt(m[1], 10);
       if (coll instanceof NumberArrayList) {
-        return coll.get(n);
+        // README: past the end (N >= size) is null, as in the other ports.
+        return n >= coll.size ? null : coll.get(n);
       }
       throw new Error(`get_at_N not supported for ${coll.constructor.name}`);
     }
