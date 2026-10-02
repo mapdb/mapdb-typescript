@@ -8,7 +8,8 @@
 // Any add whose resulting total size would exceed Number.MAX_SAFE_INTEGER
 // throws RangeError before any mutation; reaching exactly the maximum is
 // allowed; a refused bulk add adds nothing. Iteration is observed through
-// the (value, count) view: expanding 2^53 occurrences is not feasible.
+// the (value, count) view plus a bounded iterator prefix: expanding 2^53
+// occurrences is not feasible.
 
 import { describe, it, expect } from "vitest";
 import { NumberHashBag } from "./number-hash-bag.js";
@@ -35,12 +36,25 @@ interface CountedBag<V> {
   occurrencesOf(value: V): number;
   readonly size: number;
   forEachWithOccurrences(f: (value: V, count: number) => void): void;
+  [Symbol.iterator](): Iterator<V>;
+}
+
+/** The first `n` iterated values; bounded, so a huge bag is never expanded. */
+function iterPrefix<V>(bag: CountedBag<V>, n: number): V[] {
+  const out: V[] = [];
+  const it = bag[Symbol.iterator]();
+  while (out.length < n) {
+    const r = it.next();
+    if (r.done) break;
+    out.push(r.value);
+  }
+  return out;
 }
 
 function snapshot<V>(bag: CountedBag<V>, distinct: () => number) {
   const pairs: [V, number][] = [];
   bag.forEachWithOccurrences((v, c) => pairs.push([v, c]));
-  return { size: bag.size, distinct: distinct(), pairs };
+  return { size: bag.size, distinct: distinct(), pairs, prefix: iterPrefix(bag, 2) };
 }
 
 interface Family<V> {
