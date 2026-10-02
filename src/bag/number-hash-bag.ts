@@ -75,10 +75,18 @@ export class NumberHashBag implements MapDbMutableBag<number> {
 
   /** Adds the specified number of occurrences of the value. */
   addOccurrences(value: number, occurrences: number): void {
+    if (!Number.isSafeInteger(occurrences)) {
+      throw new RangeError("Occurrences must be a safe integer");
+    }
     if (occurrences < 0) {
       throw new RangeError("Occurrences must not be negative");
     }
     if (occurrences === 0) return;
+    // Cardinality overflow (algorithms.md): refuse before any mutation. The
+    // total bounds every per-value count, so one check suffices.
+    if (occurrences > Number.MAX_SAFE_INTEGER - this._size) {
+      throw new RangeError("bag size overflow");
+    }
     const k = mapKeyOf(value);
     const entry = this.counts.get(k);
     if (entry === undefined) {

@@ -57,13 +57,12 @@ export class BigIntHashBag implements MapDbMutableBag<bigint> {
       throw new RangeError("Occurrences must not be negative");
     }
     if (occurrences === 0) return;
+    // Cardinality overflow (algorithms.md): refuse before any mutation. The
+    // total bounds every per-value count, so one check suffices.
+    if (occurrences > Number.MAX_SAFE_INTEGER - this._size) {
+      throw new RangeError("bag size overflow");
+    }
     const current = this.counts.get(value) ?? 0;
-    if (current + occurrences > Number.MAX_SAFE_INTEGER) {
-      throw new RangeError("bag count overflow during pump");
-    }
-    if (this._size + occurrences > Number.MAX_SAFE_INTEGER) {
-      throw new RangeError("bag count overflow during pump");
-    }
     this.counts.set(value, current + occurrences);
     this._size += occurrences;
   }

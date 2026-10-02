@@ -17,9 +17,11 @@ export interface OccurrencePair<T> {
  */
 export class HashBag<T> implements MapDbMutableBag<T> {
   private data: Map<T, number>;
+  private _size: number;
 
   constructor() {
     this.data = new Map();
+    this._size = 0;
   }
 
   /** Creates a new HashBag from the given values. */
@@ -34,12 +36,13 @@ export class HashBag<T> implements MapDbMutableBag<T> {
   // ── MapDbMutableBag ─────────────────────────────────────────────────
 
   add(value: T): this {
-    this.data.set(value, (this.data.get(value) ?? 0) + 1);
+    this.addOccurrences(value, 1);
     return this;
   }
 
   clear(): void {
     this.data.clear();
+    this._size = 0;
   }
 
   occurrencesOf(value: T): number {
@@ -51,11 +54,7 @@ export class HashBag<T> implements MapDbMutableBag<T> {
   }
 
   get size(): number {
-    let total = 0;
-    for (const c of this.data.values()) {
-      total += c;
-    }
-    return total;
+    return this._size;
   }
 
   isEmpty(): boolean {
@@ -139,10 +138,23 @@ export class HashBag<T> implements MapDbMutableBag<T> {
 
   // ── Bag-specific extras ─────────────────────────────────────────────
 
-  /** Adds `occurrences` copies of the value. */
+  /**
+   * Adds `occurrences` copies of the value. A count of zero or less is a
+   * no-op; a non-integer count throws RangeError. Throws RangeError, leaving
+   * the bag unchanged, if the total size would exceed Number.MAX_SAFE_INTEGER.
+   */
   addOccurrences(value: T, occurrences: number): void {
     if (occurrences <= 0) return;
+    if (!Number.isSafeInteger(occurrences)) {
+      throw new RangeError("Occurrences must be a safe integer");
+    }
+    // Cardinality overflow (algorithms.md): refuse before any mutation. The
+    // total bounds every per-value count, so one check suffices.
+    if (occurrences > Number.MAX_SAFE_INTEGER - this._size) {
+      throw new RangeError("bag size overflow");
+    }
     this.data.set(value, (this.data.get(value) ?? 0) + occurrences);
+    this._size += occurrences;
   }
 
   /** Calls `f` for each distinct value with its occurrence count. */

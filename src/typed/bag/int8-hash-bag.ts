@@ -55,9 +55,15 @@ export class Int8HashBag {
   }
 
   addOccurrences(value: number, occurrences: number): void {
+    if (!Number.isSafeInteger(occurrences))
+      throw new RangeError("Occurrences must be a safe integer");
     if (occurrences < 0)
       throw new RangeError("Occurrences must not be negative");
     if (occurrences === 0) return;
+    // Cardinality overflow (algorithms.md): refuse before any mutation. The
+    // total bounds every per-value count, so one check suffices.
+    if (occurrences > Number.MAX_SAFE_INTEGER - this._size)
+      throw new RangeError("bag size overflow");
     value = (value << 24) >> 24;
     const key = value;
     const current = this.counts.get(key) ?? 0;

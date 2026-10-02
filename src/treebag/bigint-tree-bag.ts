@@ -69,6 +69,10 @@ export class BigIntTreeBag {
 
   /** Add one occurrence of the value. */
   add(value: bigint): this {
+    // Cardinality overflow (algorithms.md): refuse before any mutation.
+    if (this._size >= Number.MAX_SAFE_INTEGER) {
+      throw new RangeError("bag size overflow");
+    }
     if (this.root === null) {
       this.root = {
         key: value,
