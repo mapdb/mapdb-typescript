@@ -373,12 +373,17 @@ export class Range<T> {
    * Membership for keys already stored in a sorted collection. Range factories
    * validate the endpoints, but a number tree can store fractional keys,
    * infinities and NaNs. Key equality follows the tree's own comparator
-   * (`treeCmp`) while boundary ordering follows the range's value order — for
-   * the number trees that is the IEEE-754 total order, so -0 sits below the
-   * +0 endpoint, matching bound-range.md ordering basis #4 and
-   * navigable-map.md's headMap(k,false) ≡ subMap(lessThan(k)) contract —
-   * without applying the i32 point-query restriction. With no `treeCmp`,
-   * number keys default to the total order for both roles.
+   * (`treeCmp`): a stored key is in range iff the tree treats it as equal to
+   * a point the range contains — under the number trees' IEEE-754 total
+   * order, -0 is a distinct key below the +0 endpoint, matching
+   * bound-range.md ordering basis #4 and navigable-map.md's
+   * headMap(k,false) ≡ subMap(lessThan(k)) contract. Boundary ordering is the
+   * range's value order, so a reverse-ordered tree still slices [20,50)
+   * correctly. The contract assumes `treeCmp` is monotone-consistent with
+   * the numeric order (cmpNumber, totalCmpNumber, reverseComparator qualify);
+   * with a non-monotone comparator range results are unspecified. With no
+   * `treeCmp`, number keys default to the total order for both roles —
+   * without applying the i32 point-query restriction.
    *
    * @internal
    */
