@@ -10,7 +10,7 @@ import { TreeMap } from "../object/treemap.js";
 import { TreeSet } from "../object/treeset.js";
 import { NumberNumberTreeMap } from "../treemap/number-number-tree-map.js";
 import { NumberTreeSet } from "../treeset/number-tree-set.js";
-import { Range } from "./range.js";
+import { CutKind, Range } from "./range.js";
 
 describe("tree ranges over stored number keys", () => {
   const keys = [
@@ -98,5 +98,24 @@ describe("tree ranges over stored number keys", () => {
       expect(object.rangeKeys(range)).toEqual(expected);
       expect(set.rangeElements(range)).toEqual(expected);
     }
+  });
+
+  it("filters with the object tree's own comparator", () => {
+    // A custom comparator that equates signed zero stores -0 as the key-0
+    // representative; get(0) and the range filter must agree with it.
+    const cmp = (a: number, b: number): number => (a < b ? -1 : a > b ? 1 : 0);
+    const map = new TreeMap<number, number>(cmp);
+    map.set(-0, 1);
+    expect(map.get(0)).toBe(1);
+    expect(map.rangeKeys(Range.singleton(0))).toEqual([-0]);
+  });
+
+  it("canonicalizes a raw -0 cut in fromCutsInternal", () => {
+    const r = Range.fromCutsInternal<number>(
+      { kind: CutKind.Below, value: -0 },
+      { kind: CutKind.Below, value: +0 },
+    );
+    expect(r.isEmpty()).toBe(true);
+    expect(r.containsStoredKey(-0)).toBe(false);
   });
 });

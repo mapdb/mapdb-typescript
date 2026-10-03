@@ -324,6 +324,15 @@ export class Range<T> {
   static fromCutsInternal<T>(lower: Cut<T>, upper: Cut<T>): Range<T> {
     // The structures only ever pass i32 cuts (cmpNumber), and the cuts come
     // from existing valid ranges, so the comparator is the numeric one.
+    // Normalize -0 to +0 like i32Endpoint: a raw -0 cut would order below +0
+    // for containsStoredKey (total order) while comparing equal to +0 for
+    // compareCuts/isEmpty (cmpNumber).
+    const norm = (c: Cut<T>): Cut<T> =>
+      "value" in c && typeof c.value === "number" && Object.is(c.value, -0)
+        ? { ...c, value: 0 as T }
+        : c;
+    lower = norm(lower);
+    upper = norm(upper);
     if (compareCuts(lower, upper, cmpNumber as (a: T, b: T) => number) > 0) {
       throw new RangeError("Range: lower cut must not exceed upper cut");
     }
@@ -363,19 +372,34 @@ export class Range<T> {
   /**
    * Membership for keys already stored in a sorted collection. Range factories
    * validate the endpoints, but a number tree can store fractional keys,
-   * infinities and NaNs. Stored number keys are filtered with the tree's
-   * IEEE-754 total order (so -0 sits below the +0 endpoint, matching
-   * bound-range.md ordering basis #4 and navigable-map.md's
-   * headMap(k,false) ≡ subMap(lessThan(k)) contract) — without applying the
-   * i32 point-query restriction.
+   * infinities and NaNs. Key equality follows the tree's own comparator
+   * (`treeCmp`) while boundary ordering follows the range's value order — for
+   * the number trees that is the IEEE-754 total order, so -0 sits below the
+   * +0 endpoint, matching bound-range.md ordering basis #4 and
+   * navigable-map.md's headMap(k,false) ≡ subMap(lessThan(k)) contract —
+   * without applying the i32 point-query restriction. With no `treeCmp`,
+   * number keys default to the total order for both roles.
    *
    * @internal
    */
-  containsStoredKey(x: T): boolean {
-    const cmp = (a: T, b: T): number =>
-      typeof a === "number" && typeof b === "number"
+  containsStoredKey(x: T, treeCmp?: (a: T, b: T) => number): boolean {
+    // Equality follows the tree's comparator (so a stored -0 that the tree
+    // treats as the representative of key 0 matches a 0 endpoint; under
+    // totalCmpNumber, -0 is a distinct key below +0). Boundary ordering
+    // follows the range's value order — a reverse-ordered tree still slices
+    // [20,50) as {20,30,40}.
+    const eq =
+      treeCmp ??
+      ((a: T, b: T): number =>
+        typeof a === "number" && typeof b === "number"
+          ? totalCmpNumber(a, b)
+          : this._cmp(a, b));
+    const cmp = (a: T, b: T): number => {
+      if (eq(a, b) === 0) return 0;
+      return typeof a === "number" && typeof b === "number"
         ? totalCmpNumber(a, b)
-        : this._cmp(a, b);
+        : eq(a, b);
+    };
     return this.containsWithComparator(x, cmp);
   }
 
