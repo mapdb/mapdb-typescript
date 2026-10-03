@@ -3680,7 +3680,7 @@ function applyTraceOp(
   kind: string,
   coll: Collection,
   raw: unknown,
-  seenKeys: Set<number>,
+  seenKeys: number[],
   saw99: { value: boolean },
 ): void {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
@@ -3696,14 +3696,14 @@ function applyTraceOp(
       const k = traceI32(op.key);
       const v = traceI32(op.value);
       if (k === null || v === null) throw new Error("malformed operation: put");
-      seenKeys.add(k);
+      if (!seenKeys.includes(k)) seenKeys.push(k);
       applyOperation(coll, op, false, newNavLog());
       return;
     }
     if (op.op === "remove") {
       const k = traceI32(op.key);
       if (k === null) throw new Error("malformed operation: remove");
-      seenKeys.add(k);
+      if (!seenKeys.includes(k)) seenKeys.push(k);
       applyOperation(coll, op, false, newNavLog());
       return;
     }
@@ -3816,7 +3816,7 @@ function runTrace(filePath: string, outPath: string): void {
   }
 
   const coll = createCollection(kind);
-  const seenKeys = new Set<number>();
+  const seenKeys: number[] = [];
   const saw99 = { value: false };
   for (const op of scenario.operations) {
     try {
@@ -3857,7 +3857,7 @@ function runTrace(filePath: string, outPath: string): void {
         put(`rank_${k}`);
       }
     }
-    if (!seenKeys.has(99) && !saw99.value) {
+    if (!seenKeys.includes(99) && !saw99.value) {
       put("get_99");
       put("contains_99");
     }
